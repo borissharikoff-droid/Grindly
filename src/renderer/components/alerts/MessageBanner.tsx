@@ -107,10 +107,10 @@ export function MessageBanner({ onNavigateToChat }: MessageBannerProps) {
                 <span>{visible.senderAvatar || '💬'}</span>
               )}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 overflow-hidden">
               <p className="text-[11px] text-gray-400 leading-tight">New message</p>
-              <p className="text-[12px] font-medium text-white truncate">
-                {visible.senderName}: {visible.preview}
+              <p className="text-[12px] font-medium text-white line-clamp-2 break-words">
+                {(visible.senderName.length > 25 ? `${visible.senderName.slice(0, 25)}…` : visible.senderName)}: {visible.preview}
               </p>
             </div>
             <button

@@ -6,14 +6,14 @@ export interface PersonaResult {
 }
 
 const PERSONAS: PersonaResult[] = [
-  { id: 'developer', label: 'Developer', emoji: '💻', description: 'Code is your language' },
-  { id: 'creative', label: 'Creative', emoji: '🎨', description: 'Design & create' },
-  { id: 'gamer', label: 'Gamer', emoji: '🎮', description: 'Play to win' },
-  { id: 'social', label: 'Social Connector', emoji: '💬', description: 'Always connected' },
-  { id: 'explorer', label: 'Explorer', emoji: '🌐', description: 'Curious by nature' },
-  { id: 'music_lover', label: 'Music Lover', emoji: '🎵', description: 'Vibes on point' },
-  { id: 'scholar', label: 'Scholar', emoji: '📚', description: 'Learning & knowledge' },
-  { id: 'idly', label: 'Idly', emoji: '⚡', description: 'Pure focus energy' },
+  { id: 'developer', label: 'Builder', emoji: '💻', description: 'Most time goes to coding tools' },
+  { id: 'creative', label: 'Creator', emoji: '🎨', description: 'Most time goes to creative work' },
+  { id: 'gamer', label: 'Player', emoji: '🎮', description: 'A large share goes to games' },
+  { id: 'social', label: 'Communicator', emoji: '💬', description: 'A large share goes to social apps' },
+  { id: 'explorer', label: 'Explorer', emoji: '🌐', description: 'Most time goes to browsing' },
+  { id: 'music_lover', label: 'Listener', emoji: '🎵', description: 'A large share goes to music apps' },
+  { id: 'scholar', label: 'Learner', emoji: '📚', description: 'A large share goes to learning tools' },
+  { id: 'grindly', label: 'Balanced', emoji: '⚡', description: 'Your activity is mixed across categories' },
 ]
 
 /**
@@ -23,7 +23,7 @@ const PERSONAS: PersonaResult[] = [
 export function detectPersona(
   categories: { category: string; total_ms: number }[]
 ): PersonaResult {
-  if (categories.length === 0) return PERSONAS[7] // default: idly
+  if (categories.length === 0) return PERSONAS[7] // default: grindly
 
   const total = categories.reduce((sum, c) => sum + c.total_ms, 0)
   if (total === 0) return PERSONAS[7]
@@ -44,7 +44,7 @@ export function detectPersona(
   if (pct('music') >= 25) return PERSONAS[5]   // music lover
   if (pct('learning') >= 25) return PERSONAS[6] // scholar
 
-  // Mixed — return idly
+  // Mixed — return grindly
   return PERSONAS[7]
 }
 
@@ -90,13 +90,13 @@ export function generateInsights(params: {
   if (switchesPerSession > 15) {
     insights.push({
       icon: '🔄',
-      text: `${Math.round(switchesPerSession)} app switches per session — try to stay in one app longer`,
+      text: `${Math.round(switchesPerSession)} app switches per session. Fewer switches usually improves focus.`,
       type: 'warning',
     })
   } else if (switchesPerSession < 5 && totalSessions >= 2) {
     insights.push({
       icon: '🎯',
-      text: 'Deep focus king — barely any app switching',
+      text: 'Low app switching. Your sessions look steady and focused.',
       type: 'praise',
     })
   }
@@ -105,13 +105,13 @@ export function generateInsights(params: {
   if ((catPct.coding || 0) >= 50) {
     insights.push({
       icon: '💻',
-      text: `${Math.round(catPct.coding)}% coding — you're locked in`,
+      text: `${Math.round(catPct.coding)}% of time in coding tools. Strong execution focus.`,
       type: 'praise',
     })
   } else if ((catPct.coding || 0) > 0 && (catPct.coding || 0) < 20) {
     insights.push({
       icon: '⌨️',
-      text: `Only ${Math.round(catPct.coding || 0)}% coding — if you want to ship, code more`,
+      text: `Only ${Math.round(catPct.coding || 0)}% in coding tools. Consider longer build sessions.`,
       type: 'tip',
     })
   }
@@ -120,7 +120,7 @@ export function generateInsights(params: {
   if ((catPct.social || 0) >= 30) {
     insights.push({
       icon: '💬',
-      text: `${Math.round(catPct.social)}% on socials — maybe mute notifications?`,
+      text: `${Math.round(catPct.social)}% in social apps. Muting notifications may reduce interruptions.`,
       type: 'warning',
     })
   }
@@ -129,7 +129,7 @@ export function generateInsights(params: {
   if ((catPct.games || 0) >= 20) {
     insights.push({
       icon: '🎮',
-      text: `${Math.round(catPct.games)}% gaming during grind — no judgment, but focus diff`,
+      text: `${Math.round(catPct.games)}% in games during tracked sessions. Consider separating work and play windows.`,
       type: 'tip',
     })
   }
@@ -138,7 +138,7 @@ export function generateInsights(params: {
   if ((catPct.music || 0) >= 10 && (catPct.music || 0) < 40) {
     insights.push({
       icon: '🎵',
-      text: 'Music on while grinding — nice flow state',
+      text: 'Music usage is moderate and may support a steady rhythm.',
       type: 'praise',
     })
   }
@@ -150,7 +150,7 @@ export function generateInsights(params: {
     if (topPct >= 60) {
       insights.push({
         icon: '🏠',
-        text: `${topApp.app_name} is your home — ${Math.round(topPct)}% of grind time`,
+        text: `${topApp.app_name} accounts for ${Math.round(topPct)}% of tracked time.`,
         type: 'info',
       })
     }
@@ -160,13 +160,13 @@ export function generateInsights(params: {
   if (avgSessionMin >= 60) {
     insights.push({
       icon: '⏱️',
-      text: `Avg ${avgSessionMin}min per session — marathon idly`,
+      text: `Average session length is ${avgSessionMin} minutes. Great sustained focus.`,
       type: 'praise',
     })
   } else if (avgSessionMin < 15 && totalSessions >= 3) {
     insights.push({
       icon: '⏱️',
-      text: `Avg ${avgSessionMin}min sessions — try longer grinds for deeper focus`,
+      text: `Average session length is ${avgSessionMin} minutes. Longer blocks can improve depth of work.`,
       type: 'tip',
     })
   }
@@ -175,13 +175,13 @@ export function generateInsights(params: {
   if (streak >= 7) {
     insights.push({
       icon: '🔥',
-      text: `${streak}-day streak — unstoppable`,
+      text: `${streak}-day consistency streak. Strong habit momentum.`,
       type: 'praise',
     })
   } else if (streak >= 2) {
     insights.push({
       icon: '🔥',
-      text: `${streak}-day streak — keep the momentum`,
+      text: `${streak}-day consistency streak. Keep it going.`,
       type: 'info',
     })
   }

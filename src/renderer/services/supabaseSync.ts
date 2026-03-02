@@ -6,6 +6,8 @@
 
 import { supabase } from '../lib/supabase'
 import { skillLevelFromXP, SKILLS, normalizeSkillId } from '../lib/skills'
+import { isSeedId, isSeedZipId, seedZipTierFromItemId, SEED_ZIP_ITEM_IDS, type SeedZipTier } from '../lib/farming'
+import type { ChestType } from '../lib/loot'
 
 export interface SkillSyncResult {
   ok: boolean
@@ -62,6 +64,27 @@ type SkillPayloadLevelOnly = {
   updated_at: string
 }
 
+type ExistingSkillRow = {
+  id: string
+  skill_id: string
+  level?: number | null
+  total_xp?: number | null
+}
+
+function mergeSkillPayload(
+  local: SkillPayloadFull,
+  existing?: ExistingSkillRow,
+): SkillPayloadFull {
+  const existingLevel = Math.max(0, Math.floor(existing?.level ?? 0))
+  const existingXp = Math.max(0, Math.floor(existing?.total_xp ?? 0))
+  const mergedXp = Math.max(local.total_xp, existingXp)
+  return {
+    ...local,
+    total_xp: mergedXp,
+    level: Math.max(local.level, existingLevel, skillLevelFromXP(mergedXp)),
+  }
+}
+
 async function manualSyncWithoutConflict(
   userId: string,
   fullPayload: SkillPayloadFull[],
@@ -72,32 +95,33 @@ async function manualSyncWithoutConflict(
   const existingRes = await withTimeout(
     supabase
       .from('user_skills')
-      .select('id, skill_id')
+      .select('id, skill_id, level, total_xp')
       .eq('user_id', userId),
     10000,
     'user_skills select existing',
   )
   if (existingRes.error) throw existingRes.error
 
-  const existingBySkill = new Map<string, string>()
+  const existingBySkill = new Map<string, ExistingSkillRow>()
   for (const row of existingRes.data || []) {
     const skillId = normalizeSkillId((row as { skill_id: string }).skill_id)
-    const id = (row as { id: string }).id
-    if (id) existingBySkill.set(skillId, id)
+    const typed = row as ExistingSkillRow
+    if (typed.id) existingBySkill.set(skillId, typed)
   }
 
   for (const row of fullPayload) {
-    const existingId = existingBySkill.get(row.skill_id)
-    if (existingId) {
+    const existing = existingBySkill.get(row.skill_id)
+    const merged = mergeSkillPayload(row, existing)
+    if (existing?.id) {
       const updateRes = await withTimeout(
         supabase
           .from('user_skills')
           .update({
-            level: row.level,
-            total_xp: row.total_xp,
-            updated_at: row.updated_at,
+            level: merged.level,
+            total_xp: merged.total_xp,
+            updated_at: merged.updated_at,
           })
-          .eq('id', existingId),
+          .eq('id', existing.id),
         10000,
         'user_skills update full',
       )
@@ -107,10 +131,10 @@ async function manualSyncWithoutConflict(
           supabase
             .from('user_skills')
             .update({
-              level: row.level,
-              updated_at: row.updated_at,
+              level: merged.level,
+              updated_at: merged.updated_at,
             })
-            .eq('id', existingId),
+            .eq('id', existing.id),
           10000,
           'user_skills update level-only',
         )
@@ -120,7 +144,7 @@ async function manualSyncWithoutConflict(
     }
 
     const insertRes = await withTimeout(
-      supabase.from('user_skills').insert(row),
+      supabase.from('user_skills').insert(merged),
       10000,
       'user_skills insert full',
     )
@@ -178,7 +202,7 @@ export async function syncSkillsToSupabase(
       }
 
       const syncAt = new Date().toISOString()
-      const payload = SKILLS.map((skill) => {
+      const localPayload = SKILLS.map((skill) => {
         const total_xp = xpMap.get(skill.id) ?? 0
         const level = skillLevelFromXP(total_xp)
         return {
@@ -189,6 +213,21 @@ export async function syncSkillsToSupabase(
           updated_at: syncAt,
         }
       })
+      const existingRes = await withTimeout(
+        supabase
+          .from('user_skills')
+          .select('id, skill_id, level, total_xp')
+          .eq('user_id', user.id),
+        10000,
+        'user_skills select existing before upsert',
+      )
+      if (existingRes.error) throw existingRes.error
+      const existingBySkill = new Map<string, ExistingSkillRow>()
+      for (const row of existingRes.data || []) {
+        const typed = row as ExistingSkillRow
+        existingBySkill.set(normalizeSkillId(typed.skill_id), typed)
+      }
+      const payload = localPayload.map((entry) => mergeSkillPayload(entry, existingBySkill.get(entry.skill_id)))
 
       const primaryRes = await withTimeout(
         supabase
@@ -286,6 +325,18 @@ export async function syncAchievementsToSupabase(achievementIds: string[]): Prom
   }
 }
 
+/** Build a safe jsonb payload for equipped_loot (never send number or invalid JSON) */
+function sanitizeEquippedLoot(raw: unknown): Record<string, string> {
+  if (raw == null) return {}
+  if (typeof raw === 'number') return {}
+  if (typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof k === 'string' && typeof v === 'string' && v.length > 0) out[k] = v
+  }
+  return out
+}
+
 export async function syncCosmeticsToSupabase(
   equippedBadges: string[],
   equippedFrame: string | null,
@@ -298,25 +349,26 @@ export async function syncCosmeticsToSupabase(
   try {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { ok: false, error: 'No authenticated user' }
-    const payload: Record<string, unknown> = {
+    const ts = new Date().toISOString()
+    const basePayload = {
       equipped_badges: equippedBadges,
       equipped_frame: equippedFrame,
-      updated_at: new Date().toISOString(),
+      updated_at: ts,
     }
-    if (options.equippedLoot) payload.equipped_loot = options.equippedLoot
-    if (options.statusTitle !== undefined) payload.status_title = options.statusTitle
-    const { error } = await supabase.from('profiles').update(payload).eq('id', user.id)
+    const equippedLootObj = sanitizeEquippedLoot(options.equippedLoot)
+    const lootPayload: Record<string, unknown> = {
+      updated_at: ts,
+      equipped_loot: equippedLootObj,
+    }
+    if (options.statusTitle !== undefined) lootPayload.status_title = options.statusTitle
+
+    const fullPayload = { ...basePayload, ...lootPayload }
+    const { error } = await supabase.from('profiles').update(fullPayload).eq('id', user.id)
     if (error) {
-      // Backward compatibility: older schemas may not have equipped_loot/status_title.
-      const fallback = await supabase
-        .from('profiles')
-        .update({
-          equipped_badges: equippedBadges,
-          equipped_frame: equippedFrame,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id)
+      const fallback = await supabase.from('profiles').update(basePayload).eq('id', user.id)
       if (fallback.error) return { ok: false, error: fallback.error.message }
+      const { error: lootError } = await supabase.from('profiles').update(lootPayload).eq('id', user.id)
+      if (lootError) return { ok: false, error: lootError.message }
     }
     return { ok: true }
   } catch (err) {
@@ -349,5 +401,198 @@ export async function syncSkillXpEventsToSupabase(
     return { ok: true, synced: payload.length }
   } catch (err) {
     return { ok: false, synced: 0, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+export interface InventorySyncResult {
+  ok: boolean
+  itemsSynced: number
+  chestsSynced: number
+  /** Merged items (local max with cloud) for store update — excludes seeds */
+  mergedItems?: Record<string, number>
+  /** Merged chests for store update */
+  mergedChests?: Record<ChestType, number>
+  /** Merged seeds from cloud for farmStore */
+  mergedSeeds?: Record<string, number>
+  /** Merged seed zips from cloud for farmStore */
+  mergedSeedZips?: Record<SeedZipTier, number>
+  error?: string
+}
+
+/** Fetch only seeds + seed zips from cloud (for Farm). Returns null if not authenticated. */
+export async function fetchFarmFromCloud(): Promise<{
+  seeds: Record<string, number>
+  seedZips: Record<SeedZipTier, number>
+  error?: string
+} | null> {
+  if (!supabase) return null
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+
+    const { data: rows, error } = await supabase
+      .from('user_inventory')
+      .select('item_id, quantity')
+      .eq('user_id', user.id)
+
+    if (error) return { seeds: {}, seedZips: { common: 0, rare: 0, epic: 0, legendary: 0 }, error: error.message }
+
+    const seeds: Record<string, number> = {}
+    const seedZips: Record<SeedZipTier, number> = { common: 0, rare: 0, epic: 0, legendary: 0 }
+
+    for (const row of rows || []) {
+      const r = row as { item_id: string; quantity: number }
+      const qty = r.quantity ?? 0
+      if (isSeedId(r.item_id)) seeds[r.item_id] = qty
+      else if (isSeedZipId(r.item_id)) {
+        const tier = seedZipTierFromItemId(r.item_id)
+        if (tier) seedZips[tier] = qty
+      }
+    }
+
+    return { seeds, seedZips }
+  } catch (err) {
+    return {
+      seeds: {},
+      seedZips: { common: 0, rare: 0, epic: 0, legendary: 0 },
+      error: err instanceof Error ? err.message : String(err),
+    }
+  }
+}
+
+/** Sync inventory, chests, and seeds to Supabase. Merges with cloud (takes max). */
+export async function syncInventoryToSupabase(
+  items: Record<string, number>,
+  chests: Record<ChestType, number>,
+  options: { merge?: boolean; seeds?: Record<string, number>; seedZips?: Record<SeedZipTier, number> } = {},
+): Promise<InventorySyncResult> {
+  if (!supabase) return { ok: false, itemsSynced: 0, chestsSynced: 0, error: 'Supabase not configured' }
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, itemsSynced: 0, chestsSynced: 0, error: 'No authenticated user' }
+
+    const merge = options.merge !== false
+
+    let itemsToSync = items
+    let chestsToSync = chests
+
+    if (merge) {
+      const [invRes, chestRes] = await Promise.all([
+        supabase.from('user_inventory').select('item_id, quantity').eq('user_id', user.id),
+        supabase.from('user_chests').select('chest_type, quantity').eq('user_id', user.id),
+      ])
+
+      const cloudItems = new Map<string, number>()
+      for (const row of invRes.data || []) {
+        const r = row as { item_id: string; quantity: number }
+        cloudItems.set(r.item_id, (cloudItems.get(r.item_id) ?? 0) + (r.quantity ?? 0))
+      }
+      const seeds = options.seeds ?? {}
+      const seedZips = options.seedZips ?? { common: 0, rare: 0, epic: 0, legendary: 0 }
+      itemsToSync = { ...items }
+      for (const [itemId, cloudQty] of cloudItems) {
+        let localQty: number
+        if (isSeedId(itemId)) localQty = seeds[itemId] ?? 0
+        else if (isSeedZipId(itemId)) {
+          const tier = seedZipTierFromItemId(itemId)
+          localQty = tier ? (seedZips[tier] ?? 0) : 0
+        } else localQty = items[itemId] ?? 0
+        itemsToSync[itemId] = Math.max(localQty, cloudQty)
+      }
+
+      const cloudChests: Record<string, number> = {
+        common_chest: 0,
+        rare_chest: 0,
+        epic_chest: 0,
+        legendary_chest: 0,
+      }
+      for (const row of chestRes.data || []) {
+        const r = row as { chest_type: string; quantity: number }
+        if (r.chest_type in cloudChests) cloudChests[r.chest_type] = r.quantity ?? 0
+      }
+      chestsToSync = {
+        common_chest: Math.max(chests.common_chest ?? 0, cloudChests.common_chest),
+        rare_chest: Math.max(chests.rare_chest ?? 0, cloudChests.rare_chest),
+        epic_chest: Math.max(chests.epic_chest ?? 0, cloudChests.epic_chest),
+        legendary_chest: Math.max(chests.legendary_chest ?? 0, cloudChests.legendary_chest),
+      }
+    }
+
+    const now = new Date().toISOString()
+    const seeds = options.seeds ?? {}
+    const seedZips = options.seedZips ?? { common: 0, rare: 0, epic: 0, legendary: 0 }
+    const allItems = { ...itemsToSync }
+    for (const [seedId, qty] of Object.entries(seeds)) {
+      if (isSeedId(seedId) && (qty ?? 0) > 0) {
+        allItems[seedId] = Math.max(allItems[seedId] ?? 0, qty)
+      }
+    }
+    for (const [tier, qty] of Object.entries(seedZips) as [SeedZipTier, number][]) {
+      const itemId = SEED_ZIP_ITEM_IDS[tier]
+      if ((qty ?? 0) > 0) {
+        allItems[itemId] = Math.max(allItems[itemId] ?? 0, qty)
+      }
+    }
+    const itemPayload = Object.entries(allItems)
+      .filter(([, qty]) => qty > 0)
+      .map(([item_id, quantity]) => ({
+        user_id: user.id,
+        item_id,
+        quantity,
+        updated_at: now,
+      }))
+
+    const chestPayload = (['common_chest', 'rare_chest', 'epic_chest', 'legendary_chest'] as ChestType[])
+      .filter((ct) => (chestsToSync[ct] ?? 0) > 0)
+      .map((chest_type) => ({
+        user_id: user.id,
+        chest_type,
+        quantity: chestsToSync[chest_type] ?? 0,
+        updated_at: now,
+      }))
+
+    if (itemPayload.length > 0) {
+      const { error: invErr } = await supabase
+        .from('user_inventory')
+        .upsert(itemPayload, { onConflict: 'user_id,item_id' })
+      if (invErr) return { ok: false, itemsSynced: 0, chestsSynced: 0, error: invErr.message }
+    }
+
+    if (chestPayload.length > 0) {
+      const { error: chestErr } = await supabase
+        .from('user_chests')
+        .upsert(chestPayload, { onConflict: 'user_id,chest_type' })
+      if (chestErr) return { ok: false, itemsSynced: 0, chestsSynced: 0, error: chestErr.message }
+    }
+
+    const mergedItems: Record<string, number> = {}
+    const mergedSeeds: Record<string, number> = {}
+    const mergedSeedZips: Record<SeedZipTier, number> = { common: 0, rare: 0, epic: 0, legendary: 0 }
+    for (const [id, qty] of Object.entries(allItems)) {
+      if (isSeedId(id)) mergedSeeds[id] = qty
+      else if (isSeedZipId(id)) {
+        const tier = seedZipTierFromItemId(id)
+        if (tier) mergedSeedZips[tier] = qty
+      } else mergedItems[id] = qty
+    }
+
+    const hasSeedZips = Object.values(mergedSeedZips).some((v) => v > 0)
+
+    return {
+      ok: true,
+      itemsSynced: itemPayload.length,
+      chestsSynced: chestPayload.length,
+      mergedItems,
+      mergedChests: chestsToSync,
+      mergedSeeds: Object.keys(mergedSeeds).length > 0 ? mergedSeeds : undefined,
+      mergedSeedZips: hasSeedZips ? mergedSeedZips : undefined,
+    }
+  } catch (err) {
+    return {
+      ok: false,
+      itemsSynced: 0,
+      chestsSynced: 0,
+      error: err instanceof Error ? err.message : String(err),
+    }
   }
 }

@@ -5,6 +5,7 @@ import { registerIpcHandlers, setMainWindow, setNotificationSender } from './ipc
 import { startSmartNotifications, stopSmartNotifications } from './notifications'
 import { closeDatabase } from './database'
 import { initAutoUpdater } from './updater'
+import { disableFocusMode } from './focusMode'
 import log from './logger'
 
 let mainWindow: BrowserWindow | null = null
@@ -23,11 +24,11 @@ function getIconPath(): string {
 function createTray() {
   const icon = nativeImage.createFromPath(getIconPath())
   tray = new Tray(icon.resize({ width: 16, height: 16 }))
-  tray.setToolTip('Idly')
+  tray.setToolTip('Grindly')
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Show Idly',
+      label: 'Show Grindly',
       click: () => {
         if (mainWindow) {
           mainWindow.show()
@@ -68,19 +69,22 @@ function showNativeNotification(title: string, body: string) {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 420,
-    height: 700,
+    width: 480,
+    height: 720,
     icon: getIconPath(),
     webPreferences: {
       preload: path.join(__dirname, '../../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      backgroundThrottling: false,
     },
     frame: true,
     backgroundColor: '#11111b',
     show: false,
     resizable: false,
   })
+  mainWindow.setMenuBarVisibility(false)
+  Menu.setApplicationMenu(null)
 
   const devServerUrl = 'http://localhost:5173'
   if (isDev) {
@@ -91,7 +95,7 @@ function createWindow() {
           'data:text/html;charset=utf-8,' +
           encodeURIComponent(`
 <!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Idly</title></head>
+<html><head><meta charset="utf-8"><title>Grindly</title></head>
 <body style="margin:0;min-height:100vh;background:#11111b;color:#a1a1aa;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box">
   <div style="text-align:center;max-width:320px">
     <p style="font-size:48px;margin:0 0 16px">🔌</p>
@@ -133,12 +137,12 @@ app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
 app.commandLine.appendSwitch('disable-gpu-cache')
 
 app.whenReady().then(() => {
-  log.info('Idly starting up', { isDev, platform: process.platform })
+  log.info('Grindly starting up', { isDev, platform: process.platform })
   setNotificationSender(showNativeNotification)
   registerIpcHandlers()
   createWindow()
   if (process.platform === 'win32') createTray()
-  log.info('Idly ready')
+  log.info('Grindly ready')
 })
 
 app.on('window-all-closed', () => {
@@ -148,9 +152,10 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
-  log.info('Idly shutting down')
+  log.info('Grindly shutting down')
   isQuitting = true
   stopSmartNotifications()
+  disableFocusMode().catch(() => {})
   closeDatabase()
   log.info('Database closed, goodbye')
 })

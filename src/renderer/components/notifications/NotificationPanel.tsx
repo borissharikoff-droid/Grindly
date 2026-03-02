@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNotificationStore } from '../../stores/notificationStore'
+import { useSessionStore } from '../../stores/sessionStore'
+import { useGoldStore } from '../../stores/goldStore'
+import { useAuthStore } from '../../stores/authStore'
+import { useArenaStore } from '../../stores/arenaStore'
+import { playClickSound } from '../../lib/sounds'
 
 function timeAgo(ts: number): string {
   const sec = Math.floor(Math.max(0, Date.now() - ts) / 1000)
@@ -19,8 +24,13 @@ interface NotificationPanelProps {
 }
 
 export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelProps) {
-  const { items, markAllRead, clear } = useNotificationStore()
-  const [filter, setFilter] = useState<'all' | 'update' | 'friend_levelup' | 'progression'>('all')
+  const { items, markAllRead, clear, dismiss } = useNotificationStore()
+  const addGold = useGoldStore((s) => s.addGold)
+  const syncToSupabase = useGoldStore((s) => s.syncToSupabase)
+  const user = useAuthStore((s) => s.user)
+  const setResultModal = useArenaStore((s) => s.setResultModal)
+  const presentRecoveryComplete = useSessionStore((s) => s.presentRecoveryComplete)
+  const [filter, setFilter] = useState<'all' | 'update' | 'friend_levelup' | 'progression' | 'arena_result'>('all')
   const panelRef = useRef<HTMLDivElement>(null)
   const filteredItems = items.filter((i) => (filter === 'all' ? true : i.type === filter))
 
@@ -28,34 +38,37 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
     if (open) markAllRead()
   }, [open, markAllRead])
 
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
   useEffect(() => {
     if (!open) return
     const handler = (e: MouseEvent) => {
       if (bellRef?.current?.contains(e.target as Node)) return
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) onClose()
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) onCloseRef.current()
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [open, onClose, bellRef])
+  }, [open, bellRef])
 
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopImmediatePropagation(); onClose() }
+      if (e.key === 'Escape') { e.stopImmediatePropagation(); onCloseRef.current() }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [open, onClose])
+  }, [open])
 
   return (
     <AnimatePresence>
       {open && (
         <motion.div
           ref={panelRef}
-          initial={{ opacity: 0, y: -8, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -8, scale: 0.96 }}
-          transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+          initial={{ opacity: 0, y: -6, scale: 0.94, transformOrigin: 'top right' }}
+          animate={{ opacity: 1, y: 0, scale: 1, transformOrigin: 'top right' }}
+          exit={{ opacity: 0, y: -12, scale: 0.5, transformOrigin: 'top right' }}
+          transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
           className="absolute top-full right-0 mt-1.5 w-[260px] max-h-[360px] rounded-xl bg-discord-card border border-white/10 shadow-xl z-50 overflow-hidden flex flex-col"
         >
           <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06]">
@@ -64,8 +77,8 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
               <button onClick={clear} className="text-[10px] text-gray-500 hover:text-gray-300">Clear all</button>
             )}
           </div>
-          <div className="px-3 py-1.5 border-b border-white/[0.06] flex items-center gap-1.5">
-            {(['all', 'update', 'friend_levelup', 'progression'] as const).map((t) => (
+          <div className="px-3 py-1.5 border-b border-white/[0.06] flex items-center gap-1.5 flex-wrap">
+            {(['all', 'update', 'friend_levelup', 'progression', 'arena_result'] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setFilter(t)}
@@ -75,7 +88,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                     : 'border-white/10 text-gray-500 hover:text-gray-300'
                 }`}
               >
-                {t === 'all' ? 'All' : t === 'update' ? 'Updates' : t === 'friend_levelup' ? 'Friends' : 'Progress'}
+                {t === 'all' ? 'All' : t === 'update' ? 'Updates' : t === 'friend_levelup' ? 'Friends' : t === 'arena_result' ? 'Arena' : 'Progress'}
               </button>
             ))}
           </div>
@@ -94,17 +107,83 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
               </div>
             ) : (
               filteredItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="px-3 py-2 flex items-start gap-2 hover:bg-white/[0.02] border-b border-white/[0.03] last:border-0"
-                >
-                  <span className="text-sm shrink-0 mt-0.5">{item.icon}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] text-white leading-snug">{item.title}</p>
-                    <p className="text-[10px] text-gray-500 leading-snug mt-0.5">{item.body}</p>
+                item.arenaResult ? (
+                  <div key={item.id} className="px-3 py-2 border-b border-white/[0.03] last:border-0">
+                    <div className={`rounded-2xl border px-3 py-2.5 ${item.arenaResult.victory ? 'border-cyber-neon/25 bg-gradient-to-r from-cyber-neon/10 via-cyber-neon/5 to-discord-card/80' : 'border-red-500/25 bg-gradient-to-r from-red-500/10 via-red-500/5 to-discord-card/80'}`}>
+                      <div className="flex items-start gap-2">
+                        <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-[12px] font-semibold text-white leading-snug">{item.title}</p>
+                            <span className="text-[9px] text-gray-500 font-mono shrink-0 mt-0.5">{timeAgo(item.timestamp)}</span>
+                          </div>
+                          <p className="text-[10px] text-gray-200 leading-snug mt-0.5">{item.body}</p>
+                        </div>
+                        {item.arenaResult.victory && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              playClickSound()
+                              setResultModal({
+                                victory: true,
+                                gold: item.arenaResult!.gold,
+                                goldAlreadyAdded: false,
+                              })
+                              dismiss(item.id)
+                              onClose()
+                            }}
+                            className="shrink-0 px-2.5 py-1 rounded-lg bg-cyber-neon/20 border border-cyber-neon/40 text-cyber-neon text-xs font-semibold hover:bg-cyber-neon/30 transition-colors"
+                          >
+                            Claim
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-[9px] text-gray-600 font-mono shrink-0 mt-0.5">{timeAgo(item.timestamp)}</span>
-                </div>
+                ) : item.recovery ? (
+                  <div key={item.id} className="px-3 py-2 border-b border-white/[0.03] last:border-0">
+                    <div className="rounded-2xl border border-cyber-neon/25 bg-gradient-to-r from-cyber-neon/10 via-cyber-neon/5 to-discord-card/80 px-3 py-2.5 shadow-[0_8px_24px_rgba(0,255,136,0.1)]">
+                      <div className="flex items-start gap-2">
+                        <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-[12px] font-semibold text-white leading-snug">{item.title}</p>
+                            <span className="text-[9px] text-gray-500 font-mono shrink-0 mt-0.5">{timeAgo(item.timestamp)}</span>
+                          </div>
+                          <p className="text-[10px] text-gray-200 leading-snug mt-0.5">{item.body}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await presentRecoveryComplete({
+                              sessionId: item.recovery?.sessionId ?? crypto.randomUUID(),
+                              startTime: item.recovery?.startTime ?? Date.now(),
+                              elapsedSeconds: item.recovery?.elapsedSeconds ?? 0,
+                              sessionSkillXP: item.recovery?.sessionSkillXP || {},
+                            })
+                            window.electronAPI?.db?.clearCheckpoint?.().catch(() => {})
+                            dismiss(item.id)
+                          }}
+                          className="shrink-0 px-2.5 py-1 rounded-lg bg-cyber-neon/20 border border-cyber-neon/40 text-cyber-neon text-xs font-semibold hover:bg-cyber-neon/30 transition-colors"
+                        >
+                          Yay
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    key={item.id}
+                    className="px-3 py-2 flex items-start gap-2 hover:bg-white/[0.02] border-b border-white/[0.03] last:border-0"
+                  >
+                    <span className="text-sm shrink-0 mt-0.5">{item.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] text-white leading-snug">{item.title}</p>
+                      <p className="text-[10px] text-gray-500 leading-snug mt-0.5">{item.body}</p>
+                    </div>
+                    <span className="text-[9px] text-gray-600 font-mono shrink-0 mt-0.5">{timeAgo(item.timestamp)}</span>
+                  </div>
+                )
               ))
             )}
           </div>

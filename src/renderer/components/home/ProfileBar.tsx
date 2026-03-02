@@ -8,7 +8,8 @@ import { playClickSound } from '../../lib/sounds'
 import { useAlertStore } from '../../stores/alertStore'
 import { useNotificationStore } from '../../stores/notificationStore'
 import { NotificationPanel } from '../notifications/NotificationPanel'
-import { ensureInventoryHydrated, useInventoryStore } from '../../stores/inventoryStore'
+import { ensureInventoryHydrated } from '../../stores/inventoryStore'
+import { useGoldStore } from '../../stores/goldStore'
 import { AvatarWithFrame } from '../shared/AvatarWithFrame'
 
 interface ProfileBarProps {
@@ -18,7 +19,7 @@ interface ProfileBarProps {
 
 export function ProfileBar({ onNavigateProfile, onNavigateInventory }: ProfileBarProps) {
   const { user } = useAuthStore()
-  const [username, setUsername] = useState('Idly')
+  const [username, setUsername] = useState('Grindly')
   const [avatar, setAvatar] = useState('🤖')
   const [totalSkillLevel, setTotalSkillLevel] = useState(0)
   const [frameId, setFrameId] = useState<string | null>(null)
@@ -27,21 +28,19 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory }: ProfileBa
   const activeFrame = FRAMES.find(f => f.id === frameId)
   const streakMult = getStreakMultiplier(streak)
   const lootCount = useAlertStore((s) => (s.currentAlert ? 1 : 0) + s.queue.length)
+  const gold = useGoldStore((s) => s.gold)
   const unreadCount = useNotificationStore((s) => s.unreadCount)
   const [bellOpen, setBellOpen] = useState(false)
   const bellRef = useRef<HTMLButtonElement>(null)
-  const inventoryItemCount = useInventoryStore((s) => Object.values(s.items).reduce((sum, qty) => sum + qty, 0))
-  const chestCount = useInventoryStore((s) => Object.values(s.chests).reduce((sum, qty) => sum + qty, 0))
-  const pendingCount = useInventoryStore((s) => s.pendingRewards.filter((r) => !r.claimed).length)
-  const backpackCount = inventoryItemCount + chestCount + pendingCount
   const toggleBell = useCallback(() => {
     playClickSound()
     setBellOpen((o) => !o)
   }, [])
+  const closeBell = useCallback(() => setBellOpen(false), [])
 
   useEffect(() => {
     if (user) {
-      const cacheKey = `idly_profile_cache_${user.id}`
+      const cacheKey = `grindly_profile_cache_${user.id}`
       try {
         const cached = JSON.parse(localStorage.getItem(cacheKey) || '{}') as { username?: string; avatar?: string }
         if (cached.username) setUsername(cached.username)
@@ -54,11 +53,11 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory }: ProfileBa
     if (supabase && user) {
       supabase.from('profiles').select('username, avatar_url').eq('id', user.id).single().then(({ data }) => {
         if (data) {
-          const nextUsername = data.username || 'Idly'
+          const nextUsername = data.username || 'Grindly'
           const nextAvatar = data.avatar_url || '🤖'
           setUsername(nextUsername)
           setAvatar(nextAvatar)
-          const cacheKey = `idly_profile_cache_${user.id}`
+          const cacheKey = `grindly_profile_cache_${user.id}`
           localStorage.setItem(cacheKey, JSON.stringify({ username: nextUsername, avatar: nextAvatar }))
         }
       }).catch(() => {})
@@ -89,7 +88,7 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory }: ProfileBa
             sizeClass="w-9 h-9 frame-avatar hover:scale-105 transition-transform"
             textClass="text-lg"
             roundedClass="rounded-full"
-            ringInsetClass="-inset-1"
+            ringInsetClass="-inset-0.5"
           />
           {lootCount > 0 && (
             <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyber-neon text-discord-darker text-[9px] font-bold flex items-center justify-center shadow-[0_0_6px_rgba(0,255,136,0.5)]">
@@ -118,6 +117,10 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory }: ProfileBa
             })}
 
           </div>
+          <div className="flex items-center gap-1 mt-0.5 text-[10px] text-amber-400/90">
+            <span aria-hidden>🪙</span>
+            <span className="font-mono tabular-nums">{gold}</span>
+          </div>
         </div>
 
         <div className="relative shrink-0">
@@ -135,11 +138,6 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory }: ProfileBa
               <path d="M6 7h12a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z" />
               <path d="M9 12h6" />
             </svg>
-            {backpackCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-cyber-neon text-discord-darker text-[8px] font-bold flex items-center justify-center">
-                {backpackCount > 9 ? '9+' : backpackCount}
-              </span>
-            )}
           </button>
         </div>
         <div className="relative shrink-0">
@@ -159,7 +157,7 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory }: ProfileBa
               </span>
             )}
           </button>
-          <NotificationPanel open={bellOpen} onClose={() => setBellOpen(false)} bellRef={bellRef} />
+          <NotificationPanel open={bellOpen} onClose={closeBell} bellRef={bellRef} />
         </div>
 
       </div>

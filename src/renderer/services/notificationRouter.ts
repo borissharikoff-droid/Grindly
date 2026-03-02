@@ -50,7 +50,7 @@ export async function routeNotification(
   })
 
   const globalEnabled = typeof localStorage !== 'undefined'
-    ? localStorage.getItem('idly_notifications_enabled') !== 'false'
+    ? localStorage.getItem('grindly_notifications_enabled') !== 'false'
     : true
   if (event.desktop && globalEnabled && api?.notify?.show) {
     await api.notify.show(event.title, event.body)

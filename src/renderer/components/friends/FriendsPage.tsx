@@ -19,10 +19,6 @@ import { PageHeader } from '../shared/PageHeader'
 import { BackButton } from '../shared/BackButton'
 import { ErrorState } from '../shared/ErrorState'
 import { EmptyState } from '../shared/EmptyState'
-import { MOTION } from '../../lib/motion'
-import { FriendEventFeed } from './FriendEventFeed'
-import { FEATURE_FLAGS } from '../../lib/featureFlags'
-
 type FriendView = 'list' | 'profile' | 'compare' | 'chat'
 
 interface FriendsPageProps {
@@ -34,11 +30,18 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
   const { friends, pendingRequests, unreadByFriendId, loading, error, refresh, acceptRequest, rejectRequest, removeFriend } = friendsModel
   const [selected, setSelected] = useState<FriendProfileType | null>(null)
   const [view, setView] = useState<FriendView>('list')
+  const [profileFromChat, setProfileFromChat] = useState(false)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const peerId = view === 'chat' && selected ? selected.id : null
   const chat = useChat(peerId)
   const chatTargetFriendId = useChatTargetStore((s) => s.friendId)
   const setChatTargetFriendId = useChatTargetStore((s) => s.setFriendId)
+  const setActiveChatPeerId = useChatTargetStore((s) => s.setActiveChatPeerId)
+
+  useEffect(() => {
+    setActiveChatPeerId(peerId)
+    return () => setActiveChatPeerId(null)
+  }, [peerId, setActiveChatPeerId])
   const { setSyncState } = useSkillSyncStore()
 
   const retrySkillSync = useCallback(async () => {
@@ -53,6 +56,14 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
     }
     setSyncState({ status: 'error', error: result.error ?? 'Skill sync failed' })
   }, [refresh, setSyncState])
+
+  // Keep selected friend in sync with live useFriends data (polls every 15s)
+  // so FriendProfile's profile prop always reflects the latest skill levels.
+  useEffect(() => {
+    if (!selected) return
+    const updated = friends.find((f) => f.id === selected.id)
+    if (updated && updated !== selected) setSelected(updated)
+  }, [friends])
 
   // Navigate to chat when MessageBanner signals (e.g. clicked on new message)
   useEffect(() => {
@@ -78,6 +89,17 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
     setSelected(null)
   }, [])
 
+  const handleBack = useCallback(() => {
+    if (view === 'compare') {
+      setView('profile')
+    } else if (view === 'profile' && profileFromChat) {
+      setProfileFromChat(false)
+      setView('chat')
+    } else {
+      backToList()
+    }
+  }, [view, profileFromChat, backToList])
+
   useEffect(() => {
     if (!isSubview) return
     const isEditableTarget = (target: EventTarget | null): boolean => {
@@ -93,14 +115,14 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
       if (isEditableTarget(e.target)) return
       e.preventDefault()
       e.stopPropagation()
-      backToList()
+      handleBack()
     }
     const onMouseBackCapture = (e: MouseEvent) => {
       if (!isMouseBack(e.button)) return
       if (isEditableTarget(e.target)) return
       e.preventDefault()
       e.stopPropagation()
-      backToList()
+      handleBack()
     }
 
     window.addEventListener('keydown', onKeyDownCapture, true)
@@ -111,15 +133,17 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
       window.removeEventListener('mousedown', onMouseBackCapture, true)
       window.removeEventListener('auxclick', onMouseBackCapture, true)
     }
-  }, [isSubview, backToList])
+  }, [isSubview, handleBack])
+
+  const isChatView = view === 'chat' && selected
 
   return (
     <motion.div
-      initial={{ opacity: MOTION.page.initial.opacity }}
-      animate={{ opacity: MOTION.page.animate.opacity }}
-      exit={{ opacity: MOTION.page.exit.opacity }}
-      transition={{ duration: MOTION.duration.base, ease: MOTION.easing }}
-      className="p-4 pb-2"
+      initial={{ opacity: 1 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 1 }}
+      transition={{ duration: 0 }}
+      className={isChatView ? 'flex flex-col h-full min-h-0 p-2' : 'p-4 pb-2'}
     >
       {!user ? (
         <EmptyState title="Sign in to join the squad" description="Add friends, flex your stats, and compete on the leaderboard." icon="👥" />
@@ -135,6 +159,7 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
         <ChatThread
           profile={selected}
           onBack={backToList}
+          onOpenProfile={() => { setProfileFromChat(true); setView('profile') }}
           messages={chat.messages}
           loading={chat.loading}
           sending={chat.sending}
@@ -146,7 +171,7 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
       ) : view === 'profile' && selected ? (
         <FriendProfile
           profile={selected}
-          onBack={backToList}
+          onBack={profileFromChat ? () => { setProfileFromChat(false); setView('chat') } : backToList}
           onCompare={() => setView('compare')}
           onMessage={() => setView('chat')}
           onRetrySync={retrySkillSync}
@@ -175,8 +200,6 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
           />
 
           <AddFriend onAdded={refresh} />
-          {FEATURE_FLAGS.socialFeed && <FriendEventFeed />}
-
           {incomingCount > 0 && !showLeaderboard && (
             <PendingRequests
               requests={pendingRequests}
@@ -200,7 +223,7 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
               ) : (
                 <FriendList
                   friends={friends}
-                  onSelectFriend={(f) => { setSelected(f); setView('profile') }}
+                  onSelectFriend={(f) => { setSelected(f); setProfileFromChat(false); setView('profile') }}
                   onMessageFriend={(f) => { setSelected(f); setView('chat') }}
                   unreadByFriendId={unreadByFriendId}
                 />

@@ -10,7 +10,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutOptions = {}) {
   const { onEscapeToHome } = options
 
   useEffect(() => {
-    const enabled = localStorage.getItem('idly_shortcuts_enabled') !== 'false'
+    const enabled = localStorage.getItem('grindly_shortcuts_enabled') !== 'false'
     if (!enabled) return
 
     const handler = (e: KeyboardEvent) => {

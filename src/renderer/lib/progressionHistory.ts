@@ -1,6 +1,6 @@
 import type { ProgressionEvent } from './progressionContract'
 
-const STORAGE_KEY = 'idly_progression_history'
+const STORAGE_KEY = 'grindly_progression_history'
 const MAX_EVENTS = 100
 
 export function readProgressionHistory(): ProgressionEvent[] {

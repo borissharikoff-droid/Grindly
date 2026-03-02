@@ -16,7 +16,7 @@ function renderBody(event: SocialFeedEvent): string {
   const p = event.payload || {}
   switch (event.event_type) {
     case 'skill_level_up':
-      return `${String(p.skillId || 'skill')} -> Lv.${String(p.level || '?')}`
+      return `${String(p.skillId || 'skill')} -> LVL ${String(p.level || '?')}`
     case 'achievement_unlocked':
       return `Unlocked ${String(p.achievementName || p.achievementId || 'achievement')}`
     case 'streak_milestone':

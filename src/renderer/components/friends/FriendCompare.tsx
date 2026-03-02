@@ -171,7 +171,7 @@ export function FriendCompare({ friend, onBack }: CompareProps) {
               sizeClass="w-12 h-12"
               textClass="text-2xl"
               roundedClass="rounded-lg"
-              ringInsetClass="-inset-1"
+              ringInsetClass="-inset-0.5"
             />
             <span className="text-xs text-white font-medium truncate max-w-[80px]">{me.username}</span>
           </div>
@@ -194,7 +194,7 @@ export function FriendCompare({ friend, onBack }: CompareProps) {
               sizeClass="w-12 h-12"
               textClass="text-2xl"
               roundedClass="rounded-lg"
-              ringInsetClass="-inset-1"
+              ringInsetClass="-inset-0.5"
             />
             <span className="text-xs text-white font-medium truncate max-w-[80px]">{them.username}</span>
           </div>

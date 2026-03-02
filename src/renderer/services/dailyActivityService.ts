@@ -16,7 +16,7 @@ interface DailyState {
   claimed: Record<DailyActivityId, boolean>
 }
 
-const KEY = 'idly_daily_activity_v1'
+const KEY = 'grindly_daily_activity_v1'
 
 export const DAILY_ACTIVITY_DEFS: DailyActivityDef[] = [
   {

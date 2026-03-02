@@ -3,11 +3,12 @@ import { motion } from 'framer-motion'
 import { ACHIEVEMENTS, getAchievementProgress, type AchievementProgressContext } from '../../lib/xp'
 import type { AchievementDef } from '../../lib/xp'
 import { useAlertStore } from '../../stores/alertStore'
-import { computeTotalSkillLevel, MAX_TOTAL_SKILL_LEVEL, skillLevelFromXP } from '../../lib/skills'
+import { computeTotalSkillLevel, getSkillById, MAX_TOTAL_SKILL_LEVEL, skillLevelFromXP } from '../../lib/skills'
 import { playClickSound } from '../../lib/sounds'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
 import { trackMetric } from '../../services/rolloutMetrics'
+import { defaultSkillForAchievement } from '../../services/rewardGrant'
 
 const CATEGORY_LABELS: Record<string, string> = {
   grind: '⚡ Grind',
@@ -49,16 +50,16 @@ export function AchievementsPage() {
         setProgressCtx((prev) => ({ ...prev, streakCount: Number(count) || 0 }))
       })
     } else {
-      const stored = JSON.parse(localStorage.getItem('idly_skill_xp') || '{}') as Record<string, number>
+      const stored = JSON.parse(localStorage.getItem('grindly_skill_xp') || '{}') as Record<string, number>
       const rows = Object.entries(stored).map(([skill_id, total_xp]) => ({ skill_id, total_xp }))
       setTotalSkillLevel(computeTotalSkillLevel(rows))
       const levels: Record<string, number> = {}
       for (const row of rows) levels[row.skill_id] = skillLevelFromXP(row.total_xp || 0)
       setProgressCtx((prev) => ({ ...prev, skillLevels: levels }))
-      const unlocked = JSON.parse(localStorage.getItem('idly_unlocked_achievements') || '[]')
+      const unlocked = JSON.parse(localStorage.getItem('grindly_unlocked_achievements') || '[]')
       setUnlockedIds(unlocked)
     }
-    const claimed = JSON.parse(localStorage.getItem('idly_claimed_achievements') || '[]')
+    const claimed = JSON.parse(localStorage.getItem('grindly_claimed_achievements') || '[]')
     setClaimedIds(claimed)
   }, [])
 
@@ -85,7 +86,7 @@ export function AchievementsPage() {
     // Mark as claimed
     const updated = [...claimedIds, def.id]
     setClaimedIds(updated)
-    localStorage.setItem('idly_claimed_achievements', JSON.stringify(updated))
+    localStorage.setItem('grindly_claimed_achievements', JSON.stringify(updated))
     // Show loot drop
     pushAlert(def)
     trackMetric('achievement_claimed')
@@ -189,7 +190,7 @@ export function AchievementsPage() {
                       </div>
                       <div className="shrink-0 flex items-center gap-2">
                         <span className={`text-xs font-mono ${unlocked ? 'text-cyber-neon' : 'text-gray-600'}`}>
-                          +{a.xpReward}
+                          +{a.xpReward} xp {(() => { const s = getSkillById(defaultSkillForAchievement(a)); return s ? s.icon : '' })()}
                         </span>
                         {canClaim && (
                           <button

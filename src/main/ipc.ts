@@ -3,6 +3,7 @@ import { createBadgeImage } from './badgeOverlay'
 import path from 'path'
 import fs from 'fs'
 import { getTrackerApi } from './tracker'
+import { disableFocusMode, enableFocusMode, getFocusModeStatus } from './focusMode'
 import { getDatabaseApi } from './database'
 import { analyzeSession, analyzeOverview, refineActivityLabels } from './deepseek'
 import { getDeepSeekApiKey } from './aiConfig'
@@ -308,7 +309,7 @@ export function registerIpcHandlers() {
     })
 
     const ext = format === 'csv' ? 'csv' : 'json'
-    const defaultPath = path.join(app.getPath('documents'), `idly-export.${ext}`)
+    const defaultPath = path.join(app.getPath('documents'), `grindly-export.${ext}`)
 
     const { filePath } = await dialog.showSaveDialog({
       title: 'Export Sessions',
@@ -360,6 +361,18 @@ export function registerIpcHandlers() {
   ipcMain.handle(IPC_CHANNELS.updater.install, () => {
     const { autoUpdater } = require('electron-updater')
     autoUpdater.quitAndInstall(false, true)
+  })
+
+  // ── Focus mode ─────────────────────────────────────────────────────────────
+  ipcMain.handle(IPC_CHANNELS.focus.enable, (_, durationMs: unknown) => {
+    const ms = typeof durationMs === 'number' && Number.isFinite(durationMs) ? durationMs : 3600000
+    return enableFocusMode(Math.max(30000, Math.floor(ms)))
+  })
+  ipcMain.handle(IPC_CHANNELS.focus.disable, () => {
+    return disableFocusMode()
+  })
+  ipcMain.handle(IPC_CHANNELS.focus.status, () => {
+    return getFocusModeStatus()
   })
 
   // ── Window: flash + taskbar badge (Windows overlay) ───────────────────────

@@ -3,7 +3,7 @@ import type { AchievementDef } from '../lib/xp'
 import type { ProgressionEvent, RewardGrantPayload } from '../lib/progressionContract'
 import { SKILL_BOOST_SECONDS } from '../lib/rewardConfig'
 
-const CLAIMED_REWARDS_KEY = 'idly_claimed_rewards_v2'
+const CLAIMED_REWARDS_KEY = 'grindly_claimed_rewards_v2'
 
 function readClaimedRewardKeys(): string[] {
   try {
@@ -32,7 +32,7 @@ function rewardKey(reward: RewardGrantPayload): string {
   ].join(':')
 }
 
-function defaultSkillForAchievement(def: AchievementDef): string {
+export function defaultSkillForAchievement(def: AchievementDef): string {
   if (def.category === 'social') return 'communicator'
   if (def.category === 'special') return 'learner'
   if (def.category === 'streak') return 'researcher'
@@ -89,9 +89,9 @@ export async function grantRewardPayloads(
       if (api?.db?.addSkillXP) {
         await api.db.addSkillXP(payload.skillId, payload.amount)
       } else {
-        const stored = JSON.parse(localStorage.getItem('idly_skill_xp') || '{}') as Record<string, number>
+        const stored = JSON.parse(localStorage.getItem('grindly_skill_xp') || '{}') as Record<string, number>
         stored[payload.skillId] = (stored[payload.skillId] ?? 0) + payload.amount
-        localStorage.setItem('idly_skill_xp', JSON.stringify(stored))
+        localStorage.setItem('grindly_skill_xp', JSON.stringify(stored))
       }
     }
 

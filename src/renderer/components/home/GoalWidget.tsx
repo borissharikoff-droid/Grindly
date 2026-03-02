@@ -43,7 +43,7 @@ const CATEGORIES = [
   { value: 'browsing', label: '🌐 Browsing' },
 ]
 
-const TASKS_STORAGE_KEY = 'idly_tasks'
+const TASKS_STORAGE_KEY = 'grindly_tasks'
 
 function getTasksFromStorage(): Task[] {
   try {
@@ -71,7 +71,7 @@ function formatDuration(seconds: number): string {
 
 type ViewMode = 'list' | 'add-pick' | 'add-time' | 'add-task' | 'edit'
 
-export function GoalWidget() {
+export function GoalWidget({ trailingAction }: { trailingAction?: React.ReactNode }) {
   const [goals, setGoals] = useState<GoalWithProgress[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [view, setView] = useState<ViewMode>('list')
@@ -338,14 +338,17 @@ export function GoalWidget() {
         )}
       </AnimatePresence>
 
-      {/* Add button — centered */}
+      {/* Action row */}
       {view === 'list' && (
-        <button
-          onClick={() => setView('add-pick')}
-          className="w-full text-center text-xs text-gray-500 hover:text-cyber-neon/90 transition-colors font-mono py-2 rounded-lg hover:bg-cyber-neon/[0.06] active:scale-[0.98] border border-transparent hover:border-cyber-neon/20"
-        >
-          {isEmpty ? '+ set a goal' : '+ add goal'}
-        </button>
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={() => setView('add-pick')}
+            className="text-xs text-gray-500 hover:text-gray-300 hover:border-white/20 hover:bg-white/[0.03] transition-all py-2 px-3 rounded-lg active:scale-[0.98] border border-white/10"
+          >
+            {isEmpty ? '+ set a goal' : '+ add'}
+          </button>
+          {trailingAction}
+        </div>
       )}
 
       <GoalReachedModal

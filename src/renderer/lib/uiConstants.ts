@@ -23,15 +23,15 @@ export const CATEGORY_EMOJI: Record<string, string> = {
 }
 
 export const CATEGORY_LABELS: Record<string, string> = {
-  coding: 'Code Editor',
-  design: 'Design',
-  creative: 'Creative',
+  coding: 'Coding',
+  design: 'Design Work',
+  creative: 'Creative Work',
   learning: 'Learning',
   music: 'Music',
   games: 'Games',
-  social: 'Social',
-  browsing: 'Browsing',
-  other: 'Other',
+  social: 'Social & Messaging',
+  browsing: 'Web Browsing',
+  other: 'Other Activity',
 }
 
 export const CONFETTI_COLORS = ['#00ff88', '#5865F2', '#ed4245', '#faa61a', '#57F287', '#ff6bff', '#00d4ff', '#ffeb3b']

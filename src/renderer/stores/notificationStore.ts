@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type NotificationType = 'friend_levelup' | 'update' | 'progression'
+export type NotificationType = 'friend_levelup' | 'update' | 'progression' | 'arena_result'
 
 export interface Notification {
   id: string
@@ -11,27 +11,47 @@ export interface Notification {
   timestamp: number
   read: boolean
   url?: string
+  arenaResult?: {
+    victory: boolean
+    gold: number
+    bossName: string
+  }
+  recovery?: {
+    sessionId: string
+    startTime: number
+    elapsedSeconds: number
+    sessionSkillXP?: Record<string, number>
+  }
 }
 
 interface NotificationStore {
   items: Notification[]
   unreadCount: number
-  push: (n: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void
+  push: (n: Omit<Notification, 'id' | 'timestamp' | 'read'>) => string
+  dismiss: (id: string) => void
   markAllRead: () => void
   clear: () => void
 }
 
 const MAX = 50
-const ALLOWED_TYPES: NotificationType[] = ['update', 'friend_levelup', 'progression']
+const ALLOWED_TYPES: NotificationType[] = ['update', 'friend_levelup', 'progression', 'arena_result']
 
-export const useNotificationStore = create<NotificationStore>((set) => ({
+export const useNotificationStore = create<NotificationStore>((set, get) => ({
   items: [],
   unreadCount: 0,
   push(payload) {
-    if (!ALLOWED_TYPES.includes(payload.type)) return
-    const n: Notification = { ...payload, id: crypto.randomUUID(), timestamp: Date.now(), read: false }
+    if (!ALLOWED_TYPES.includes(payload.type)) return ''
+    const id = crypto.randomUUID()
+    const n: Notification = { ...payload, id, timestamp: Date.now(), read: false }
     set((s) => {
       const items = [n, ...s.items].slice(0, MAX)
+      return { items, unreadCount: items.filter((i) => !i.read).length }
+    })
+    return id
+  },
+  dismiss(id) {
+    set((s) => {
+      const items = s.items.filter((i) => i.id !== id)
       return { items, unreadCount: items.filter((i) => !i.read).length }
     })
   },

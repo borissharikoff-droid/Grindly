@@ -79,6 +79,7 @@ const CH = {
   window: { flashFrame: 'window:flashFrame', setBadgeCount: 'window:setBadgeCount' },
   data: { exportSessions: 'data:exportSessions', getLogsPath: 'data:getLogsPath', openLogsFolder: 'data:openLogsFolder' },
   updater: { status: 'updater:status', install: 'updater:install' },
+  focus: { enable: 'focus:enable', disable: 'focus:disable', status: 'focus:status' },
 }
 
 try {
@@ -198,6 +199,11 @@ try {
         return () => ipcRenderer.removeListener(CH.updater.status, handler)
       },
       install: () => ipcRenderer.invoke(CH.updater.install),
+    },
+    focus: {
+      enable: (durationMs: number) => ipcRenderer.invoke(CH.focus.enable, durationMs),
+      disable: () => ipcRenderer.invoke(CH.focus.disable),
+      status: () => ipcRenderer.invoke(CH.focus.status),
     },
   }
   contextBridge.exposeInMainWorld('electronAPI', api)

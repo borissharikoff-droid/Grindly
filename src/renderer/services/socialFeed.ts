@@ -6,6 +6,8 @@ export type SocialFeedEventType =
   | 'streak_milestone'
   | 'competition_result'
   | 'session_milestone'
+  | 'loot_drop'
+  | 'legendary_unlock'
 
 export interface SocialFeedEventRow {
   id: string
@@ -20,7 +22,7 @@ export interface SocialFeedEvent extends SocialFeedEventRow {
   avatar_url: string | null
 }
 
-const PUBLISHED_KEYS_STORAGE = 'idly_social_feed_published_keys'
+const PUBLISHED_KEYS_STORAGE = 'grindly_social_feed_published_keys'
 
 function readPublishedKeys(): string[] {
   try {

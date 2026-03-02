@@ -1,83 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CHEST_DEFS, LOOT_ITEMS, estimateLootDropRate, type ChestType, type LootSlot } from '../../lib/loot'
+import { CHEST_DEFS, LOOT_ITEMS, LOOT_SLOTS, MARKETPLACE_BLOCKED_ITEMS, POTION_IDS, POTION_MAX, estimateLootDropRate, getItemPower, type ChestType, type LootSlot } from '../../lib/loot'
+import { computePlayerStats } from '../../lib/combat'
 import { ensureInventoryHydrated, useInventoryStore } from '../../stores/inventoryStore'
+import { useArenaStore } from '../../stores/arenaStore'
 import { ChestOpenModal } from '../animations/ChestOpenModal'
+import { ListForSaleModal } from './ListForSaleModal'
 import { PageHeader } from '../shared/PageHeader'
-import { playClickSound } from '../../lib/sounds'
-
-const SLOT_META: Record<LootSlot, { label: string; icon: string }> = {
-  head: { label: 'Head', icon: '🧢' },
-  top: { label: 'Body', icon: '👕' },
-  accessory: { label: 'Legs', icon: '🦵' },
-  aura: { label: 'Aura', icon: '✨' },
-}
-
-const SLOT_LABEL: Record<LootSlot, string> = {
-  head: 'Head',
-  top: 'Body',
-  accessory: 'Legs',
-  aura: 'Aura',
-}
-
-type InspectRarity = 'common' | 'rare' | 'epic' | 'legendary' | 'mythical'
-
-const RARITY_THEME: Record<InspectRarity, { color: string; border: string; glow: string; panel: string }> = {
-  common: {
-    color: '#9CA3AF',
-    border: 'rgba(156, 163, 175, 0.38)',
-    glow: 'rgba(156, 163, 175, 0.22)',
-    panel: 'radial-gradient(circle at 50% 14%, rgba(156,163,175,0.16) 0%, rgba(31,41,55,0.92) 62%)',
-  },
-  rare: {
-    color: '#38BDF8',
-    border: 'rgba(56, 189, 248, 0.45)',
-    glow: 'rgba(56, 189, 248, 0.28)',
-    panel: 'radial-gradient(circle at 50% 14%, rgba(56,189,248,0.18) 0%, rgba(31,41,55,0.92) 62%)',
-  },
-  epic: {
-    color: '#C084FC',
-    border: 'rgba(192, 132, 252, 0.45)',
-    glow: 'rgba(192, 132, 252, 0.28)',
-    panel: 'radial-gradient(circle at 50% 14%, rgba(192,132,252,0.2) 0%, rgba(31,41,55,0.92) 62%)',
-  },
-  legendary: {
-    color: '#FACC15',
-    border: 'rgba(250, 204, 21, 0.48)',
-    glow: 'rgba(250, 204, 21, 0.3)',
-    panel: 'radial-gradient(circle at 50% 14%, rgba(250,204,21,0.2) 0%, rgba(31,41,55,0.92) 62%)',
-  },
-  mythical: {
-    color: '#A855F7',
-    border: 'rgba(168, 85, 247, 0.5)',
-    glow: 'rgba(168, 85, 247, 0.34)',
-    panel: 'radial-gradient(circle at 50% 14%, rgba(168,85,247,0.24) 0%, rgba(31,41,55,0.92) 62%)',
-  },
-}
-
-function normalizeRarity(value: string | null | undefined): InspectRarity {
-  const rarity = String(value || '').toLowerCase()
-  if (rarity === 'mythical') return 'mythical'
-  if (rarity === 'legendary') return 'legendary'
-  if (rarity === 'epic') return 'epic'
-  if (rarity === 'rare') return 'rare'
-  return 'common'
-}
-
-function LootVisual({ icon, image, className, scale = 1 }: { icon: string; image?: string; className?: string; scale?: number }) {
-  if (image) {
-    return (
-      <img
-        src={image}
-        alt=""
-        className={className ?? 'w-7 h-7 object-contain'}
-        style={{ imageRendering: 'pixelated', transform: `scale(${scale})`, transformOrigin: 'center center' }}
-        draggable={false}
-      />
-    )
-  }
-  return <span className={className}>{icon}</span>
-}
+import { playClickSound, playPotionSound } from '../../lib/sounds'
+import { syncInventoryToSupabase } from '../../services/supabaseSync'
+import { useFarmStore } from '../../stores/farmStore'
+import { SLOT_META, SLOT_LABEL, LootVisual, RARITY_THEME, normalizeRarity } from '../loot/LootUI'
+import { BuffTooltip } from '../shared/BuffTooltip'
 
 type SlotEntry =
   | { id: string; kind: 'pending'; icon: string; image?: string; title: string; subtitle: string; quantity: number; rewardIds: string[]; chestType: ChestType }
@@ -89,6 +24,7 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
   const chests = useInventoryStore((s) => s.chests)
   const pendingRewards = useInventoryStore((s) => s.pendingRewards)
   const equippedBySlot = useInventoryStore((s) => s.equippedBySlot)
+  const permanentStats = useInventoryStore((s) => s.permanentStats)
   const claimPendingReward = useInventoryStore((s) => s.claimPendingReward)
   const deletePendingReward = useInventoryStore((s) => s.deletePendingReward)
   const openChestAndGrantItem = useInventoryStore((s) => s.openChestAndGrantItem)
@@ -96,7 +32,12 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
   const equipItem = useInventoryStore((s) => s.equipItem)
   const unequipSlot = useInventoryStore((s) => s.unequipSlot)
   const deleteItem = useInventoryStore((s) => s.deleteItem)
+  const consumePotion = useInventoryStore((s) => s.consumePotion)
+  const inBattle = Boolean(useArenaStore((s) => s.activeBattle))
+  const [sortBy, setSortBy] = useState<'rarity' | 'name'>('rarity')
+  const [filterBy, setFilterBy] = useState<'all' | 'combat' | 'xp' | 'drops' | 'potions' | 'chests' | 'cosmetic' | 'plants'>('all')
   const [inspectSlotId, setInspectSlotId] = useState<string | null>(null)
+  const [listForSaleTarget, setListForSaleTarget] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; slotId: string } | null>(null)
   const [openChestModal, setOpenChestModal] = useState<{ chestType: ChestType; itemId: string } | null>(null)
   const [chestModalAnimSeed, setChestModalAnimSeed] = useState(0)
@@ -158,6 +99,52 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
     return out
   }, [pendingRewards, chests, items, equippedBySlot])
 
+  const RARITY_ORDER: Record<string, number> = { mythic: 5, legendary: 4, epic: 3, rare: 2, common: 1 }
+  const getSlotRarity = (slot: SlotEntry) => {
+    if (slot.kind === 'item') return LOOT_ITEMS.find((x) => x.id === slot.itemId)?.rarity ?? 'common'
+    if (slot.kind === 'chest' || slot.kind === 'pending') return CHEST_DEFS[slot.chestType].rarity
+    return 'common'
+  }
+
+  const FILTERS = [
+    { id: 'all',     label: 'All',      icon: '🎒' },
+    { id: 'combat',  label: 'Combat',   icon: '⚔️' },
+    { id: 'xp',      label: 'XP',       icon: '📈' },
+    { id: 'drops',   label: 'Drops',    icon: '🎁' },
+    { id: 'potions', label: 'Potions',  icon: '⚗️' },
+    { id: 'chests',  label: 'Chests',   icon: '📦' },
+    { id: 'cosmetic',label: 'Cosmetic', icon: '✨' },
+    { id: 'plants',  label: 'Plants',   icon: '🌿' },
+  ] as const
+
+  const slotMatchesFilter = (slot: SlotEntry): boolean => {
+    if (filterBy === 'all') return true
+    if (filterBy === 'chests') return slot.kind === 'chest' || slot.kind === 'pending'
+    if (slot.kind !== 'item') return false
+    const item = LOOT_ITEMS.find((x) => x.id === slot.itemId)
+    if (!item) return false
+    if (filterBy === 'combat')  return ['atk_boost', 'hp_boost', 'hp_regen_boost'].includes(item.perkType as string)
+    if (filterBy === 'xp')      return ['xp_skill_boost', 'xp_global_boost', 'focus_boost'].includes(item.perkType as string)
+    if (filterBy === 'drops')   return (item.perkType as string) === 'chest_drop_boost'
+    if (filterBy === 'potions') return item.slot === 'consumable'
+    if (filterBy === 'cosmetic') return ['cosmetic', 'status_title', 'streak_shield'].includes(item.perkType as string)
+    if (filterBy === 'plants') return item.slot === 'plant'
+    return true
+  }
+
+  const sortedSlots = useMemo(() => {
+    const kindOrder = (s: SlotEntry) => (s.kind === 'pending' ? 0 : s.kind === 'chest' ? 1 : 2)
+    return [...slots]
+      .filter(slotMatchesFilter)
+      .sort((a, b) => {
+        const kd = kindOrder(a) - kindOrder(b)
+        if (kd !== 0) return kd
+        if (sortBy === 'rarity') return (RARITY_ORDER[getSlotRarity(b)] ?? 0) - (RARITY_ORDER[getSlotRarity(a)] ?? 0)
+        return a.title.localeCompare(b.title)
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slots, sortBy, filterBy])
+
   const inspectSlot = useMemo(
     () => slots.find((slot) => slot.id === inspectSlotId) ?? null,
     [slots, inspectSlotId],
@@ -176,7 +163,7 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
   const inspectTheme = RARITY_THEME[inspectRarity]
   const equippedItems = useMemo(
     () =>
-      (Object.keys(SLOT_META) as LootSlot[])
+      LOOT_SLOTS
         .map((slot) => {
           const id = equippedBySlot[slot]
           if (!id) return null
@@ -227,11 +214,19 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
   const openChest = (chestType: ChestType) => {
     const result = openChestAndGrantItem(chestType, { source: 'session_complete' })
     if (!result) return
+    useFarmStore.getState().rollSeedDrop(chestType)
     setInspectSlotId(null)
     setContextMenu(null)
     setChestChainMessage(null)
     setChestModalAnimSeed((v) => v + 1)
     setOpenChestModal({ chestType, itemId: result.itemId })
+  }
+
+  const isPotionMaxed = (itemId: string) => {
+    if (itemId === 'atk_potion') return permanentStats.atk >= POTION_MAX
+    if (itemId === 'hp_potion') return permanentStats.hp >= POTION_MAX
+    if (itemId === 'regen_potion') return permanentStats.hpRegen >= POTION_MAX
+    return false
   }
 
   const runPrimaryAction = (slot: SlotEntry) => {
@@ -245,6 +240,14 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
     if (slot.kind === 'item') {
       const item = LOOT_ITEMS.find((x) => x.id === slot.itemId)
       if (!item) return
+      if (item.slot === 'plant') return  // plants are not equippable
+      if (item.slot === 'consumable') {
+        if (isPotionMaxed(slot.itemId)) return
+        const ok = consumePotion(slot.itemId)
+        if (ok) playPotionSound()
+        return
+      }
+      if (inBattle) return   // gear locked during battle
       if (slot.equipped) return unequipSlot(item.slot)
       return equipItem(slot.itemId)
     }
@@ -263,7 +266,14 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
   const getPrimaryActionLabel = (slot: SlotEntry) => {
     if (slot.kind === 'pending') return 'Open'
     if (slot.kind === 'chest') return 'Open'
-    return slot.equipped ? 'Unequip' : 'Equip'
+    if (slot.kind === 'item') {
+      const item = LOOT_ITEMS.find((x) => x.id === slot.itemId)
+      if (item?.slot === 'plant') return '—'
+      if (item?.slot === 'consumable') return isPotionMaxed(slot.itemId) ? 'Maxed' : 'Drink'
+      if (inBattle) return '⚔ Locked'
+      return slot.equipped ? 'Unequip' : 'Equip'
+    }
+    return 'Open'
   }
 
   const hasNextChestToOpen = (chestType: ChestType) =>
@@ -276,6 +286,7 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
       claimPendingReward(pending.id)
       const result = openChestAndGrantItem(chestType, { source: 'session_complete' })
       if (!result) return false
+      useFarmStore.getState().rollSeedDrop(chestType)
       setChestModalAnimSeed((v) => v + 1)
       setOpenChestModal({ chestType, itemId: result.itemId })
       return true
@@ -283,6 +294,7 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
     if ((chests[chestType] ?? 0) > 0) {
       const result = openChestAndGrantItem(chestType, { source: 'session_complete' })
       if (!result) return false
+      useFarmStore.getState().rollSeedDrop(chestType)
       setChestModalAnimSeed((v) => v + 1)
       setOpenChestModal({ chestType, itemId: result.itemId })
       return true
@@ -300,120 +312,270 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
       <PageHeader title="Inventory" onBack={onBack} />
 
       <div className="rounded-xl border border-white/10 bg-discord-card/80 p-3">
-        <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono mb-2">Equipped</p>
-        <div className="grid grid-cols-[1.5fr_1fr] gap-2">
-          <div className="grid grid-cols-2 gap-2">
-            {(Object.keys(SLOT_META) as LootSlot[]).map((slot) => {
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono">Loadout</p>
+          {inBattle && <p className="text-[10px] text-amber-400/60 font-mono">stats locked at start</p>}
+        </div>
+
+        <div className="flex gap-2">
+          {/* Left: gear slots */}
+          {(() => {
+            const renderSlot = (slot: LootSlot) => {
               const meta = SLOT_META[slot]
               const equippedItem = LOOT_ITEMS.find((item) => item.id === equippedBySlot[slot])
-              const equippedTheme = equippedItem ? RARITY_THEME[normalizeRarity(equippedItem.rarity)] : null
-              return (
-                <div
-                  key={slot}
-                  className="rounded-lg border border-white/10 bg-discord-darker/40 p-2"
-                  style={equippedTheme ? { borderColor: equippedTheme.border, boxShadow: `0 0 14px ${equippedTheme.glow}` } : undefined}
-                  onContextMenu={(e) => {
-                    if (!equippedItem) return
-                    e.preventDefault()
-                    unequipSlot(slot)
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-gray-400 font-mono uppercase">{meta.icon} {meta.label}</span>
+              const theme = equippedItem ? RARITY_THEME[normalizeRarity(equippedItem.rarity)] : null
+              const inner = (
+                <>
+                  <div
+                    className="w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden"
+                    style={theme
+                      ? { background: `radial-gradient(circle at 50% 40%, ${theme.glow}55 0%, rgba(9,9,17,0.95) 70%)` }
+                      : { background: 'rgba(9,9,17,0.85)' }}
+                  >
+                    {equippedItem
+                      ? <LootVisual icon={equippedItem.icon} image={equippedItem.image} className="w-6 h-6 object-contain" scale={equippedItem.renderScale ?? 1} />
+                      : <span className="text-[13px] opacity-[0.13]">{meta.icon}</span>}
                   </div>
-                  {equippedItem ? (
-                    <button
-                      type="button"
-                    onClick={() => {
-                      playClickSound()
-                      setInspectSlotId(`item:${equippedItem.id}`)
-                    }}
-                      className="mt-1 w-full text-left"
-                    >
-                      <div
-                        className="w-[72px] aspect-square mx-auto rounded-md border bg-discord-card/70 flex items-center justify-center"
-                        style={equippedTheme ? { borderColor: equippedTheme.border, boxShadow: `inset 0 0 10px ${equippedTheme.glow}` } : { borderColor: 'rgba(255,255,255,0.15)' }}
-                      >
-                        <LootVisual icon={equippedItem.icon} image={equippedItem.image} className="w-11 h-11 object-contain" scale={equippedItem.renderScale ?? 1} />
-                      </div>
-                      <p className="text-[10px] text-white mt-1.5 truncate">{equippedItem.name}</p>
-                    </button>
-                  ) : (
-                    <p className="text-[10px] text-gray-600 mt-1">Empty slot</p>
-                  )}
-                </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[7px] text-gray-500 font-mono uppercase tracking-wider leading-none">{meta.label}</p>
+                    <p className={`text-[10px] font-medium truncate mt-0.5 leading-tight ${equippedItem ? 'text-white/85' : 'text-gray-600'}`}>
+                      {equippedItem ? equippedItem.name : 'Empty'}
+                    </p>
+                  </div>
+                  {theme && <div className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: theme.color }} />}
+                </>
               )
-            })}
-          </div>
-          <div className="rounded-lg border border-white/10 bg-discord-darker/40 p-2">
-            <p className="text-[10px] uppercase tracking-wider text-gray-400 font-mono mb-1.5">Buffs</p>
-            {activeBuffs.length === 0 ? (
-              <p className="text-[10px] text-gray-600">No active buffs.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {activeBuffs.map((buff) => (
-                  <div key={buff.key} className="rounded-md border border-white/10 bg-discord-card/60 p-1.5">
-                    <p className={`text-[9px] font-mono ${buff.isGameplay ? 'text-cyber-neon' : 'text-gray-400'}`}>{buff.slotLabel} · {buff.name}</p>
-                    <p className="text-[9px] text-gray-300 leading-snug">{buff.description}</p>
+              return (
+                <BuffTooltip key={slot} item={equippedItem ?? null} placement="right" stretch>
+                  <div
+                    className="rounded-md border overflow-hidden h-full"
+                    style={theme
+                      ? { borderColor: theme.border, background: `linear-gradient(135deg, ${theme.glow}10 0%, rgba(12,12,20,0.95) 55%)` }
+                      : { borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(12,12,20,0.70)' }}
+                  >
+                    {equippedItem ? (
+                      <button
+                        type="button"
+                        onClick={() => { playClickSound(); setInspectSlotId(`item:${equippedItem.id}`) }}
+                        onContextMenu={(e) => { e.preventDefault(); unequipSlot(slot) }}
+                        className="w-full h-full px-2 py-3 flex items-center gap-2 hover:bg-white/[0.05] transition-colors"
+                      >
+                        {inner}
+                      </button>
+                    ) : (
+                      <div className="h-full px-2 py-3 flex items-center gap-2">{inner}</div>
+                    )}
                   </div>
+                </BuffTooltip>
+              )
+            }
+            return (
+              <div className="flex flex-col gap-1" style={{ flex: '2', minWidth: 0 }}>
+                {(['head', 'body', 'ring', 'legs'] as LootSlot[]).map((s) => (
+                  <div key={s} className="flex-1 min-h-0">{renderSlot(s)}</div>
                 ))}
               </div>
-            )}
+            )
+          })()}
+
+          {/* Right: Stats + Buffs */}
+          <div className="flex-1 min-w-0 rounded-lg border border-white/10 bg-discord-darker/40 p-2 flex flex-col gap-2">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono mb-1.5">Stats</p>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between" title="Damage you deal to the boss per second">
+                  <span className="text-[10px] text-gray-400">ATK <span className="text-[9px] text-gray-600">/s</span></span>
+                  <span className={`text-[12px] font-mono font-bold ${permanentStats.atk >= POTION_MAX ? 'text-amber-400' : 'text-red-400'}`}>{computePlayerStats(equippedBySlot, permanentStats).atk}</span>
+                </div>
+                <div className="flex items-center justify-between" title="Total health">
+                  <span className="text-[10px] text-gray-400">HP</span>
+                  <span className={`text-[12px] font-mono font-bold ${permanentStats.hp >= POTION_MAX ? 'text-amber-400' : 'text-green-400'}`}>{computePlayerStats(equippedBySlot, permanentStats).hp}</span>
+                </div>
+                <div className="flex items-center justify-between" title="HP restored per second">
+                  <span className="text-[10px] text-gray-400">Regen <span className="text-[9px] text-gray-600">/s</span></span>
+                  <span className={`text-[12px] font-mono font-bold ${permanentStats.hpRegen >= POTION_MAX ? 'text-amber-400' : 'text-cyan-400'}`}>{computePlayerStats(equippedBySlot, permanentStats).hpRegen}</span>
+                </div>
+                <div className="flex items-center justify-between" title="Total Item Power from equipped gear">
+                  <span className="text-[10px] text-gray-400">IP</span>
+                  <span className="text-[12px] font-mono font-bold text-amber-300">
+                    {LOOT_SLOTS.reduce((sum, s) => { const id = equippedBySlot[s]; if (!id) return sum; const it = LOOT_ITEMS.find((x) => x.id === id); return sum + (it ? getItemPower(it.rarity) : 0) }, 0)}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono mb-1.5">Buffs</p>
+              {equippedItems.length === 0 ? (
+                <p className="text-[10px] text-gray-600">No gear equipped.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {equippedItems.map(({ slot, item }) => (
+                    <div key={slot} className="rounded-md border border-white/10 bg-discord-card/60 p-1.5">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[8px] font-mono uppercase tracking-wide px-1 py-px rounded border border-white/10 text-gray-500 leading-none flex-shrink-0">
+                          {SLOT_LABEL[slot]}
+                        </span>
+                        <p className={`text-[9px] font-mono truncate ${item.perkType !== 'cosmetic' ? 'text-cyber-neon' : 'text-gray-400'}`}>
+                          {item.name}
+                        </p>
+                      </div>
+                      <p className="text-[9px] text-gray-300 leading-snug">{item.perkDescription}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-discord-card/80 p-3 space-y-2">
+      <div className="rounded-xl border border-white/[0.08] bg-discord-card/80 p-3 space-y-2.5">
+        {/* Header */}
         <div className="flex items-center justify-between">
-          <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono">Inventory slots</p>
-          <p className="text-[10px] text-gray-600 font-mono">{slots.length} slots</p>
+          <p className="text-[10px] uppercase tracking-widest text-gray-500 font-mono">
+            Inventory
+            <span className="ml-1.5 text-gray-600 normal-case tracking-normal">
+              {sortedSlots.length}{sortedSlots.length !== slots.length ? `\u00a0/\u00a0${slots.length}` : ''}
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={() => setSortBy((s) => s === 'rarity' ? 'name' : 'rarity')}
+            className="flex items-center gap-1 text-[9px] font-mono px-2 py-0.5 rounded border border-white/[0.07] text-gray-500 hover:text-gray-300 hover:border-white/15 transition-colors"
+          >
+            <span>{sortBy === 'rarity' ? '▼ Rarity' : '▼ A–Z'}</span>
+          </button>
         </div>
 
+        {/* Filter pills — wrapping, no scroll */}
+        <div className="flex flex-wrap gap-1">
+          {FILTERS.map((f) => {
+            const active = filterBy === f.id
+            return (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => { playClickSound(); setFilterBy(f.id) }}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[10px] font-medium transition-all ${
+                  active
+                    ? 'border-cyber-neon/40 bg-cyber-neon/10 text-cyber-neon'
+                    : 'border-white/[0.07] bg-discord-darker/30 text-gray-500 hover:text-gray-300 hover:border-white/15'
+                }`}
+              >
+                <span className="text-[11px] leading-none">{f.icon}</span>
+                <span>{f.label}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-white/[0.05]" />
+
+        {/* List */}
         {slots.length === 0 ? (
-          <p className="text-[11px] text-gray-500">No loot yet.</p>
+          <p className="text-[11px] text-gray-500 py-2">No loot yet.</p>
+        ) : sortedSlots.length === 0 ? (
+          <p className="text-[11px] text-gray-500 py-2">Nothing here.</p>
         ) : (
-          <div className="rounded-lg border border-white/10 bg-discord-darker/40 p-2">
-            <div className="grid grid-cols-5 gap-1.5">
-              {slots.map((slot) => (
+          <div className="space-y-1">
+            {sortedSlots.map((slot) => {
+              const slotRarity = getSlotRarity(slot)
+              const slotTheme = RARITY_THEME[normalizeRarity(slotRarity)]
+              const isEquipped = slot.kind === 'item' && slot.equipped
+              const isPending = slot.kind === 'pending'
+              return (
                 <button
                   key={slot.id}
                   type="button"
-                  onClick={() => {
-                    playClickSound()
-                    setInspectSlotId(slot.id)
-                    setContextMenu(null)
-                  }}
+                  onClick={() => { playClickSound(); setInspectSlotId(slot.id); setContextMenu(null) }}
                   onContextMenu={(e) => {
                     e.preventDefault()
-                    setContextMenu({ x: e.clientX, y: e.clientY, slotId: slot.id })
+                    const MENU_W = 164
+                    const MENU_H = 124
+                    setContextMenu({
+                      x: Math.min(e.clientX, window.innerWidth - MENU_W - 4),
+                      y: Math.min(e.clientY, window.innerHeight - MENU_H - 4),
+                      slotId: slot.id,
+                    })
                   }}
-                  className="relative w-full aspect-square rounded-md border text-center border-white/10 bg-discord-card/70 hover:border-cyber-neon/30 transition-colors"
+                  className="relative w-full px-2.5 py-2 flex items-center gap-2.5 rounded-lg border hover:bg-white/[0.04] active:scale-[0.99] transition-all text-left"
+                  style={{
+                    borderColor: slotTheme.border,
+                    background: isEquipped
+                      ? `linear-gradient(135deg, ${slotTheme.glow}14 0%, rgba(12,12,20,0.95) 55%)`
+                      : `linear-gradient(135deg, ${slotTheme.glow}07 0%, rgba(12,12,20,0.85) 60%)`,
+                  }}
                 >
-                  <span className="absolute inset-0 flex items-center justify-center">
+                  {isPending && (
+                    <span className="absolute inset-0 rounded-lg pointer-events-none animate-pulse border border-amber-400/30" />
+                  )}
+
+                  {/* Icon box */}
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden relative"
+                    style={isEquipped
+                      ? { background: `radial-gradient(circle at 50% 40%, ${slotTheme.glow}55 0%, rgba(9,9,17,0.95) 70%)` }
+                      : { background: 'rgba(9,9,17,0.85)' }}
+                  >
                     <LootVisual
                       icon={slot.icon}
                       image={slot.image}
-                      className="w-10 h-10 object-contain"
+                      className="w-6 h-6 object-contain"
                       scale={slot.kind === 'item' ? (LOOT_ITEMS.find((x) => x.id === slot.itemId)?.renderScale ?? 1) : 1}
                     />
-                  </span>
-                  <span className="absolute top-0.5 right-1 text-[8px] text-gray-400 font-mono">x{slot.quantity}</span>
+                    {isEquipped && (
+                      <span className="absolute top-[3px] left-[3px] w-[5px] h-[5px] rounded-full" style={{ background: slotTheme.color }} />
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-[11px] font-medium truncate text-white/85 leading-tight">{slot.title}</p>
+                      {slot.kind === 'item' && (() => {
+                        const lootItem = LOOT_ITEMS.find((x) => x.id === slot.itemId)
+                        if (!lootItem || lootItem.slot === 'consumable') return null
+                        return (
+                          <span className="flex-shrink-0 text-[8px] font-mono uppercase tracking-wide px-1 py-px rounded border border-white/10 text-gray-500 leading-none">
+                            {SLOT_LABEL[lootItem.slot]}
+                          </span>
+                        )
+                      })()}
+                    </div>
+                    <p className="text-[9px] text-gray-500 truncate mt-0.5">{slot.subtitle}</p>
+                  </div>
+
+                  {/* Right: qty + rarity dot */}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {slot.quantity > 1 && (
+                      <span
+                        className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded"
+                        style={{ background: `${slotTheme.border}50`, color: slotTheme.color }}
+                      >
+                        ×{slot.quantity}
+                      </span>
+                    )}
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ background: slotTheme.color }} />
+                  </div>
                 </button>
-              ))}
-            </div>
+              )
+            })}
           </div>
         )}
       </div>
 
-      <AnimatePresence>
-        {inspectSlot && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[85] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={() => setInspectSlotId(null)}
-          >
+      {inspectSlot &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[85] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+              onClick={() => setInspectSlotId(null)}
+            >
             <motion.div
               initial={{ scale: 0.92, opacity: 0, y: 12 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -466,6 +628,13 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
               <div className="mt-3 rounded-lg border border-white/10 bg-discord-darker/40 p-2.5 space-y-1">
                 {inspectSlot.kind === 'item' && (() => {
                   if (!inspectItem) return <p className="text-[10px] text-gray-500">Unknown item.</p>
+                  const isPlant = inspectItem.slot === 'plant'
+                  const isPotion = (POTION_IDS as readonly string[]).includes(inspectItem.id)
+                  const consumed = isPotion
+                    ? inspectItem.id === 'atk_potion' ? permanentStats.atk
+                      : inspectItem.id === 'hp_potion' ? permanentStats.hp
+                      : permanentStats.hpRegen
+                    : 0
                   const rate = estimateLootDropRate(inspectItem.id, { source: 'skill_grind', focusCategory: 'coding' })
                   return (
                     <>
@@ -473,8 +642,16 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
                       <p className="text-[10px]" style={{ color: inspectTheme.color }}>
                         <span className="text-gray-500">Rarity:</span> {inspectRarity.toUpperCase()}
                       </p>
-                      <p className="text-[10px] text-gray-300"><span className="text-gray-500">Drop rate:</span> ~{rate}%</p>
+                      {isPlant && (
+                        <p className="text-[10px] text-lime-400/80 font-mono">🌾 Farm harvest · sell on Marketplace</p>
+                      )}
+                      {!isPotion && !isPlant && <p className="text-[10px] text-gray-300"><span className="text-gray-500">Drop rate:</span> ~{rate}%</p>}
                       <p className="text-[10px] text-gray-300"><span className="text-gray-500">Effect:</span> {inspectItem.perkDescription}</p>
+                      {isPotion && (
+                        <p className={`text-[10px] font-mono ${consumed >= POTION_MAX ? 'text-amber-400' : 'text-gray-400'}`}>
+                          Consumed: {consumed}/{POTION_MAX}{consumed >= POTION_MAX ? ' — MAXED' : ''}
+                        </p>
+                      )}
                     </>
                   )
                 })()}
@@ -485,37 +662,59 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
                   <p className="text-[10px] text-gray-300">Pending drop from activity. Claim it first.</p>
                 )}
               </div>
-              <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    playClickSound()
-                    runPrimaryAction(inspectSlot)
-                  }}
-                  className="flex-1 text-[10px] py-1.5 rounded border font-semibold transition-colors"
-                  style={{
-                    color: inspectTheme.color,
-                    borderColor: inspectTheme.border,
-                    backgroundColor: `${inspectTheme.color}22`,
-                  }}
-                >
-                  {getPrimaryActionLabel(inspectSlot)}
-                </button>
+              <div className="mt-3 flex gap-2 flex-wrap">
+                {(() => {
+                  const isPlant = inspectSlot.kind === 'item' && LOOT_ITEMS.find((x) => x.id === inspectSlot.itemId)?.slot === 'plant'
+                  const isConsumable = inspectSlot.kind === 'item' && LOOT_ITEMS.find((x) => x.id === inspectSlot.itemId)?.slot === 'consumable'
+                  const isMaxed = isConsumable && isPotionMaxed(inspectSlot.kind === 'item' ? inspectSlot.itemId : '')
+                  const isGearLocked = inBattle && inspectSlot.kind === 'item' && !isConsumable
+                  const disabled = isPlant || isMaxed || isGearLocked
+                  return (
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => {
+                        playClickSound()
+                        runPrimaryAction(inspectSlot)
+                      }}
+                      className={`flex-1 min-w-0 text-[10px] py-1.5 rounded border font-semibold transition-colors ${
+                        disabled ? 'border-white/10 text-gray-600 cursor-not-allowed' : ''
+                      }`}
+                      style={disabled ? undefined : { color: inspectTheme.color, borderColor: inspectTheme.border, backgroundColor: `${inspectTheme.color}22` }}
+                    >
+                      {getPrimaryActionLabel(inspectSlot)}
+                    </button>
+                  )
+                })()}
+                {inspectSlot.kind === 'item' && !inspectSlot.equipped && !MARKETPLACE_BLOCKED_ITEMS.includes(inspectSlot.itemId) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playClickSound()
+                      setListForSaleTarget(inspectSlot.itemId)
+                      setInspectSlotId(null)
+                    }}
+                    className="flex-1 min-w-0 text-[10px] py-1.5 rounded border border-amber-500/40 text-amber-300 hover:bg-amber-500/15 font-semibold"
+                  >
+                    List for sale
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
                     playClickSound()
                     runDeleteAction(inspectSlot)
                   }}
-                  className="flex-1 text-[10px] py-1.5 rounded border border-red-400/35 text-red-300 hover:bg-red-400/10"
+                  className="flex-1 min-w-0 text-[10px] py-1.5 rounded border border-red-400/35 text-red-300 hover:bg-red-400/10"
                 >
                   Delete
                 </button>
               </div>
             </motion.div>
           </motion.div>
+          </AnimatePresence>,
+          document.body
         )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {contextMenu && (() => {
@@ -523,21 +722,46 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
           if (!slot) return null
           return (
             <div
-              className="fixed z-[90] rounded-lg border border-white/15 bg-discord-card px-2 py-1.5"
+              className="fixed z-[90] w-[156px] rounded-lg border border-white/15 bg-discord-card shadow-xl px-1.5 py-1.5"
               style={{ left: contextMenu.x, top: contextMenu.y }}
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                type="button"
-                onClick={() => {
-                  playClickSound()
-                  runPrimaryAction(slot)
-                  setContextMenu(null)
-                }}
-                className="block w-full text-left text-[11px] px-2 py-1 rounded text-cyber-neon hover:bg-cyber-neon/15"
-              >
-                {getPrimaryActionLabel(slot)}
-              </button>
+              {(() => {
+                const isPlant = slot.kind === 'item' && LOOT_ITEMS.find((x) => x.id === slot.itemId)?.slot === 'plant'
+                const isConsumable = slot.kind === 'item' && LOOT_ITEMS.find((x) => x.id === slot.itemId)?.slot === 'consumable'
+                const isMaxed = isConsumable && isPotionMaxed(slot.kind === 'item' ? slot.itemId : '')
+                const isGearLocked = inBattle && slot.kind === 'item' && !isConsumable
+                const disabled = isPlant || isMaxed || isGearLocked
+                return (
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      playClickSound()
+                      runPrimaryAction(slot)
+                      setContextMenu(null)
+                    }}
+                    className={`block w-full text-left text-[11px] px-2 py-1 rounded ${
+                      disabled ? 'text-gray-600 cursor-not-allowed' : 'text-cyber-neon hover:bg-cyber-neon/15'
+                    }`}
+                  >
+                    {getPrimaryActionLabel(slot)}
+                  </button>
+                )
+              })()}
+              {slot.kind === 'item' && !slot.equipped && !MARKETPLACE_BLOCKED_ITEMS.includes(slot.itemId) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    playClickSound()
+                    setListForSaleTarget(slot.itemId)
+                    setContextMenu(null)
+                  }}
+                  className="block w-full text-left text-[11px] px-2 py-1 rounded text-amber-300 hover:bg-amber-500/15"
+                >
+                  List for sale
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -552,6 +776,21 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
             </div>
           )
         })()}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {listForSaleTarget && (
+          <ListForSaleModal
+            itemId={listForSaleTarget}
+            onClose={() => setListForSaleTarget(null)}
+            onListed={async () => {
+              const { items, chests } = useInventoryStore.getState()
+              const { seeds, seedZips } = useFarmStore.getState()
+              await syncInventoryToSupabase(items, chests, { merge: false, seeds, seedZips }).catch(() => {})
+              setListForSaleTarget(null)
+            }}
+          />
+        )}
       </AnimatePresence>
 
       <ChestOpenModal

@@ -4,10 +4,12 @@ import { useAuthStore } from '../stores/authStore'
 import { computeTotalSkillLevel } from '../lib/skills'
 import { getEquippedBadges, getEquippedFrame } from '../lib/cosmetics'
 import { detectPersona } from '../lib/persona'
-import { syncCosmeticsToSupabase, syncSkillsToSupabase } from '../services/supabaseSync'
+import { syncCosmeticsToSupabase, syncInventoryToSupabase, syncSkillsToSupabase } from '../services/supabaseSync'
 import { useSkillSyncStore } from '../stores/skillSyncStore'
 import { buildPresenceActivity } from '../lib/friendPresence'
 import { ensureInventoryHydrated, useInventoryStore } from '../stores/inventoryStore'
+import { useFarmStore } from '../stores/farmStore'
+import { useGoldStore } from '../stores/goldStore'
 import { getEquippedPerkRuntime } from '../lib/loot'
 
 export function useProfileSync() {
@@ -21,12 +23,30 @@ export function useProfileSync() {
 
     const sync = async () => {
       if (!supabase || !user) return
+      await useGoldStore.getState().syncFromSupabase(user.id)
+
+      // Inventory + seeds + seed zips sync — runs even without Electron (browser dev mode)
+      ensureInventoryHydrated()
+      const { items, chests } = useInventoryStore.getState()
+      const { seeds, seedZips } = useFarmStore.getState()
+      syncInventoryToSupabase(items, chests, { merge: true, seeds, seedZips })
+        .then((res) => {
+          if (res.ok && res.mergedChests) {
+            if (res.mergedItems) useInventoryStore.getState().mergeFromCloud(res.mergedItems, res.mergedChests)
+            if (res.mergedSeeds) useFarmStore.getState().mergeSeedsFromCloud(res.mergedSeeds)
+            if (res.mergedSeedZips) useFarmStore.getState().mergeSeedZipsFromCloud(res.mergedSeedZips)
+          }
+        })
+        .catch(() => {})
+
       if (!window.electronAPI?.db?.getStreak) return
       const api = window.electronAPI
       let totalSkillLevel = 0
+      let totalSkillXp = 0
       if (api?.db?.getAllSkillXP) {
         const rows = (await api.db.getAllSkillXP()) as { skill_id: string; total_xp: number }[]
         totalSkillLevel = computeTotalSkillLevel(rows || [])
+        totalSkillXp = (rows || []).reduce((sum, row) => sum + Math.max(0, row.total_xp ?? 0), 0)
       }
       const [streak] = await Promise.all([
         api.db.getStreak(),
@@ -41,9 +61,17 @@ export function useProfileSync() {
         personaId = detectPersona(cats || []).id
       }
 
-      // Sync required profile fields first. Optional columns should never block this.
+      const profileRes = await supabase
+        .from('profiles')
+        .select('level, xp')
+        .eq('id', user.id)
+        .single()
+      const currentProfileLevel = Math.max(0, Number(profileRes.data?.level ?? 0))
+      const currentProfileXp = Math.max(0, Number(profileRes.data?.xp ?? 0))
+      // Never downsync profile totals: cloud keeps the best-known values.
       const { error: baseProfileError } = await supabase.from('profiles').update({
-        level: totalSkillLevel,
+        level: Math.max(totalSkillLevel, currentProfileLevel),
+        xp: Math.max(totalSkillXp, currentProfileXp),
         streak_count: streak,
         updated_at: new Date().toISOString(),
       }).eq('id', user.id)
@@ -67,7 +95,7 @@ export function useProfileSync() {
       const equippedLoot = useInventoryStore.getState().equippedBySlot
       const perk = getEquippedPerkRuntime(equippedLoot)
       syncCosmeticsToSupabase(equippedBadges, equippedFrame, {
-        equippedLoot: equippedLoot as Record<string, string>,
+        equippedLoot: (equippedLoot ?? {}) as Record<string, string>,
         statusTitle: perk.statusTitle,
       }).catch(() => {})
 
@@ -121,6 +149,31 @@ export function useProfileSync() {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [user, setSyncState])
+
+  // Sync cosmetics immediately when equipped loot changes (so friends see loadout right away)
+  const prevEquippedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!supabase || !user) return
+    ensureInventoryHydrated()
+    prevEquippedRef.current = JSON.stringify(useInventoryStore.getState().equippedBySlot)
+    const syncCosmeticsNow = () => {
+      ensureInventoryHydrated()
+      const equippedLoot = useInventoryStore.getState().equippedBySlot
+      const perk = getEquippedPerkRuntime(equippedLoot)
+      syncCosmeticsToSupabase(getEquippedBadges(), getEquippedFrame(), {
+        equippedLoot: (equippedLoot ?? {}) as Record<string, string>,
+        statusTitle: perk.statusTitle,
+      }).catch(() => {})
+    }
+    const unsub = useInventoryStore.subscribe(() => {
+      const nextStr = JSON.stringify(useInventoryStore.getState().equippedBySlot)
+      if (prevEquippedRef.current !== nextStr) {
+        prevEquippedRef.current = nextStr
+        syncCosmeticsNow()
+      }
+    })
+    return unsub
+  }, [user])
 }
 
 export function usePresenceSync(

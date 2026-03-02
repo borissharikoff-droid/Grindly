@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import { useNavBadgeStore } from '../stores/navBadgeStore'
 import { useMessageToastStore } from '../stores/messageToastStore'
+import { useChatTargetStore } from '../stores/chatTargetStore'
 import { playMessageSound } from '../lib/sounds'
 
 /**
@@ -53,31 +54,33 @@ export function useMessageNotifier() {
         },
         (payload) => {
           const row = payload.new as { id: string; sender_id: string; body: string }
-          addUnreadMessages(1)
-          playMessageSound()
-          // Flash taskbar (badge is synced via unreadMessagesCount effect)
-          try {
-            window.electronAPI?.window?.flashFrame?.()
-          } catch {}
-          const preview = row.body.length > 30 ? row.body.slice(0, 30) + '...' : row.body
-          // Fetch sender profile and push single message surface (top banner queue)
-          supabase.from('profiles').select('username, avatar_url').eq('id', row.sender_id).single().then(({ data: profile }) => {
-            const name = profile?.username?.trim() || 'Friend'
-            const avatar = profile?.avatar_url || '💬'
-            useMessageToastStore.getState().push({
-              senderId: row.sender_id,
-              senderName: name,
-              senderAvatar: avatar,
-              preview,
+          const activeChatPeerId = useChatTargetStore.getState().activeChatPeerId
+          const isInChatWithSender = activeChatPeerId === row.sender_id
+          if (!isInChatWithSender) {
+            addUnreadMessages(1)
+            playMessageSound()
+            try {
+              window.electronAPI?.window?.flashFrame?.()
+            } catch {}
+            const preview = row.body.length > 80 ? row.body.slice(0, 80) + '…' : row.body
+            supabase.from('profiles').select('username, avatar_url').eq('id', row.sender_id).single().then(({ data: profile }) => {
+              const name = profile?.username?.trim() || 'Friend'
+              const avatar = profile?.avatar_url || '💬'
+              useMessageToastStore.getState().push({
+                senderId: row.sender_id,
+                senderName: name,
+                senderAvatar: avatar,
+                preview,
+              })
+            }).catch(() => {
+              useMessageToastStore.getState().push({
+                senderId: row.sender_id,
+                senderName: 'Friend',
+                senderAvatar: '💬',
+                preview,
+              })
             })
-          }).catch(() => {
-            useMessageToastStore.getState().push({
-              senderId: row.sender_id,
-              senderName: 'Friend',
-              senderAvatar: '💬',
-              preview,
-            })
-          })
+          }
         }
       )
       .subscribe()

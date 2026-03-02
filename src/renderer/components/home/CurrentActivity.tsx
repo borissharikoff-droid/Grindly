@@ -47,8 +47,8 @@ export function CurrentActivity() {
     }
 
     setIsDetecting(true)
-    // Keep last known good activity briefly to prevent card flicker.
-    clearRef.current = setTimeout(() => setDisplayActivity(null), 1700)
+    // Keep last known good activity a bit longer to prevent visual flicker.
+    clearRef.current = setTimeout(() => setDisplayActivity(null), 2300)
   }, [currentActivity])
   const isPreloadError = api && '_preloadError' in api && api._preloadError
   const isBrowser = typeof window === 'undefined' || !api || (!('tracker' in api) && !isPreloadError)
@@ -83,9 +83,9 @@ export function CurrentActivity() {
   if (isDetectorError && displayActivity) {
     return (
       <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: MOTION.duration.fast, ease: MOTION.easing }}
+        initial={{ opacity: 0, y: 10, scale: 0.99, filter: 'blur(4px)' }}
+        animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+        transition={{ duration: MOTION.duration.slow, ease: MOTION.easingSoft }}
         className="w-full max-w-xs rounded-xl bg-amber-950/30 border border-amber-500/30 px-4 py-3"
       >
         <p className="text-amber-400 text-sm font-medium">Window detector error</p>
@@ -100,9 +100,9 @@ export function CurrentActivity() {
   if (!displayActivity) {
     return (
       <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: MOTION.duration.fast, ease: MOTION.easing }}
+        initial={{ opacity: 0, y: 8, filter: 'blur(3px)' }}
+        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+        transition={{ duration: MOTION.duration.slow, ease: MOTION.easingSoft }}
         className="w-full max-w-xs rounded-xl bg-discord-card/60 border border-white/5 px-4 py-3 text-center"
       >
         <p className="text-gray-500 text-xs font-mono">Detecting active window...</p>
@@ -122,29 +122,39 @@ export function CurrentActivity() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: MOTION.duration.fast, ease: MOTION.easing }}
+      layout
+      initial={{ opacity: 0, y: 12, scale: 0.99, filter: 'blur(5px)' }}
+      animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+      transition={{ duration: MOTION.duration.verySlow, ease: MOTION.easingSoft }}
       className="w-full max-w-xs rounded-xl bg-discord-card/90 border border-cyber-neon/20 px-4 py-3 shadow-[0_0_16px_rgba(0,255,136,0.06)]"
     >
       <div className="flex items-center gap-2.5">
-        <span className="text-lg">{skill?.icon ?? '📱'}</span>
+        <motion.span
+          layout="position"
+          transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
+          className="text-lg"
+        >
+          {skill?.icon ?? '📱'}
+        </motion.span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.p
-                key={activityTitle}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.14 }}
-                className="text-cyber-neon/95 text-sm font-medium truncate"
-              >
-                {activityTitle}
-              </motion.p>
-            </AnimatePresence>
+            <motion.p
+              layout="position"
+              transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
+              className="text-cyber-neon/95 text-sm font-medium truncate"
+            >
+              {activityTitle}
+            </motion.p>
             {xpThisSession > 0 && (
-              <span className="text-[11px] font-mono text-gray-400">+{xpThisSession} XP</span>
+              <motion.span
+                layout
+                initial={{ opacity: 0, y: 3 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
+                className="text-[11px] font-mono text-gray-400"
+              >
+                +{xpThisSession} XP
+              </motion.span>
             )}
             <AnimatePresence>
               {isDetecting && (
@@ -153,7 +163,7 @@ export function CurrentActivity() {
                   initial={{ opacity: 0, scale: 0.96 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.96 }}
-                  transition={{ duration: MOTION.duration.fast, ease: MOTION.easing }}
+                  transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
                   className="text-[9px] px-1.5 py-0.5 rounded-full border border-white/10 text-gray-400 bg-white/[0.03]"
                 >
                   updating...
@@ -161,18 +171,13 @@ export function CurrentActivity() {
               )}
             </AnimatePresence>
           </div>
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.p
-              key={activitySubtitle}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.14 }}
-              className="text-gray-400 text-xs truncate"
-            >
-              {activitySubtitle}
-            </motion.p>
-          </AnimatePresence>
+          <motion.p
+            layout="position"
+            transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
+            className="text-gray-400 text-xs truncate"
+          >
+            {activitySubtitle}
+          </motion.p>
         </div>
       </div>
     </motion.div>

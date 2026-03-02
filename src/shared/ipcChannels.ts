@@ -81,4 +81,9 @@ export const IPC_CHANNELS = {
     status: 'updater:status',
     install: 'updater:install',
   },
+  focus: {
+    enable: 'focus:enable',
+    disable: 'focus:disable',
+    status: 'focus:status',
+  },
 } as const

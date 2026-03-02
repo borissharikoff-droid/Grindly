@@ -1,24 +1,171 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { useSessionStore } from '../../stores/sessionStore'
+import { useSessionStore, type SkillXPGain } from '../../stores/sessionStore'
 import { useAlertStore } from '../../stores/alertStore'
+import { useAuthStore } from '../../stores/authStore'
+import { useFriends } from '../../hooks/useFriends'
 import { ConfettiEffect } from '../animations/ConfettiEffect'
-import { playClickSound } from '../../lib/sounds'
-import { getSkillById } from '../../lib/skills'
+import { playClickSound, playLevelUpSound, playXpRevealSound } from '../../lib/sounds'
+import { getSkillById, skillXPProgress } from '../../lib/skills'
 import { MOTION } from '../../lib/motion'
 
-const AUTO_DISMISS_MS = 12000
+const AUTO_DISMISS_MS = 20000
+const CARD_STAGGER_MS = 190
+const XP_COUNT_MS = 950
+const CARDS_START_MS = 480
 
-export function SessionComplete() {
-  const { lastSessionSummary, skillXPGains, streakMultiplier, sessionSkillXPEarned, sessionRewards, progressionEvents, dismissComplete } = useSessionStore()
+function isNewbiePackClaimed(userId: string): boolean {
+  return (
+    localStorage.getItem(`grindly_newbie_pack_claimed_${userId}`) === '1' ||
+    localStorage.getItem(`grindly_test_starter_pack_${userId}_v2`) === '1'
+  )
+}
+
+interface SessionCompleteProps {
+  onNavigateInventory?: () => void
+  onNavigateFriends?: () => void
+}
+
+function useCountUp(target: number, durationMs: number, delayMs: number): number {
+  const [value, setValue] = useState(0)
+  useEffect(() => {
+    setValue(0)
+    if (target <= 0) return
+    let rafId: number
+    const timer = setTimeout(() => {
+      const start = performance.now()
+      const tick = (now: number) => {
+        const p = Math.min((now - start) / durationMs, 1)
+        const eased = p === 1 ? 1 : 1 - Math.pow(2, -10 * p)
+        setValue(Math.round(eased * target))
+        if (p < 1) rafId = requestAnimationFrame(tick)
+      }
+      rafId = requestAnimationFrame(tick)
+    }, delayMs)
+    return () => { clearTimeout(timer); cancelAnimationFrame(rafId) }
+  }, [target, durationMs, delayMs])
+  return value
+}
+
+function SkillXPCard({ gain, index }: { gain: SkillXPGain; index: number }) {
+  const skill = getSkillById(gain.skillId)
+  if (!skill) return null
+
+  const leveledUp = gain.levelAfter > gain.levelBefore
+  const delayMs = CARDS_START_MS + index * CARD_STAGGER_MS
+  const xpDisplayed = useCountUp(gain.xp, XP_COUNT_MS, delayMs + 60)
+
+  const afterProgress = skillXPProgress(gain.totalXpAfter)
+  const widthAfter = afterProgress.needed > 0
+    ? Math.min((afterProgress.current / afterProgress.needed) * 100, 100)
+    : 100
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (leveledUp) playLevelUpSound()
+      else playXpRevealSound()
+    }, delayMs)
+    return () => clearTimeout(t)
+  }, [delayMs, leveledUp])
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -14 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: delayMs / 1000, duration: 0.32, ease: MOTION.easing }}
+      className={`relative overflow-hidden rounded-xl border px-3 py-2.5 ${
+        leveledUp
+          ? 'border-cyber-neon/50 bg-cyber-neon/[0.05] shadow-[0_0_18px_rgba(0,255,136,0.10)]'
+          : 'border-white/[0.07] bg-discord-dark/60'
+      }`}
+    >
+      {/* level-up radial flash */}
+      {leveledUp && (
+        <motion.div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0.5, 0] }}
+          transition={{ duration: 0.65, delay: (delayMs + 180) / 1000 }}
+          style={{ background: 'radial-gradient(ellipse at 50% 50%, rgba(0,255,136,0.20) 0%, transparent 70%)' }}
+        />
+      )}
+
+      <div className="flex items-center gap-2.5">
+        <motion.span
+          className="text-xl leading-none shrink-0"
+          initial={{ scale: 0, rotate: -20 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ delay: (delayMs - 40) / 1000, ...MOTION.spring.pop }}
+        >
+          {skill.icon}
+        </motion.span>
+
+        <div className="flex-1 min-w-0">
+          {/* Name row */}
+          <div className="flex items-center justify-between gap-1 mb-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-xs font-semibold text-white truncate">{skill.name}</span>
+              {leveledUp && (
+                <motion.span
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: (delayMs + 380) / 1000, ...MOTION.spring.pop }}
+                  className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-cyber-neon/50 text-cyber-neon bg-cyber-neon/15 leading-tight"
+                >
+                  LVL UP
+                </motion.span>
+              )}
+            </div>
+            <span className="text-xs font-mono font-bold text-cyber-neon tabular-nums shrink-0">
+              +{xpDisplayed.toLocaleString()}
+            </span>
+          </div>
+
+          {/* XP bar */}
+          <div className="h-1.5 rounded-full bg-discord-darker/80 overflow-hidden">
+            <motion.div
+              className="h-full rounded-full"
+              style={{ backgroundColor: skill.color }}
+              initial={{ width: '0%' }}
+              animate={{ width: `${widthAfter}%` }}
+              transition={{ delay: (delayMs + 100) / 1000, duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
+            />
+          </div>
+
+          {/* Level / percent */}
+          <div className="flex justify-between items-center mt-1">
+            <span className="text-[9px] font-mono text-gray-600">
+              {leveledUp ? `Lv.${gain.levelBefore} → Lv.${gain.levelAfter}` : `Lv.${gain.levelAfter}`}
+            </span>
+            <span className="text-[9px] font-mono text-gray-600">{Math.round(widthAfter)}%</span>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+export function SessionComplete({ onNavigateInventory, onNavigateFriends }: SessionCompleteProps = {}) {
+  const { lastSessionSummary, skillXPGains, streakMultiplier, sessionSkillXPEarned, sessionRewards, dismissComplete } =
+    useSessionStore()
   const hasLootOpen = useAlertStore((s) => s.currentAlert !== null)
+  const user = useAuthStore((s) => s.user)
+  const { friends } = useFriends()
+  const showInventoryCTA = useMemo(() => user && !isNewbiePackClaimed(user.id), [user])
+  const showFriendsCTA = useMemo(
+    () => user && friends.length === 0 && onNavigateFriends,
+    [user, friends.length, onNavigateFriends],
+  )
   const [progress, setProgress] = useState(100)
   const elapsedRef = useRef(0)
 
-  // Pause auto-dismiss while loot drop is open
+  const totalXP = useMemo(() => skillXPGains.reduce((s, g) => s + g.xp, 0), [skillXPGains])
+  const animatedTotal = useCountUp(totalXP, 1000, 220)
+
   useEffect(() => {
     const interval = setInterval(() => {
-      if (hasLootOpen) return // pause timer while claiming rewards
+      if (hasLootOpen) return
       elapsedRef.current += 50
       const remaining = Math.max(0, 100 - (elapsedRef.current / AUTO_DISMISS_MS) * 100)
       setProgress(remaining)
@@ -35,6 +182,12 @@ export function SessionComplete() {
     dismissComplete()
   }
 
+  const handleCTAClick = (navigate?: () => void) => {
+    playClickSound()
+    dismissComplete()
+    navigate?.()
+  }
+
   return (
     <>
       <ConfettiEffect />
@@ -43,129 +196,138 @@ export function SessionComplete() {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: MOTION.duration.base, ease: MOTION.easing }}
-        className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+        className="fixed inset-0 z-50 bg-black/65 flex items-center justify-center p-4"
         onClick={handleDismiss}
       >
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
+          initial={{ scale: 0.88, opacity: 0, y: 18 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          transition={{ duration: MOTION.duration.base, ease: MOTION.easing }}
+          transition={MOTION.spring.soft}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-[300px] max-h-[82vh] rounded-2xl bg-discord-card border border-cyber-neon/30 shadow-glow overflow-hidden flex flex-col"
+          className="w-full max-w-[320px] max-h-[86vh] rounded-2xl bg-discord-card border border-cyber-neon/25 shadow-[0_0_48px_rgba(0,255,136,0.10)] overflow-hidden flex flex-col"
         >
-          <div className="px-5 pt-5 pb-3 text-center overflow-y-auto overflow-x-hidden">
-            <div className="text-3xl mb-2">🎉</div>
-            <h3 className="text-base font-bold text-cyber-neon mb-0.5">GG, grind complete!</h3>
-            {lastSessionSummary && (
-              <p className="text-white text-lg font-mono font-bold">
-                {lastSessionSummary.durationFormatted}
-              </p>
-            )}
+          <div className="overflow-y-auto overflow-x-hidden px-5 pt-5 pb-3 space-y-3">
+            {/* Header */}
+            <div className="text-center">
+              <motion.div
+                className="text-3xl mb-1.5"
+                initial={{ scale: 0, rotate: -10 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={MOTION.spring.pop}
+              >
+                🎉
+              </motion.div>
+              <h3 className="text-base font-bold text-cyber-neon">GG, grind complete!</h3>
+              {lastSessionSummary && (
+                <motion.p
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1, duration: MOTION.duration.base }}
+                  className="text-white text-xl font-mono font-bold mt-0.5 tabular-nums"
+                >
+                  {lastSessionSummary.durationFormatted}
+                </motion.p>
+              )}
 
-            {/* Streak bonus + skill XP earned */}
-            {sessionSkillXPEarned > 0 && (
-              <div className="flex flex-col items-center gap-1 mt-1">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-xs font-mono text-cyber-neon">+{sessionSkillXPEarned} skill XP</span>
+              {/* Total XP pill */}
+              {sessionSkillXPEarned > 0 && (
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.18, ...MOTION.spring.soft }}
+                  className="inline-flex items-center gap-2 mt-2.5 px-3.5 py-1.5 rounded-full bg-cyber-neon/10 border border-cyber-neon/25"
+                >
+                  <span className="text-[11px] text-gray-400 font-medium">Total earned</span>
+                  <span className="text-sm font-mono font-bold text-cyber-neon tabular-nums">
+                    +{animatedTotal.toLocaleString()} XP
+                  </span>
                   {streakMultiplier > 1 && (
                     <motion.span
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      transition={{ ...MOTION.spring.pop, delay: 0.3 }}
-                      className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30"
+                      transition={{ delay: 0.4, ...MOTION.spring.pop }}
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30"
                     >
-                      🔥 x{streakMultiplier} streak bonus
+                      🔥 ×{streakMultiplier}
                     </motion.span>
                   )}
-                </div>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Skill XP cards */}
+            {skillXPGains.length > 0 && (
+              <div className="space-y-2">
+                {skillXPGains.map((g, i) => (
+                  <SkillXPCard key={g.skillId} gain={g} index={i} />
+                ))}
               </div>
             )}
 
-            {/* Rewards unlocked */}
+            {/* Rewards */}
             {sessionRewards.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5, duration: MOTION.duration.base, ease: MOTION.easing }}
-                className="mt-2 flex flex-wrap justify-center gap-1"
+                transition={{ delay: 0.8 }}
+                className="flex flex-wrap justify-center gap-1"
               >
                 {sessionRewards.map((reward, i) => (
                   <span
                     key={i}
                     className="text-[9px] px-1.5 py-0.5 rounded-md bg-cyber-neon/10 border border-cyber-neon/20 text-cyber-neon"
                   >
-                    {reward.avatar && reward.avatar}{' '}{reward.title && `"${reward.title}"`}
+                    {reward.avatar && reward.avatar} {reward.title && `"${reward.title}"`}
                   </span>
                 ))}
               </motion.div>
             )}
 
-            {skillXPGains.length > 0 && (
-              <div className="mt-3 space-y-2 text-left">
-                {skillXPGains.map((g) => {
-                  const skill = getSkillById(g.skillId)
-                  if (!skill) return null
-                  const leveledUp = g.levelAfter > g.levelBefore
-                  return (
-                    <motion.div
-                      key={g.skillId}
-                      initial={{ opacity: 0, x: -6 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: MOTION.duration.base, ease: MOTION.easing }}
-                      className={`rounded-lg px-2.5 py-2 border ${leveledUp ? 'bg-cyber-neon/10 border-cyber-neon/40 shadow-[0_0_12px_rgba(0,255,136,0.2)]' : 'bg-discord-dark/50 border-white/10'}`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-lg">{skill.icon}</span>
-                        <span className="text-white text-xs font-medium truncate flex-1">{skill.name}</span>
-                        <span className="text-cyber-neon text-xs font-mono shrink-0">+{g.xp} Skill XP</span>
-                      </div>
-                      {leveledUp && (
-                        <p className="text-[10px] text-cyber-neon font-mono mt-0.5">
-                          Lv.{g.levelBefore} → Lv.{g.levelAfter}
-                        </p>
-                      )}
-                      <div className="h-1 rounded-full bg-discord-darker overflow-hidden mt-1.5">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{ width: '100%', backgroundColor: skill.color }}
-                        />
-                      </div>
-                    </motion.div>
-                  )
-                })}
-              </div>
+            {/* CTAs */}
+            {(showInventoryCTA || showFriendsCTA) && (
+              <motion.div
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.9 }}
+                className="flex flex-wrap justify-center gap-2"
+              >
+                {showInventoryCTA && onNavigateInventory && (
+                  <button
+                    onClick={() => handleCTAClick(onNavigateInventory)}
+                    className="px-3 py-1.5 rounded-lg bg-cyber-neon/10 border border-cyber-neon/25 text-cyber-neon text-[11px] font-medium hover:bg-cyber-neon/20 transition-colors"
+                  >
+                    🎁 Claim Newbie Pack
+                  </button>
+                )}
+                {showFriendsCTA && (
+                  <button
+                    onClick={() => handleCTAClick(onNavigateFriends)}
+                    className="px-3 py-1.5 rounded-lg bg-cyber-neon/10 border border-cyber-neon/25 text-cyber-neon text-[11px] font-medium hover:bg-cyber-neon/20 transition-colors"
+                  >
+                    👥 Add a friend
+                  </button>
+                )}
+              </motion.div>
             )}
 
-            {progressionEvents.length > 0 && (
-              <div className="mt-3 text-left">
-                <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono mb-1">Why Skill XP changed</p>
-                <div className="space-y-1.5 max-h-28 overflow-y-auto overflow-x-hidden pr-1">
-                  {progressionEvents.slice(0, 4).map((event) => (
-                    <div key={event.id} className="rounded-lg border border-white/10 bg-discord-dark/50 px-2 py-1.5">
-                      <p className="text-[10px] text-white">{event.title}</p>
-                      <p className="text-[9px] text-gray-500">{event.description}</p>
-                      <p className="text-[9px] text-cyber-neon font-mono">
-                        {Object.keys(event.skillXpDelta).length > 0
-                          ? Object.entries(event.skillXpDelta).map(([k, v]) => `${k}+${v}`).join(', ')
-                          : 'No skill XP delta'}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <button
+            <motion.button
               onClick={handleDismiss}
-              className="mt-4 px-6 py-2 rounded-xl bg-cyber-neon/15 border border-cyber-neon/30 text-cyber-neon text-xs font-bold transition-all hover:bg-cyber-neon/25"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              className="w-full py-2 rounded-xl bg-cyber-neon/12 border border-cyber-neon/30 text-cyber-neon text-xs font-bold hover:bg-cyber-neon/20 transition-colors"
             >
               ✓ nice
-            </button>
+            </motion.button>
           </div>
-          <div className="h-1 bg-discord-darker/50">
+
+          {/* Auto-dismiss bar */}
+          <div className="h-0.5 bg-discord-darker/50 shrink-0">
             <div
-              className="h-full bg-cyber-neon/60 transition-[width] duration-100"
+              className="h-full bg-cyber-neon/50 transition-[width] duration-100"
               style={{ width: `${progress}%` }}
             />
           </div>

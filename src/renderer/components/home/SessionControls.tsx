@@ -73,20 +73,34 @@ export function SessionControls({ glowPulse }: SessionControlsProps) {
 
   return (
     <div className="relative flex flex-col items-center w-full">
+      {/* Full-screen flash on grind start */}
+      <AnimatePresence>
+        {showStartFx && (
+          <motion.div
+            key="start-flash"
+            initial={{ opacity: 0.18 }}
+            animate={{ opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.1, ease: 'easeOut' }}
+            className="fixed inset-0 z-[60] pointer-events-none"
+            style={{ background: 'radial-gradient(ellipse at 50% 60%, rgba(0,255,136,0.22) 0%, transparent 68%)' }}
+          />
+        )}
+      </AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: MOTION.duration.base, ease: MOTION.easing }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: MOTION.duration.slow, ease: MOTION.easingSoft }}
         className="w-full flex justify-center"
       >
         <AnimatePresence mode="wait" initial={false}>
           {confirmState !== 'none' ? (
             <motion.div
               key="confirm-card"
-              initial={{ opacity: 0, y: 10, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.98 }}
-              transition={{ duration: MOTION.duration.fast, ease: MOTION.easing }}
+              initial={{ opacity: 0, scale: 0.985 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.985 }}
+              transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
               className="w-full max-w-[320px] rounded-2xl p-3.5 border border-white/10 bg-discord-card/90 shadow-lg"
             >
               <p className="text-sm font-semibold text-center mb-1 text-white">
@@ -115,80 +129,102 @@ export function SessionControls({ glowPulse }: SessionControlsProps) {
           ) : (
             <motion.div
               key="main-controls"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: MOTION.duration.fast, ease: MOTION.easing }}
-              className="flex items-center justify-center gap-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
+              className="flex flex-col items-center gap-3"
             >
-              <div className="relative">
-                <AnimatePresence>
-                  {showStartFx && (
-                    <>
-                      <motion.div
-                        key="start-fx-ring-1"
-                        initial={{ opacity: 0.4, scale: 0.78 }}
-                        animate={{ opacity: 0, scale: 1.28 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.75, ease: MOTION.easing }}
-                        className="absolute -inset-2.5 rounded-2xl border border-cyber-neon/40 pointer-events-none"
-                      />
-                      <motion.div
-                        key="start-fx-ring-2"
-                        initial={{ opacity: 0.25, scale: 0.84 }}
-                        animate={{ opacity: 0, scale: 1.44 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.9, ease: MOTION.easing, delay: 0.06 }}
-                        className="absolute -inset-3.5 rounded-2xl border border-cyber-neon/25 pointer-events-none"
-                      />
-                    </>
-                  )}
-                </AnimatePresence>
-                {glowPulse && (
-                  <div className="absolute -inset-2 rounded-2xl animate-glow-pulse pointer-events-none" />
-                )}
-                <motion.button
-                  onClick={handleStartStop}
-                  disabled={starting}
-                  whileHover={!starting ? MOTION.interactive.hover : undefined}
-                  whileTap={!starting ? MOTION.interactive.tap : undefined}
-                  animate={starting ? { scale: 1.015 } : { scale: 1 }}
-                  transition={{ duration: MOTION.duration.fast, ease: MOTION.easing }}
-                  className={`relative min-w-[120px] px-8 py-3 rounded-2xl font-bold text-sm transition-colors duration-200 ${
-                    starting
-                      ? 'bg-cyber-neon/60 text-discord-darker cursor-wait'
-                      : isActive
-                        ? 'bg-discord-red text-white hover:bg-red-600'
-                        : 'bg-cyber-neon text-discord-darker shadow-glow hover:shadow-[0_0_30px_rgba(0,255,136,0.5)]'
-                  }`}
-                >
-                  <AnimatePresence mode="wait" initial={false}>
-                    <motion.span
-                      key={starting ? 'starting' : isActive ? 'stop' : 'grind'}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -6 }}
-                      transition={{ duration: MOTION.duration.fast, ease: MOTION.easing }}
-                      className="inline-block"
-                    >
-                      {starting ? 'Starting...' : isActive ? 'STOP' : 'GRIND'}
-                    </motion.span>
+              {/* GRIND button — idle state */}
+              {!isActive && (
+                <div className="relative">
+                  <AnimatePresence>
+                    {showStartFx && (
+                      <>
+                        <motion.div
+                          key="start-fx-ring-1"
+                          initial={{ opacity: 0.3, scale: 0.82 }}
+                          animate={{ opacity: 0, scale: 1.22 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.9, ease: MOTION.easingSoft }}
+                          className="absolute -inset-2.5 rounded-2xl border border-cyber-neon/40 pointer-events-none"
+                        />
+                        <motion.div
+                          key="start-fx-ring-2"
+                          initial={{ opacity: 0.18, scale: 0.88 }}
+                          animate={{ opacity: 0, scale: 1.34 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 1.05, ease: MOTION.easingSoft, delay: 0.08 }}
+                          className="absolute -inset-3.5 rounded-2xl border border-cyber-neon/25 pointer-events-none"
+                        />
+                      </>
+                    )}
                   </AnimatePresence>
-                </motion.button>
-              </div>
+                  {glowPulse && (
+                    <div className="absolute -inset-2 rounded-2xl animate-glow-pulse pointer-events-none" />
+                  )}
+                  <motion.button
+                    onClick={handleStartStop}
+                    disabled={starting}
+                    whileHover={!starting ? MOTION.interactive.hover : undefined}
+                    whileTap={!starting ? MOTION.interactive.tap : undefined}
+                    animate={starting ? { scale: 1.015 } : { scale: 1 }}
+                    transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
+                    className={`relative min-w-[140px] px-10 py-3.5 rounded-2xl font-bold text-sm tracking-widest transition-colors duration-200 ${
+                      starting
+                        ? 'bg-cyber-neon/60 text-discord-darker cursor-wait'
+                        : 'bg-cyber-neon text-discord-darker shadow-glow hover:shadow-[0_0_30px_rgba(0,255,136,0.5)]'
+                    }`}
+                  >
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.span
+                        key={starting ? 'starting' : 'grind'}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: MOTION.duration.base }}
+                        className="inline-block"
+                      >
+                        {starting ? 'Starting...' : 'GRIND'}
+                      </motion.span>
+                    </AnimatePresence>
+                  </motion.button>
+                </div>
+              )}
+
+              {/* PAUSE + STOP — active state */}
               {isActive && (
-                <motion.button
-                  onClick={handlePauseResume}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 8 }}
-                  whileHover={MOTION.interactive.hover}
-                  whileTap={MOTION.interactive.tap}
-                  transition={{ duration: MOTION.duration.fast, ease: MOTION.easing }}
-                  className="py-3 px-5 rounded-2xl font-bold text-sm whitespace-nowrap transition-all duration-150 border-2 border-discord-accent/50 bg-discord-accent/15 text-white hover:bg-discord-accent/25 hover:border-discord-accent/70 hover:shadow-glow-accent"
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 6, scale: 0.97 }}
+                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                  className="flex items-center gap-2.5"
                 >
-                  {isPaused ? 'RESUME' : 'PAUSE'}
-                </motion.button>
+                  {/* Pause / Resume */}
+                  <motion.button
+                    onClick={handlePauseResume}
+                    whileHover={MOTION.interactive.hover}
+                    whileTap={MOTION.interactive.tap}
+                    className={`px-5 py-3 rounded-2xl font-semibold text-sm tracking-wide transition-all duration-150 ${
+                      isPaused
+                        ? 'bg-cyber-neon/15 border border-cyber-neon/40 text-cyber-neon hover:bg-cyber-neon/25'
+                        : 'bg-white/6 border border-white/12 text-gray-300 hover:bg-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    {isPaused ? 'RESUME' : 'PAUSE'}
+                  </motion.button>
+
+                  {/* Stop */}
+                  <motion.button
+                    onClick={handleStartStop}
+                    whileHover={MOTION.interactive.hover}
+                    whileTap={MOTION.interactive.tap}
+                    className="px-5 py-3 rounded-2xl font-semibold text-sm tracking-wide bg-red-500/12 border border-red-500/30 text-red-400 hover:bg-red-500/22 hover:border-red-500/50 transition-all duration-150"
+                  >
+                    STOP
+                  </motion.button>
+                </motion.div>
               )}
             </motion.div>
           )}

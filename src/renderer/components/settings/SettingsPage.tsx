@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
-import { useSessionStore } from '../../stores/sessionStore'
 import { getSoundSettings, setSoundVolume, setSoundMuted, playClickSound } from '../../lib/sounds'
 import { MOTION } from '../../lib/motion'
 import { PageHeader } from '../shared/PageHeader'
@@ -19,8 +18,6 @@ export function SettingsPage() {
   const [soundVolume, setSoundVolumeState] = useState(0.5)
   const [shortcutsEnabled, setShortcutsEnabled] = useState(true)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
-  const [afkEnabled, setAfkEnabled] = useState(true)
-  const [afkTimeout, setAfkTimeout] = useState(3) // minutes
 
   // Notification toggles (smart notifications)
   const [notifGrindReminder, setNotifGrindReminder] = useState(true)
@@ -44,17 +41,14 @@ export function SettingsPage() {
     const sound = getSoundSettings()
     setSoundMutedState(sound.muted)
     setSoundVolumeState(sound.volume)
-    setShortcutsEnabled(localStorage.getItem('idly_shortcuts_enabled') !== 'false')
-    setNotificationsEnabled(localStorage.getItem('idly_notifications_enabled') !== 'false')
-    setAfkEnabled(localStorage.getItem('idly_afk_enabled') !== 'false')
-    const savedAfk = localStorage.getItem('idly_afk_timeout_min')
-    if (savedAfk) setAfkTimeout(parseInt(savedAfk, 10) || 3)
+    setShortcutsEnabled(localStorage.getItem('grindly_shortcuts_enabled') !== 'false')
+    setNotificationsEnabled(localStorage.getItem('grindly_notifications_enabled') !== 'false')
 
     // Smart notification toggles
-    setNotifGrindReminder(localStorage.getItem('idly_notif_grind_reminder') !== 'false')
-    setNotifStreakWarning(localStorage.getItem('idly_notif_streak_warning') !== 'false')
-    setNotifDistraction(localStorage.getItem('idly_notif_distraction') !== 'false')
-    setNotifPraise(localStorage.getItem('idly_notif_praise') !== 'false')
+    setNotifGrindReminder(localStorage.getItem('grindly_notif_grind_reminder') !== 'false')
+    setNotifStreakWarning(localStorage.getItem('grindly_notif_streak_warning') !== 'false')
+    setNotifDistraction(localStorage.getItem('grindly_notif_distraction') !== 'false')
+    setNotifPraise(localStorage.getItem('grindly_notif_praise') !== 'false')
 
     // Check auto-launch status
     if (window.electronAPI?.settings?.getAutoLaunch) {
@@ -82,31 +76,14 @@ export function SettingsPage() {
 
   const handleShortcuts = (enabled: boolean) => {
     setShortcutsEnabled(enabled)
-    localStorage.setItem('idly_shortcuts_enabled', String(enabled))
+    localStorage.setItem('grindly_shortcuts_enabled', String(enabled))
   }
 
   const handleNotifications = (enabled: boolean) => {
     setNotificationsEnabled(enabled)
-    localStorage.setItem('idly_notifications_enabled', String(enabled))
+    localStorage.setItem('grindly_notifications_enabled', String(enabled))
     // Sync to DB so main process can read it without executeJavaScript
-    window.electronAPI?.db?.setLocalStat('idly_notifications_enabled', String(enabled))
-  }
-
-  const handleAfkEnabled = (enabled: boolean) => {
-    setAfkEnabled(enabled)
-    localStorage.setItem('idly_afk_enabled', String(enabled))
-    if (!enabled) {
-      useSessionStore.getState().resume()
-      useSessionStore.setState({ isAfkPaused: false })
-    }
-  }
-
-  const handleAfkTimeout = (min: number) => {
-    setAfkTimeout(min)
-    localStorage.setItem('idly_afk_timeout_min', String(min))
-    if (window.electronAPI?.tracker?.setAfkThreshold) {
-      window.electronAPI.tracker.setAfkThreshold(min * 60 * 1000)
-    }
+    window.electronAPI?.db?.setLocalStat('grindly_notifications_enabled', String(enabled))
   }
 
   const handleNotifToggle = (key: string, setter: (v: boolean) => void) => (enabled: boolean) => {
@@ -179,38 +156,10 @@ export function SettingsPage() {
         />
         <ToggleRow
           label="Start with Windows"
-          sublabel="Launch Idly on PC boot"
+          sublabel="Launch Grindly on PC boot"
           enabled={autoLaunch}
           onChange={handleAutoLaunch}
         />
-      </Section>
-
-      {/* AFK Detection */}
-      <Section id="afk" title="afk detection" open={openSections.has('afk')} onToggle={toggleSection}>
-        <p className="text-xs text-gray-500">Auto-pause session when no input detected. AFK turns off automatically when you move the mouse or use the keyboard.</p>
-        <ToggleRow
-          label="Enable AFK pause"
-          sublabel="Pause grind when idle"
-          enabled={afkEnabled}
-          onChange={handleAfkEnabled}
-        />
-        {afkEnabled && (
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-400 w-20">AFK timeout</span>
-          <input
-            type="range"
-            min={1}
-            max={10}
-            step={1}
-            value={afkTimeout}
-            onChange={(e) => handleAfkTimeout(parseInt(e.target.value, 10))}
-            className="flex-1 accent-cyber-neon h-1"
-          />
-          <span className="text-xs text-gray-500 w-12 text-right font-mono">
-            {afkTimeout} min
-          </span>
-        </div>
-        )}
       </Section>
 
       {/* Smart Notifications */}
@@ -219,25 +168,25 @@ export function SettingsPage() {
           label="Grind reminder"
           sublabel="Nudge if no session today"
           enabled={notifGrindReminder}
-          onChange={handleNotifToggle('idly_notif_grind_reminder', setNotifGrindReminder)}
+          onChange={handleNotifToggle('grindly_notif_grind_reminder', setNotifGrindReminder)}
         />
         <ToggleRow
           label="Streak warning"
           sublabel="Alert when streak is at risk"
           enabled={notifStreakWarning}
-          onChange={handleNotifToggle('idly_notif_streak_warning', setNotifStreakWarning)}
+          onChange={handleNotifToggle('grindly_notif_streak_warning', setNotifStreakWarning)}
         />
         <ToggleRow
           label="Distraction alert"
           sublabel="Nudge when too much social/games"
           enabled={notifDistraction}
-          onChange={handleNotifToggle('idly_notif_distraction', setNotifDistraction)}
+          onChange={handleNotifToggle('grindly_notif_distraction', setNotifDistraction)}
         />
         <ToggleRow
           label="Focus praise"
           sublabel="Praise for sustained focus"
           enabled={notifPraise}
-          onChange={handleNotifToggle('idly_notif_praise', setNotifPraise)}
+          onChange={handleNotifToggle('grindly_notif_praise', setNotifPraise)}
         />
       </Section>
 
@@ -284,7 +233,7 @@ export function SettingsPage() {
         </motion.button>
       )}
 
-      <p className="text-center text-xs text-gray-600 pb-2">Idly v0.1.0</p>
+      <p className="text-center text-xs text-gray-600 pb-2">Grindly v0.1.0</p>
     </motion.div>
   )
 }

@@ -11,7 +11,7 @@ import { buildRewardEvent, grantAchievementCosmetics, grantRewardPayloads, mapAc
 import { getEquippedBadges, getEquippedFrame } from '../lib/cosmetics'
 import { syncAchievementsToSupabase, syncCosmeticsToSupabase, syncSkillXpEventsToSupabase } from './supabaseSync'
 import { publishSocialFeedEvent } from './socialFeed'
-import { CHEST_DEFS, estimateChestDropRate } from '../lib/loot'
+import { CHEST_DEFS } from '../lib/loot'
 import { useNotificationStore } from '../stores/notificationStore'
 import { ensureInventoryHydrated, useInventoryStore } from '../stores/inventoryStore'
 
@@ -107,17 +107,20 @@ export async function processAchievementsElectron(
   }
   const topCategory = Array.from(categoryCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
   ensureInventoryHydrated()
-  const chestType = topCategory === 'coding' ? 'rare_chest' : 'common_chest'
-  const estimated = estimateChestDropRate(chestType, { source: 'session_complete', focusCategory: topCategory })
-  useInventoryStore.getState().addChest(chestType, 'session_complete', estimated)
-  const chest = CHEST_DEFS[chestType]
-  if (chest) {
-    useNotificationStore.getState().push({
-      type: 'progression',
-      icon: chest.icon,
-      title: `Session drop: ${chest.name}`,
-      body: `Sent to Inbox • drop rate ~${estimated}%`,
-    })
+  // Session-end chest is very rare — bosses are the primary source, grind chests should be exceptional
+  const SESSION_CHEST_CHANCE = 0.02
+  if (Math.random() < SESSION_CHEST_CHANCE) {
+    const context = { source: 'session_complete' as const, focusCategory: topCategory }
+    const { chestType, estimatedDropRate } = useInventoryStore.getState().rollSessionChestDrop(context)
+    const chest = CHEST_DEFS[chestType]
+    if (chest) {
+      useNotificationStore.getState().push({
+        type: 'progression',
+        icon: chest.icon,
+        title: `Session drop: ${chest.name}`,
+        body: `Sent to Inbox • drop rate ~${estimatedDropRate}%`,
+      })
+    }
   }
 
   for (const ach of newAchievementList) {

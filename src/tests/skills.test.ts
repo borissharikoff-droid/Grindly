@@ -14,6 +14,21 @@ describe('skillLevelFromXP', () => {
     expect(skillLevelFromXP(0)).toBe(0)
   })
 
+  it('reaches level 1 with ~2 min (120 XP) - flattened early curve', () => {
+    expect(skillLevelFromXP(119)).toBe(0)
+    expect(skillLevelFromXP(120)).toBe(1)
+  })
+
+  it('reaches level 2 with ~6 min (360 XP) - flattened early curve', () => {
+    expect(skillLevelFromXP(359)).toBe(1)
+    expect(skillLevelFromXP(360)).toBe(2)
+  })
+
+  it('reaches level 5 with ~30 min (1800 XP) - flattened early curve', () => {
+    expect(skillLevelFromXP(1799)).toBe(4)
+    expect(skillLevelFromXP(1800)).toBe(5)
+  })
+
   it('returns 0 for negative XP', () => {
     expect(skillLevelFromXP(-100)).toBe(0)
   })

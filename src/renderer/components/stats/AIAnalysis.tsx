@@ -6,7 +6,7 @@ interface AIAnalysisProps {
 }
 
 const BLOCK_ICONS = ['🧠', '⚡', '🏆']
-const BLOCK_LABELS = ['Behavior Profile', 'Focus Patterns', 'Verdict']
+const BLOCK_LABELS = ['Behavior Profile', 'Focus Patterns', 'Action Plan']
 
 function parseAnalysisBlocks(text: string): string[] {
   // Split by double newlines (paragraphs)
@@ -64,15 +64,13 @@ export function AIAnalysis({ sessionId }: AIAnalysisProps) {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-xl bg-discord-card/80 border border-white/10 p-4"
+      className="rounded-2xl bg-discord-card/85 border border-white/10 p-4"
     >
       <div className="flex items-center gap-2 mb-3">
-        <div className="w-5 h-5 rounded bg-gradient-to-br from-purple-500/30 to-cyber-neon/30 flex items-center justify-center">
-          <span className="text-[10px]">⚡</span>
+        <div className="w-5 h-5 rounded-full bg-white/10 border border-white/15 flex items-center justify-center">
+          <span className="text-[10px] text-gray-300">AI</span>
         </div>
-        <p className="text-xs uppercase tracking-widest text-gray-400 font-mono font-bold">
-          GRINDALYTICS
-        </p>
+        <p className="text-xs uppercase tracking-widest text-gray-300 font-semibold">AI BEHAVIOR SUMMARY</p>
       </div>
       {error && (
         <div className="rounded-lg bg-discord-red/10 border border-discord-red/20 p-3 mb-2">
@@ -86,7 +84,7 @@ export function AIAnalysis({ sessionId }: AIAnalysisProps) {
             transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
             className="w-8 h-8 rounded-full border-2 border-purple-500/30 border-t-purple-400"
           />
-          <p className="text-purple-300 font-mono text-sm animate-pulse">Analyzing behavior...</p>
+          <p className="text-gray-300 text-sm animate-pulse">Analyzing session behavior...</p>
         </div>
       ) : blocks.length > 0 ? (
         <div className="space-y-2.5">
@@ -103,7 +101,7 @@ export function AIAnalysis({ sessionId }: AIAnalysisProps) {
                   {BLOCK_ICONS[i % BLOCK_ICONS.length]}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-mono text-gray-500 mb-1 uppercase tracking-wider">
+                  <p className="text-[10px] text-gray-500 mb-1 uppercase tracking-wider">
                     {BLOCK_LABELS[i % BLOCK_LABELS.length]}
                   </p>
                   <p className="text-sm text-gray-300 leading-relaxed">{block}</p>
@@ -115,15 +113,15 @@ export function AIAnalysis({ sessionId }: AIAnalysisProps) {
       ) : (
         <div className="text-center py-2">
           <p className="text-gray-500 text-sm mb-3">
-            AI-powered session analysis — behavior, focus patterns, verdict.
+            AI-powered session summary with focus patterns and recommendations.
           </p>
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={runAnalysis}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-semibold hover:shadow-lg hover:shadow-purple-500/20 transition-shadow font-mono"
+            className="px-5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-sm font-semibold hover:bg-white/15 transition-colors"
           >
-            ⚡ RUN GRINDALYTICS
+            Generate AI Summary
           </motion.button>
         </div>
       )}

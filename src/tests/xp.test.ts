@@ -13,6 +13,7 @@ import {
   checkSkillAchievements,
   getAchievementById,
 } from '../renderer/lib/xp'
+import { STREAK_MULTIPLIERS } from '../renderer/lib/rewardConfig'
 
 describe('xpRequiredForLevel', () => {
   it('returns 50 for levels 1-10', () => {
@@ -101,12 +102,12 @@ describe('getTitleForLevel', () => {
     expect(getTitleForLevel(5)).toBe('Rookie')
   })
 
-  it('returns Idly for level 10', () => {
-    expect(getTitleForLevel(10)).toBe('Idly')
+  it('returns Grindly for level 10', () => {
+    expect(getTitleForLevel(10)).toBe('Grindly')
   })
 
-  it('returns Idly for level 12 (between 10 and 15)', () => {
-    expect(getTitleForLevel(12)).toBe('Idly')
+  it('returns Grindly for level 12 (between 10 and 15)', () => {
+    expect(getTitleForLevel(12)).toBe('Grindly')
   })
 
   it('returns Transcendent for level 99', () => {
@@ -119,7 +120,7 @@ describe('getRewardsInRange', () => {
     const rewards = getRewardsInRange(1, 10)
     expect(rewards.length).toBe(2) // level 5 and 10
     expect(rewards.some(r => r.title === 'Rookie')).toBe(true)
-    expect(rewards.some(r => r.title === 'Idly')).toBe(true)
+    expect(rewards.some(r => r.title === 'Grindly')).toBe(true)
   })
 
   it('returns empty for no rewards in range', () => {
@@ -137,24 +138,24 @@ describe('getStreakMultiplier', () => {
     expect(getStreakMultiplier(1)).toBe(1.0)
   })
 
-  it('returns 1.1 for streak 2-6', () => {
-    expect(getStreakMultiplier(2)).toBe(1.1)
-    expect(getStreakMultiplier(6)).toBe(1.1)
+  it('returns day2 multiplier for streak 2-6', () => {
+    expect(getStreakMultiplier(2)).toBe(STREAK_MULTIPLIERS.day2)
+    expect(getStreakMultiplier(6)).toBe(STREAK_MULTIPLIERS.day2)
   })
 
-  it('returns 1.25 for streak 7-13', () => {
-    expect(getStreakMultiplier(7)).toBe(1.25)
-    expect(getStreakMultiplier(13)).toBe(1.25)
+  it('returns day7 multiplier for streak 7-13', () => {
+    expect(getStreakMultiplier(7)).toBe(STREAK_MULTIPLIERS.day7)
+    expect(getStreakMultiplier(13)).toBe(STREAK_MULTIPLIERS.day7)
   })
 
-  it('returns 1.5 for streak 14-29', () => {
-    expect(getStreakMultiplier(14)).toBe(1.5)
-    expect(getStreakMultiplier(29)).toBe(1.5)
+  it('returns day14 multiplier for streak 14-29', () => {
+    expect(getStreakMultiplier(14)).toBe(STREAK_MULTIPLIERS.day14)
+    expect(getStreakMultiplier(29)).toBe(STREAK_MULTIPLIERS.day14)
   })
 
-  it('returns 2.0 for streak 30+', () => {
-    expect(getStreakMultiplier(30)).toBe(2.0)
-    expect(getStreakMultiplier(100)).toBe(2.0)
+  it('returns day30 multiplier for streak 30+', () => {
+    expect(getStreakMultiplier(30)).toBe(STREAK_MULTIPLIERS.day30)
+    expect(getStreakMultiplier(100)).toBe(STREAK_MULTIPLIERS.day30)
   })
 })
 

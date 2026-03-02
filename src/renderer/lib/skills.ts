@@ -1,17 +1,33 @@
 /**
  * Skills leveling: 99 levels, ~1000 hours (3.6M seconds) to max per skill.
  * 1 XP per second of tracked activity in the mapped category.
+ *
+ * Early levels (1-25) use a flattened curve for faster progression and retention.
+ * Levels 26+ use the original exponential curve.
  */
 
 const MAX_LEVEL = 99
 const MAX_XP = 3_600_000 // 1000 hours in seconds
 const CURVE_EXPONENT = 2.2
 
-/** Cumulative XP required to reach level L. Level 0 = 0 XP, level 1 = 1+ XP. */
+/** XP at L10 (end of triangular segment). */
+const XP_AT_L10 = 120 * 10 * 11 / 2 // 6600
+
+/** XP at L25 from original curve (bridge to L26+). */
+const XP_AT_L25 = Math.floor(Math.pow(25 / MAX_LEVEL, CURVE_EXPONENT) * MAX_XP)
+
+/** Cumulative XP required to reach level L. Level 0 = 0 XP. */
 function xpForLevel(L: number): number {
   if (L <= 0) return 0
-  if (L === 1) return 1
   if (L >= MAX_LEVEL) return MAX_XP
+
+  if (L <= 10) {
+    return 120 * L * (L + 1) / 2
+  }
+  if (L <= 25) {
+    const t = (L - 10) / 15
+    return Math.floor(XP_AT_L10 + (XP_AT_L25 - XP_AT_L10) * Math.pow(t, 1.3))
+  }
   return Math.floor(Math.pow(L / MAX_LEVEL, CURVE_EXPONENT) * MAX_XP)
 }
 
@@ -33,6 +49,7 @@ export const SKILLS: SkillDef[] = [
   { id: 'creator', name: 'Creator', icon: '🎬', color: '#eb459e', category: 'creative' },
   { id: 'learner', name: 'Learner', icon: '📚', color: '#00d4ff', category: 'learning' },
   { id: 'listener', name: 'Listener', icon: '🎵', color: '#1db954', category: 'music' },
+  { id: 'farmer', name: 'Farmer', icon: '🌾', color: '#84cc16', category: 'farming' },
 ]
 
 /** Max total skill level (all skills at 99). */

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  LOOT_ITEMS,
   getEquippedPerkRuntime,
   openChest,
   rollChestDrop,
@@ -46,7 +47,7 @@ describe('loot system', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.01)
     const chestRoll = rollChestDrop(
       { source: 'skill_grind', focusCategory: 'coding' },
-      { rollsSinceEpicChest: 0, rollsSinceRareChest: 0 },
+      { rollsSinceEpicChest: 0, rollsSinceRareChest: 0, rollsSinceLegendaryChest: 0 },
     )
     expect(chestRoll.chestType).toBeTruthy()
     const open = openChest(chestRoll.chestType, { source: 'session_complete' })
@@ -68,5 +69,47 @@ describe('loot system', () => {
     const base = estimateLootDropRate('geek_glasses', { source: 'skill_grind', focusCategory: 'other' })
     const boosted = estimateLootDropRate('geek_glasses', { source: 'goal_complete', focusCategory: 'coding' })
     expect(boosted).toBeGreaterThan(base)
+  })
+
+  it('registers 20 new loot V2 items with unique ids', () => {
+    const newIds = [
+      'paper_crown',
+      'plain_tee',
+      'worn_bracelet',
+      'soft_glow',
+      'canvas_cap',
+      'sprint_cap',
+      'task_vest',
+      'code_wraps',
+      'signal_pin',
+      'study_halo',
+      'sketch_hood',
+      'chrono_visor',
+      'pulse_coat',
+      'sonic_loop',
+      'teamlink_band',
+      'aurora_field',
+      'singularity_helm',
+      'zero_day_jacket',
+      'mythic_monocle',
+      'eclipse_mantle',
+    ]
+    const allIds = LOOT_ITEMS.map((item) => item.id)
+    expect(new Set(allIds).size).toBe(allIds.length)
+    for (const id of newIds) {
+      expect(allIds).toContain(id)
+    }
+  })
+
+  it('applies representative V2 perks in runtime', () => {
+    const perk = getEquippedPerkRuntime({
+      head: 'chrono_visor',
+      top: 'zero_day_jacket',
+      accessory: 'mythic_monocle',
+      aura: 'eclipse_mantle',
+    })
+    expect(perk.globalXpMultiplier).toBeGreaterThan(1)
+    expect(perk.chestDropChanceBonusByCategory.coding).toBeGreaterThan(0)
+    expect(perk.streakShield).toBe(true)
   })
 })

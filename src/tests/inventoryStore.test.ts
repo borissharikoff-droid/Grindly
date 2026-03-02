@@ -36,7 +36,7 @@ describe('inventory store', () => {
     localStorage.clear()
     useInventoryStore.setState({
       items: {},
-      chests: { common_chest: 0, rare_chest: 0, epic_chest: 0 },
+      chests: { common_chest: 0, rare_chest: 0, epic_chest: 0, legendary_chest: 0 },
       equippedBySlot: {},
       pendingRewards: [],
       pity: { rollsSinceRareChest: 0, rollsSinceEpicChest: 0 },

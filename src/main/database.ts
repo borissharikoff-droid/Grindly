@@ -1,15 +1,21 @@
 import Database from 'better-sqlite3'
 import path from 'path'
+import { copyFileSync, existsSync } from 'fs'
 import { app } from 'electron'
 import { runMigrations } from './migrations'
 
 const userDataPath = app.getPath('userData')
-const dbPath = path.join(userDataPath, 'idly.sqlite')
+const dbPath = path.join(userDataPath, 'grindly.sqlite')
+const legacyDbPath = path.join(userDataPath, 'idly.sqlite')
 
 let db: Database.Database | null = null
 
 function getDb(): Database.Database {
   if (!db) {
+    // One-time migration after rebrand: carry over existing local DB.
+    if (!existsSync(dbPath) && existsSync(legacyDbPath)) {
+      try { copyFileSync(legacyDbPath, dbPath) } catch { /* ignore */ }
+    }
     db = new Database(dbPath)
     db.pragma('foreign_keys = ON')
     runMigrations(db)

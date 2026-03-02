@@ -9,7 +9,7 @@ import { routeNotification } from '../services/notificationRouter'
 import { grantAchievementCosmetics } from '../services/rewardGrant'
 import { computeTotalSkillLevelFromLevels, normalizeSkillId, skillLevelFromXP, SKILLS } from '../lib/skills'
 import { syncAchievementsToSupabase } from '../services/supabaseSync'
-import type { LootSlot } from '../lib/loot'
+import { normalizeEquippedLoot, type LootSlot } from '../lib/loot'
 
 export interface FriendSkill {
   skill_id: string
@@ -63,6 +63,8 @@ export interface PendingRequest {
     avatar_url: string | null
     level: number
     equipped_frame?: string | null
+    /** Total skill level from user_skills (sum of all skills); preferred over profiles.level */
+    total_skill_level?: number
   }
 }
 
@@ -86,7 +88,7 @@ export function useFriends() {
   const pushAlert = useAlertStore((s) => s.push)
   const pushFriendToast = useFriendToastStore((s) => s.push)
   const previousFriendsRef = useRef<FriendProfile[] | null>(null)
-  const getFriendsCacheKey = useCallback(() => (user ? `idly_friends_cache_${user.id}` : null), [user])
+  const getFriendsCacheKey = useCallback(() => (user ? `grindly_friends_cache_${user.id}` : null), [user])
 
   const fetchFriends = useCallback(async (showLoading = false) => {
     if (!supabase || !user) {
@@ -98,7 +100,7 @@ export function useFriends() {
       return
     }
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setError('No internet connection')
+      setError('Failed to load friends. Check your internet connection.')
       setLoading(false)
       return
     }
@@ -112,7 +114,7 @@ export function useFriends() {
         .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
       if (fsError) {
         console.error('[useFriends] friendships error:', fsError)
-        setError(fsError.message)
+        setError('Failed to load friends. Check your internet connection.')
         setFriends([])
         setPendingRequests([])
         return
@@ -128,7 +130,7 @@ export function useFriends() {
         const { data: profiles, error: profError } = await supabase.from('profiles').select('*').in('id', acceptedIds)
         if (profError) {
           console.error('[useFriends] profiles error:', profError)
-          setError(profError.message)
+          setError('Failed to load friends. Check your internet connection.')
           setFriends([])
           setPendingRequests([])
           return
@@ -151,11 +153,7 @@ export function useFriends() {
             persona_id: (p.persona_id as string | null) ?? null,
             equipped_badges: Array.isArray(p.equipped_badges) ? (p.equipped_badges as string[]) : [],
             equipped_frame: (p.equipped_frame as string | null) ?? null,
-            equipped_loot: (
-              p.equipped_loot && typeof p.equipped_loot === 'object'
-                ? (p.equipped_loot as Partial<Record<LootSlot, string>>)
-                : {}
-            ),
+            equipped_loot: normalizeEquippedLoot(p.equipped_loot),
             status_title: (p.status_title as string | null) ?? null,
             skill_rows_count: 0,
             skills_sync_status: 'pending' as const,
@@ -312,11 +310,11 @@ export function useFriends() {
       }
 
       // Check social achievements
-      const alreadyUnlocked = JSON.parse(localStorage.getItem('idly_unlocked_achievements') || '[]') as string[]
+      const alreadyUnlocked = JSON.parse(localStorage.getItem('grindly_unlocked_achievements') || '[]') as string[]
       const newSocial = checkSocialAchievements(friendList.length, alreadyUnlocked)
       if (newSocial.length > 0) {
         const updated = [...alreadyUnlocked, ...newSocial.map((s) => s.id)]
-        localStorage.setItem('idly_unlocked_achievements', JSON.stringify(updated))
+        localStorage.setItem('grindly_unlocked_achievements', JSON.stringify(updated))
         const api = window.electronAPI
         if (api?.db?.unlockAchievement) {
           for (const { id } of newSocial) {
@@ -330,17 +328,50 @@ export function useFriends() {
         }
       }
 
-      // Fetch pending request profiles
+      // Fetch pending request profiles + user_skills for correct total skill level
       const pendingIds = pending.map((f) => (f.user_id === user.id ? f.friend_id : f.user_id))
       let pendingList: PendingRequest[] = []
       if (pendingIds.length > 0) {
         const { data: profiles } = await supabase.from('profiles').select('id, username, avatar_url, level, equipped_frame').in('id', pendingIds)
+        let skillsRows: Array<{ user_id: string; skill_id: string; level: number | null; total_xp?: number | null }> = []
+        try {
+          const skillsRes = await supabase
+            .from('user_skills')
+            .select('user_id, skill_id, level, total_xp')
+            .in('user_id', pendingIds)
+          if (!skillsRes.error) {
+            skillsRows = (skillsRes.data || []) as typeof skillsRows
+          }
+        } catch {
+          // user_skills may not exist
+        }
+        const skillsByUser = new Map<string, Array<{ skill_id: string; level: number }>>()
+        for (const row of skillsRows) {
+          const userId = row.user_id
+          const skill_id = normalizeSkillId(row.skill_id)
+          const totalXp = row.total_xp ?? 0
+          const levelRaw = row.level ?? 0
+          const level = Math.max(0, Math.max(levelRaw, skillLevelFromXP(totalXp)))
+          const arr = skillsByUser.get(userId) || []
+          const prev = arr.find((s) => s.skill_id === skill_id)
+          if (prev) {
+            prev.level = Math.max(prev.level, level)
+          } else {
+            arr.push({ skill_id, level })
+          }
+          skillsByUser.set(userId, arr)
+        }
         pendingList = (profiles || []).map((p) => {
           const f = pending.find((x) => x.user_id === p.id || x.friend_id === p.id)!
+          const allSkills = skillsByUser.get(p.id as string) || []
+          const total_skill_level = allSkills.length > 0 ? computeTotalSkillLevelFromLevels(allSkills) : undefined
           return {
             friendship_id: f.id,
             direction: (f.friend_id === user.id ? 'incoming' : 'outgoing') as 'incoming' | 'outgoing',
-            profile: p,
+            profile: {
+              ...p,
+              total_skill_level,
+            },
           }
         })
       }
@@ -349,7 +380,7 @@ export function useFriends() {
       useNavBadgeStore.getState().setIncomingRequestsCount(incoming)
     } catch (e) {
       console.error('[useFriends] unexpected error:', e)
-      setError(e instanceof Error ? e.message : 'Failed to load friends')
+      setError('Failed to load friends. Check your internet connection.')
       setFriends([])
       setPendingRequests([])
       useNavBadgeStore.getState().setIncomingRequestsCount(0)
@@ -374,7 +405,7 @@ export function useFriends() {
     if (!supabase) return false
     const { error } = await supabase.from('friendships').delete().eq('id', friendshipId)
     if (error) {
-      setError(`Remove failed: ${error.message}`)
+      setError('Failed to remove friend. Check your internet connection.')
       return false
     }
     await fetchFriends(true)

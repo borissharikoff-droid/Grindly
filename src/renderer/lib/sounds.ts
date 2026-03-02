@@ -9,9 +9,9 @@ function loadSettings() {
   if (settingsLoaded) return
   settingsLoaded = true
   try {
-    const v = localStorage.getItem('idly_sound_volume')
+    const v = localStorage.getItem('grindly_sound_volume')
     if (v !== null) cachedVolume = parseFloat(v)
-    cachedMuted = localStorage.getItem('idly_sound_muted') === 'true'
+    cachedMuted = localStorage.getItem('grindly_sound_muted') === 'true'
   } catch { /* ignore */ }
 }
 
@@ -161,6 +161,69 @@ export function playLootRaritySound(rarity: string) {
   playTone(523, 0.12, 'sine', cachedVolume * 0.75)
 }
 
+export function playPotionSound() {
+  loadSettings()
+  if (cachedMuted) return
+  const ctx = getAudioCtx()
+  // Bubbling gulp + ascending power-up flourish
+  const vol = cachedVolume * 1.1
+  // Bubble effect: rapid low-frequency pulses
+  ;[0, 40, 80].forEach((delay) => {
+    setTimeout(() => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(180 + Math.random() * 60, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(380, ctx.currentTime + 0.06)
+      gain.gain.setValueAtTime(vol * 0.25, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07)
+      osc.connect(gain); gain.connect(ctx.destination)
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.08)
+    }, delay)
+  })
+  // Power-up flourish after gulp
+  const notes = [523, 659, 784, 988, 1175, 1397]
+  notes.forEach((freq, i) => {
+    setTimeout(() => playTone(freq, 0.18, 'triangle', vol * 0.9), 140 + i * 55)
+  })
+}
+
+export function playArenaVictorySound() {
+  loadSettings()
+  if (cachedMuted) return
+  // Triumphant fanfare: rising arpeggio then sustained high note
+  const notes = [523, 659, 784, 1047, 1319]
+  notes.forEach((freq, i) => {
+    setTimeout(() => playTone(freq, i === notes.length - 1 ? 0.5 : 0.18, 'triangle', cachedVolume * 1.1), i * 90)
+  })
+}
+
+export function playArenaDefeatSound() {
+  loadSettings()
+  if (cachedMuted) return
+  // Descending doom: falling minor chord
+  const notes = [440, 370, 311, 277]
+  notes.forEach((freq, i) => {
+    setTimeout(() => playTone(freq, 0.3, 'sawtooth', cachedVolume * 0.7), i * 110)
+  })
+}
+
+export function playXpRevealSound() {
+  loadSettings()
+  if (cachedMuted) return
+  playTone(620, 0.07, 'sine', cachedVolume * 0.35)
+}
+
+export function playLevelUpSound() {
+  loadSettings()
+  if (cachedMuted) return
+  // Bright ascending flourish, distinct from session complete
+  const notes = [659, 784, 988, 1319, 1568]
+  notes.forEach((freq, i) => {
+    setTimeout(() => playTone(freq, 0.22, 'triangle', cachedVolume * 1.05), i * 70)
+  })
+}
+
 export function playPauseSound() {
   loadSettings()
   if (cachedMuted) return
@@ -176,12 +239,12 @@ export function playResumeSound() {
 
 export function setSoundVolume(volume: number) {
   cachedVolume = Math.max(0, Math.min(1, volume))
-  localStorage.setItem('idly_sound_volume', String(cachedVolume))
+  localStorage.setItem('grindly_sound_volume', String(cachedVolume))
 }
 
 export function setSoundMuted(muted: boolean) {
   cachedMuted = muted
-  localStorage.setItem('idly_sound_muted', String(muted))
+  localStorage.setItem('grindly_sound_muted', String(muted))
 }
 
 export function getSoundSettings(): { volume: number; muted: boolean } {

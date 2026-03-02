@@ -1,6 +1,6 @@
 function readFlag(key: string, fallback: boolean): boolean {
   if (typeof window === 'undefined') return fallback
-  const raw = localStorage.getItem(`idly_flag_${key}`)
+  const raw = localStorage.getItem(`grindly_flag_${key}`)
   if (raw === null) return fallback
   return raw === '1' || raw === 'true'
 }

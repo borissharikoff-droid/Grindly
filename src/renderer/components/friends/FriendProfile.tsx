@@ -2,16 +2,18 @@ import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import type { FriendProfile as FriendProfileType } from '../../hooks/useFriends'
-import { FRAMES, BADGES } from '../../lib/cosmetics'
-import { LOOT_ITEMS, type LootSlot } from '../../lib/loot'
+import { BADGES, FRAMES } from '../../lib/cosmetics'
+import { LOOT_ITEMS, LOOT_SLOTS, normalizeEquippedLoot, getItemPower, type LootSlot } from '../../lib/loot'
+import { computePlayerStats } from '../../lib/combat'
+import { RARITY_THEME, normalizeRarity } from '../loot/LootUI'
 import { getSkillByName, SKILLS, computeTotalSkillLevelFromLevels, MAX_TOTAL_SKILL_LEVEL, normalizeSkillId, skillLevelFromXP, skillXPProgress } from '../../lib/skills'
-import { getPersonaById } from '../../lib/persona'
 import { ACHIEVEMENTS, checkSkillAchievements } from '../../lib/xp'
 import { MOTION } from '../../lib/motion'
 import { formatSessionDurationCompact, parseFriendPresence } from '../../lib/friendPresence'
 import { PageHeader } from '../shared/PageHeader'
 import { fetchUserPublicProgressHistory, type SocialFeedEvent } from '../../services/socialFeed'
 import { AvatarWithFrame } from '../shared/AvatarWithFrame'
+import { BuffTooltip } from '../shared/BuffTooltip'
 
 interface FriendProfileProps {
   profile: FriendProfileType
@@ -35,11 +37,14 @@ interface FriendSkillRow {
 }
 
 const FRIEND_LOOT_SLOT_META: Record<LootSlot, { label: string; icon: string }> = {
-  head: { label: 'Head', icon: '🧢' },
-  top: { label: 'Body', icon: '👕' },
-  accessory: { label: 'Legs', icon: '🦵' },
-  aura: { label: 'Aura', icon: '✨' },
+  head: { label: 'Head', icon: '🪖' },
+  body: { label: 'Body', icon: '👕' },
+  legs: { label: 'Legs', icon: '🦵' },
+  ring: { label: 'Ring', icon: '💍' },
+  consumable: { label: 'Consumable', icon: '⚗️' },
+  plant: { label: 'Plant', icon: '🌿' },
 }
+
 
 function LootVisual({ icon, image, className }: { icon: string; image?: string; className?: string }) {
   if (image) {
@@ -87,11 +92,18 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
     }
     return []
   })
+  const [profileCosmetics, setProfileCosmetics] = useState<{
+    equipped_loot?: Partial<Record<LootSlot, string>>
+    equipped_badges?: string[]
+    equipped_frame?: string | null
+    status_title?: string | null
+  } | null>(null)
 
   useEffect(() => {
     if (!supabase) return
     let cancelled = false
     setLoadingProfile(true)
+    setProfileCosmetics(null)
 
     ;(async () => {
       try {
@@ -103,6 +115,7 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
           maxDurationRes,
           friendsRes,
           skillsRes,
+          profileRes,
         ] = await Promise.all([
           supabase
             .from('session_summaries')
@@ -125,6 +138,11 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
             .eq('status', 'accepted')
             .or(`user_id.eq.${profile.id},friend_id.eq.${profile.id}`),
           supabase.from('user_skills').select('skill_id, level, total_xp').eq('user_id', profile.id),
+          supabase
+            .from('profiles')
+            .select('equipped_loot, equipped_badges, equipped_frame, status_title')
+            .eq('id', profile.id)
+            .single(),
         ])
 
         if (cancelled) return
@@ -151,24 +169,45 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
             total_xp: 0,
           }))
         }
-        if (rows.length > 0) {
-          const merged = new Map<string, FriendSkillRow>()
-          for (const raw of rows) {
-            const skill_id = normalizeSkillId(raw.skill_id)
-            const total_xp = raw.total_xp ?? 0
-            const levelFromXp = skillLevelFromXP(total_xp)
-            const level = Math.max(raw.level ?? 0, levelFromXp)
-            const prev = merged.get(skill_id)
-            if (!prev) {
-              merged.set(skill_id, { skill_id, level, total_xp })
-            } else {
-              merged.set(skill_id, {
-                skill_id,
-                level: Math.max(prev.level, level),
-                total_xp: Math.max(prev.total_xp ?? 0, total_xp),
-              })
-            }
+        if (profileRes?.data && !cancelled) {
+          const p = profileRes.data as Record<string, unknown>
+          setProfileCosmetics({
+            equipped_loot: normalizeEquippedLoot(p.equipped_loot),
+            equipped_badges: Array.isArray(p.equipped_badges) ? (p.equipped_badges as string[]) : [],
+            equipped_frame: (p.equipped_frame as string | null) ?? null,
+            status_title: (p.status_title as string | null) ?? null,
+          })
+        }
+        // Seed merged map from profile.all_skills (from useFriends batch query)
+        // so any skills missing from the per-profile query still have a baseline.
+        const merged = new Map<string, FriendSkillRow>()
+        for (const base of (profile.all_skills || [])) {
+          const skill_id = normalizeSkillId(base.skill_id)
+          const total_xp = base.total_xp ?? 0
+          const levelFromXp = skillLevelFromXP(total_xp)
+          const level = Math.max(base.level ?? 0, levelFromXp)
+          if (level > 0 || total_xp > 0) {
+            merged.set(skill_id, { skill_id, level, total_xp })
           }
+        }
+        // Merge fresh per-profile user_skills rows (always take max)
+        for (const raw of rows) {
+          const skill_id = normalizeSkillId(raw.skill_id)
+          const total_xp = raw.total_xp ?? 0
+          const levelFromXp = skillLevelFromXP(total_xp)
+          const level = Math.max(raw.level ?? 0, levelFromXp)
+          const prev = merged.get(skill_id)
+          if (!prev) {
+            merged.set(skill_id, { skill_id, level, total_xp })
+          } else {
+            merged.set(skill_id, {
+              skill_id,
+              level: Math.max(prev.level, level),
+              total_xp: Math.max(prev.total_xp ?? 0, total_xp),
+            })
+          }
+        }
+        if (merged.size > 0) {
           setAllSkills(Array.from(merged.values()))
         }
       } catch {
@@ -202,35 +241,17 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
     if (m > 0) return `${m}m`
     return `${sec}s`
   }
-  const frame = FRAMES.find(fr => fr.id === profile.equipped_frame)
-  const badges = (profile.equipped_badges || [])
-    .map(bId => BADGES.find(b => b.id === bId))
+  const effectiveFrame = profileCosmetics?.equipped_frame ?? profile.equipped_frame
+  const effectiveBadges = profileCosmetics?.equipped_badges ?? profile.equipped_badges ?? []
+  const fromCosmetics = normalizeEquippedLoot(profileCosmetics?.equipped_loot)
+  const fromProfile = normalizeEquippedLoot(profile.equipped_loot)
+  const effectiveEquippedLoot = Object.keys(fromCosmetics).length > 0 ? fromCosmetics : fromProfile
+  const frame = FRAMES.find(fr => fr.id === effectiveFrame)
+  const badges = (effectiveBadges as string[])
+    .map((bId) => BADGES.find((b) => b.id === bId))
     .filter(Boolean)
-  const equippedLootBySlot = profile.equipped_loot || {}
-  const equippedLoot = Object.values(profile.equipped_loot || {})
-    .map((itemId) => LOOT_ITEMS.find((item) => item.id === itemId))
-    .filter(Boolean)
-  const topLoadout = useMemo(
-    () =>
-      (Object.keys(FRIEND_LOOT_SLOT_META) as LootSlot[]).map((slot) => {
-        const itemId = equippedLootBySlot[slot]
-        const item = itemId ? LOOT_ITEMS.find((x) => x.id === itemId) ?? null : null
-        return { slot, item }
-      }),
-    [equippedLootBySlot],
-  )
-  const activeBuffs = useMemo(
-    () =>
-      topLoadout
-        .filter((entry) => Boolean(entry.item))
-        .map((entry) => ({
-          slot: FRIEND_LOOT_SLOT_META[entry.slot].label,
-          itemName: entry.item!.name,
-          description: entry.item!.perkDescription,
-          isGameplay: entry.item!.perkType !== 'cosmetic',
-        })),
-    [topLoadout],
-  )
+  const equippedLootBySlot = effectiveEquippedLoot
+  const friendPlayerStats = computePlayerStats(equippedLootBySlot as Partial<Record<LootSlot, string>>)
   const { activityLabel, appName, sessionStartMs } = parseFriendPresence(profile.current_activity ?? null)
   const isLeveling = profile.is_online && activityLabel.startsWith('Leveling ')
   const levelingSkill = isLeveling ? activityLabel.replace('Leveling ', '') : null
@@ -246,8 +267,6 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
     : (hasProfileSkillRows
       ? mapAllSkillsToRows(profile)
       : SKILLS.map((skillDef) => ({ skill_id: skillDef.id, level: 0, total_xp: 0 })))
-  const persona = getPersonaById(profile.persona_id ?? null)
-
   const fallbackAchievementIds = useMemo(() => {
     const ids = new Set<string>()
     if (totalSessionsCount >= 1) ids.add('first_session')
@@ -309,43 +328,46 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
         title={profile.username || 'Friend'}
         onBack={onBack}
         rightSlot={(
-          <span className={`idly-badge ${profile.is_online ? 'text-cyber-neon border-cyber-neon/30 bg-cyber-neon/10' : 'text-gray-400 border-white/15 bg-white/5'}`}>
+          <span className={`grindly-badge ${profile.is_online ? 'text-cyber-neon border-cyber-neon/30 bg-cyber-neon/10' : 'text-gray-400 border-white/15 bg-white/5'}`}>
             {profile.is_online ? 'Online' : 'Offline'}
           </span>
         )}
       />
-      {/* Profile Hero */}
+      {/* Profile Hero: Avatar + Info + Equipped */}
       <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-discord-card to-discord-card/70 p-4 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="relative shrink-0">
+          <div className="flex items-start gap-3">
+            <div className="relative shrink-0 overflow-visible">
               <AvatarWithFrame
                 avatar={profile.avatar_url || '🤖'}
-                frameId={profile.equipped_frame}
+                frameId={effectiveFrame}
                 sizeClass="w-16 h-16"
                 textClass="text-3xl"
                 roundedClass="rounded-xl"
-                ringInsetClass="-inset-1.5"
+                ringInsetClass="-inset-0.5"
               />
               <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-discord-card ${profile.is_online ? 'bg-cyber-neon' : 'bg-gray-600'}`} />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-white font-semibold text-lg truncate">{profile.username || 'Anonymous'}</h3>
-                <span className="idly-badge text-cyber-neon border-cyber-neon/30 bg-cyber-neon/10" title="Total skill level">
-                  Lv {totalSkillLevel}/{MAX_TOTAL_SKILL_LEVEL}
+                <span className="grindly-badge text-cyber-neon border-cyber-neon/30 bg-cyber-neon/10" title="Total skill level">
+                  LVL {totalSkillLevel}/{MAX_TOTAL_SKILL_LEVEL}
                 </span>
+                {onMessage && (
+                  <motion.button
+                    type="button"
+                    onClick={onMessage}
+                    whileTap={MOTION.interactive.tap}
+                    className="shrink-0 p-2 rounded-lg border border-cyber-neon/30 text-cyber-neon bg-cyber-neon/10 hover:bg-cyber-neon/20 transition-colors ml-auto"
+                    title="Message"
+                    aria-label="Message"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                  </motion.button>
+                )}
               </div>
-              {persona && (
-                <p className="text-xs text-gray-400 mt-1" title={persona.description}>
-                  {persona.emoji} {persona.label}
-                </p>
-              )}
-              {profile.status_title && (
-                <p className="text-[11px] text-cyber-neon mt-1 font-mono">
-                  {profile.status_title}
-                </p>
-              )}
               <p className="text-sm mt-1.5 text-gray-300">
                 {profile.is_online
                   ? (isLeveling
@@ -360,28 +382,13 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
               )}
             </div>
           </div>
-          {onMessage && (
-            <motion.button
-              type="button"
-              onClick={onMessage}
-              whileTap={MOTION.interactive.tap}
-              className="shrink-0 p-2 rounded-lg border border-cyber-neon/30 text-cyber-neon bg-cyber-neon/10 hover:bg-cyber-neon/20 transition-colors"
-              title="Message"
-              aria-label="Message"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            </motion.button>
-          )}
-          </div>
 
         {badges.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {badges.map((badge) => badge && (
               <span
                 key={badge.id}
-                className="idly-badge font-medium"
+                className="grindly-badge font-medium"
                 style={{ borderColor: `${badge.color}40`, backgroundColor: `${badge.color}12`, color: badge.color }}
               >
                 {badge.icon} {badge.label}
@@ -389,78 +396,137 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
             ))}
           </div>
         )}
-        {equippedLoot.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {equippedLoot.map((item) => item && (
-              <span
-                key={item.id}
-                className="idly-badge font-medium border-cyber-neon/20 bg-cyber-neon/10 text-cyber-neon"
-              >
-                {item.icon} {item.name}
-              </span>
-            ))}
-          </div>
-        )}
+      </div>
 
-        <div className="rounded-xl border border-white/10 bg-discord-darker/35 p-2.5 space-y-2">
-          <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono">Loadout & Buffs</p>
-          <div className="grid grid-cols-2 gap-2">
-            {(Object.keys(FRIEND_LOOT_SLOT_META) as LootSlot[]).map((slot) => {
+      {/* Loadout */}
+      <div className="rounded-xl border border-white/10 bg-discord-card/80 p-3">
+        <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono mb-2">Loadout</p>
+        <div className="flex gap-2">
+          {/* Gear slots */}
+          <div className="flex flex-col gap-1" style={{ flex: '2', minWidth: 0 }}>
+            {(['head', 'body', 'ring', 'legs'] as LootSlot[]).map((slot) => {
               const meta = FRIEND_LOOT_SLOT_META[slot]
-              const itemId = equippedLootBySlot[slot]
-              const item = itemId ? LOOT_ITEMS.find((x) => x.id === itemId) ?? null : null
+              const item = equippedLootBySlot[slot] ? LOOT_ITEMS.find((x) => x.id === equippedLootBySlot[slot]) ?? null : null
+              const theme = item ? RARITY_THEME[normalizeRarity(item.rarity)] : null
+              const inner = (
+                <>
+                  <div
+                    className="w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden"
+                    style={theme
+                      ? { background: `radial-gradient(circle at 50% 40%, ${theme.glow}55 0%, rgba(9,9,17,0.95) 70%)` }
+                      : { background: 'rgba(9,9,17,0.85)' }}
+                  >
+                    {item
+                      ? <LootVisual icon={item.icon} image={item.image} className="w-6 h-6 object-contain" />
+                      : <span className="text-[13px] opacity-[0.13]">{meta.icon}</span>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[7px] text-gray-500 font-mono uppercase tracking-wider leading-none">{meta.label}</p>
+                    <p className={`text-[10px] font-medium truncate mt-0.5 leading-tight ${item ? 'text-white/85' : 'text-gray-600'}`}>
+                      {item ? item.name : 'Empty'}
+                    </p>
+                  </div>
+                  {theme && <div className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: theme.color }} />}
+                </>
+              )
               return (
-                <div key={slot} className="rounded-lg border border-white/10 bg-discord-card/55 p-1.5">
-                  <p className="text-[9px] font-mono text-gray-400 uppercase">{meta.icon} {meta.label}</p>
-                  {item ? (
-                    <div className="mt-1 flex items-center gap-1.5">
-                      <div className="w-8 h-8 rounded border border-cyber-neon/25 bg-discord-darker/50 flex items-center justify-center shrink-0">
-                        <LootVisual icon={item.icon} image={item.image} className="w-5 h-5 object-contain" />
-                      </div>
-                      <p className="text-[10px] text-white truncate">{item.name}</p>
+                <div key={slot} className="flex-1 min-h-0">
+                  <BuffTooltip item={item} placement="right" stretch>
+                    <div
+                      className="rounded-md border overflow-hidden h-full"
+                      style={theme
+                        ? { borderColor: theme.border, background: `linear-gradient(135deg, ${theme.glow}10 0%, rgba(12,12,20,0.95) 55%)` }
+                        : { borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(12,12,20,0.70)' }}
+                    >
+                      <div className="h-full px-2 py-3 flex items-center gap-2">{inner}</div>
                     </div>
-                  ) : (
-                    <p className="text-[10px] text-gray-600 mt-1">Empty</p>
-                  )}
+                  </BuffTooltip>
                 </div>
               )
             })}
           </div>
-          <div className="rounded-lg border border-white/10 bg-discord-card/45 p-2 space-y-1.5">
-            <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono">Buffs</p>
-            {activeBuffs.length > 0 ? (
-              activeBuffs.map((buff) => (
-                <div key={`${buff.slot}-${buff.itemName}`} className="rounded-md border border-white/10 bg-discord-darker/45 p-1.5">
-                  <p className={`text-[9px] font-mono ${buff.isGameplay ? 'text-cyber-neon' : 'text-gray-400'}`}>
-                    {buff.slot} · {buff.itemName}
-                  </p>
-                  <p className="text-[10px] text-gray-200 leading-tight">{buff.description}</p>
+
+          {/* Stats + Buffs */}
+          <div className="flex-1 min-w-0 rounded-lg border border-white/10 bg-discord-darker/40 p-2 flex flex-col gap-2">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono mb-1.5">Stats</p>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-gray-400">ATK <span className="text-[9px] text-gray-600">/s</span></span>
+                  <span className="text-[12px] font-mono font-bold text-red-400">{friendPlayerStats.atk}</span>
                 </div>
-              ))
-            ) : (
-              <p className="text-[10px] text-gray-600">No active buffs.</p>
-            )}
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-gray-400">HP</span>
+                  <span className="text-[12px] font-mono font-bold text-green-400">{friendPlayerStats.hp}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-gray-400">Regen <span className="text-[9px] text-gray-600">/s</span></span>
+                  <span className="text-[12px] font-mono font-bold text-cyan-400">{friendPlayerStats.hpRegen}</span>
+                </div>
+                <div className="flex items-center justify-between" title="Total Item Power from equipped gear">
+                  <span className="text-[10px] text-gray-400">IP</span>
+                  <span className="text-[12px] font-mono font-bold text-amber-300">
+                    {LOOT_SLOTS.reduce((sum, s) => {
+                      const id = equippedLootBySlot[s]
+                      if (!id) return sum
+                      const it = LOOT_ITEMS.find((x) => x.id === id)
+                      return sum + (it ? getItemPower(it.rarity) : 0)
+                    }, 0)}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono mb-1.5">Buffs</p>
+              {(() => {
+                const equipped = (LOOT_SLOTS as LootSlot[]).map((s) => {
+                  const id = equippedLootBySlot[s]
+                  if (!id) return null
+                  const it = LOOT_ITEMS.find((x) => x.id === id)
+                  if (!it) return null
+                  return { slot: s, item: it }
+                }).filter((e): e is { slot: LootSlot; item: (typeof LOOT_ITEMS)[number] } => Boolean(e))
+                if (equipped.length === 0) return <p className="text-[10px] text-gray-600">No gear equipped.</p>
+                return (
+                  <div className="space-y-1.5">
+                    {equipped.map(({ slot, item }) => (
+                      <div key={slot} className="rounded-md border border-white/10 bg-discord-card/60 p-1.5">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-[8px] font-mono uppercase tracking-wide px-1 py-px rounded border border-white/10 text-gray-500 leading-none flex-shrink-0">
+                            {FRIEND_LOOT_SLOT_META[slot]?.label ?? slot}
+                          </span>
+                          <p className={`text-[9px] font-mono truncate ${item.perkType !== 'cosmetic' ? 'text-cyber-neon' : 'text-gray-400'}`}>
+                            {item.name}
+                          </p>
+                        </div>
+                        <p className="text-[9px] text-gray-300 leading-snug">{item.perkDescription}</p>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 gap-2">
-        <div className="idly-card-soft p-3">
+        <div className="rounded-xl bg-discord-card/80 border border-white/10 p-3">
           <p className="text-xs text-gray-500 font-mono uppercase">Skill level</p>
           <p className="text-xl font-mono font-bold text-cyber-neon mt-1">{totalSkillLevel}</p>
         </div>
-        <div className="idly-card-soft p-3">
+        <div className="rounded-xl bg-discord-card/80 border border-white/10 p-3">
           <p className="text-xs text-gray-500 font-mono uppercase">Streak</p>
           <p className="text-xl font-mono font-bold text-orange-400 mt-1">
             {profile.streak_count > 0 ? `🔥 ${profile.streak_count}` : '—'}
           </p>
         </div>
-        <div className="idly-card-soft p-3">
+        <div className="rounded-xl bg-discord-card/80 border border-white/10 p-3">
           <p className="text-xs text-gray-500 font-mono uppercase">Grind time</p>
           <p className="text-xl font-mono font-bold text-white mt-1">{formatDuration(totalGrindSeconds)}</p>
         </div>
-        <div className="idly-card-soft p-3">
+        <div className="rounded-xl bg-discord-card/80 border border-white/10 p-3">
           <p className="text-xs text-gray-500 font-mono uppercase">Sessions</p>
           <p className="text-xl font-mono font-bold text-white mt-1">{totalSessionsCount}</p>
         </div>
@@ -506,7 +572,7 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
               ? `${skillDef.name}: ${formatXp(totalXp)} XP`
               : unknownSkill
                 ? `${skillDef.name}: pending sync`
-                : `${skillDef.name}: LV ${level}`
+                : `${skillDef.name}: LVL ${level}`
             const isActive = levelingSkill === skillDef.name
             return (
               <div key={skillDef.id} className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${isActive ? 'bg-cyber-neon/5 border-cyber-neon/20' : 'border-white/5 bg-discord-darker/30'}`}>
@@ -536,7 +602,7 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
                   className="w-11 h-11 rounded-lg flex flex-col items-center justify-center shrink-0"
                   style={{ backgroundColor: unknownSkill ? 'rgba(255,255,255,0.04)' : `${skillDef.color}10`, border: unknownSkill ? '1px solid rgba(255,255,255,0.08)' : `1px solid ${skillDef.color}20` }}
                 >
-                  <span className="text-[9px] text-gray-500 font-mono leading-none">LV</span>
+                  <span className="text-[9px] text-gray-500 font-mono leading-none">LVL</span>
                   <span className="text-xs font-mono font-bold leading-tight" style={{ color: unknownSkill ? '#9ca3af' : skillDef.color }}>
                     {unknownSkill ? '--/99' : `${level}/99`}
                   </span>
@@ -577,11 +643,11 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
           <div className="flex items-center gap-3">
             <AvatarWithFrame
               avatar={profile.avatar_url || '🤖'}
-              frameId={profile.equipped_frame}
+              frameId={effectiveFrame}
               sizeClass="w-12 h-12"
               textClass="text-xl"
               roundedClass="rounded-lg"
-              ringInsetClass="-inset-1"
+              ringInsetClass="-inset-0.5"
               ringOpacity={0.8}
             />
             <div>

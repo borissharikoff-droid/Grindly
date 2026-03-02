@@ -1,7 +1,7 @@
 import { ACHIEVEMENT_XP_REWARDS, CATEGORY_XP_MULTIPLIER_CONFIG, STREAK_MULTIPLIERS } from './rewardConfig'
 
 // ── Progressive Leveling Curve ──
-// Levels 1-10: 50 XP each (500 XP total to reach Lv.11)
+// Levels 1-10: 50 XP each (500 XP total to reach LVL 11)
 // Levels 11-25: 100 XP each
 // Levels 26-50: 200 XP each
 // Levels 51+: 400 XP each
@@ -55,7 +55,7 @@ export interface LevelReward {
 export const LEVEL_REWARDS: LevelReward[] = [
   { level: 1, title: 'Newbie' },
   { level: 5, title: 'Rookie', avatar: '🎯' },
-  { level: 10, title: 'Idly' },
+  { level: 10, title: 'Grindly' },
   { level: 15, title: 'Dedicated' },
   { level: 20, title: 'Veteran', avatar: '🏆' },
   { level: 25, title: 'Expert' },
@@ -283,14 +283,14 @@ const ACHIEVEMENTS_BASE: AchievementDef[] = [
   },
 
   // Skill-based achievements
-  { id: 'skill_developer_10', name: 'Coding Intern', description: 'Developer Lv.10', icon: '💻', xpReward: 30, xpDestination: 'skill', reward: { type: 'skill_boost', value: 'developer', label: '+30 min Developer XP' }, category: 'skill' },
-  { id: 'skill_developer_50', name: 'Full Stack', description: 'Developer Lv.50', icon: '⚡', xpReward: 100, xpDestination: 'skill', reward: { type: 'profile_frame', value: 'code', label: 'Code frame unlocked' }, category: 'skill' },
-  { id: 'skill_developer_99', name: '10x Engineer', description: 'Developer Lv.99', icon: '👑', xpReward: 500, xpDestination: 'skill', reward: { type: 'avatar', value: '🧠', label: 'Architect avatar' }, category: 'skill' },
-  { id: 'skill_designer_10', name: 'Pixel Pusher', description: 'Designer Lv.10', icon: '🎨', xpReward: 30, xpDestination: 'skill', reward: { type: 'skill_boost', value: 'designer', label: '+30 min Designer XP' }, category: 'skill' },
-  { id: 'skill_designer_50', name: 'Art Director', description: 'Designer Lv.50', icon: '🖌️', xpReward: 100, xpDestination: 'skill', reward: { type: 'profile_frame', value: 'art', label: 'Art frame unlocked' }, category: 'skill' },
-  { id: 'skill_gamer_25', name: 'Pro Gamer', description: 'Gamer Lv.25', icon: '🎮', xpReward: 50, xpDestination: 'skill', reward: { type: 'skill_boost', value: 'gamer', label: '+30 min Gamer XP' }, category: 'skill' },
-  { id: 'polymath', name: 'Polymath', description: '3 skills at Lv.25+', icon: '🌟', xpReward: 80, xpDestination: 'skill', reward: { type: 'profile_frame', value: 'star', label: 'Star frame unlocked' }, category: 'skill' },
-  { id: 'jack_of_all_trades', name: 'Jack of All Trades', description: 'All skills at Lv.10+', icon: '🔮', xpReward: 200, xpDestination: 'skill', reward: { type: 'avatar', value: '🔮', label: 'Crystal avatar' }, category: 'skill' },
+  { id: 'skill_developer_10', name: 'Coding Intern', description: 'Developer LVL 10', icon: '💻', xpReward: 30, xpDestination: 'skill', reward: { type: 'skill_boost', value: 'developer', label: '+30 min Developer XP' }, category: 'skill' },
+  { id: 'skill_developer_50', name: 'Full Stack', description: 'Developer LVL 50', icon: '⚡', xpReward: 100, xpDestination: 'skill', reward: { type: 'profile_frame', value: 'code', label: 'Code frame unlocked' }, category: 'skill' },
+  { id: 'skill_developer_99', name: '10x Engineer', description: 'Developer LVL 99', icon: '👑', xpReward: 500, xpDestination: 'skill', reward: { type: 'avatar', value: '🧠', label: 'Architect avatar' }, category: 'skill' },
+  { id: 'skill_designer_10', name: 'Pixel Pusher', description: 'Designer LVL 10', icon: '🎨', xpReward: 30, xpDestination: 'skill', reward: { type: 'skill_boost', value: 'designer', label: '+30 min Designer XP' }, category: 'skill' },
+  { id: 'skill_designer_50', name: 'Art Director', description: 'Designer LVL 50', icon: '🖌️', xpReward: 100, xpDestination: 'skill', reward: { type: 'profile_frame', value: 'art', label: 'Art frame unlocked' }, category: 'skill' },
+  { id: 'skill_gamer_25', name: 'Pro Gamer', description: 'Gamer LVL 25', icon: '🎮', xpReward: 50, xpDestination: 'skill', reward: { type: 'skill_boost', value: 'gamer', label: '+30 min Gamer XP' }, category: 'skill' },
+  { id: 'polymath', name: 'Polymath', description: '3 skills at LVL 25+', icon: '🌟', xpReward: 80, xpDestination: 'skill', reward: { type: 'profile_frame', value: 'star', label: 'Star frame unlocked' }, category: 'skill' },
+  { id: 'jack_of_all_trades', name: 'Jack of All Trades', description: 'All skills at LVL 10+', icon: '🔮', xpReward: 200, xpDestination: 'skill', reward: { type: 'avatar', value: '🔮', label: 'Crystal avatar' }, category: 'skill' },
 ]
 
 export const ACHIEVEMENTS: AchievementDef[] = ACHIEVEMENTS_BASE.map((achievement) => ({
@@ -338,14 +338,14 @@ export function getAchievementProgress(
     case 'skill_designer_10': return fixed(levels.designer || 0, 10, 'designer levels')
     case 'skill_designer_50': return fixed(levels.designer || 0, 50, 'designer levels')
     case 'skill_gamer_25': return fixed(levels.gamer || 0, 25, 'gamer levels')
-    case 'polymath': return fixed(skills25, 3, 'skills Lv.25+')
-    case 'jack_of_all_trades': return fixed(skills10, baseSkills.length, 'skills Lv.10+')
+    case 'polymath': return fixed(skills25, 3, 'skills LVL 25+')
+    case 'jack_of_all_trades': return fixed(skills10, baseSkills.length, 'skills LVL 10+')
     default:
       return null
   }
 }
 
-/** Reward label for skill milestone at this level (e.g. "Coding Intern" at Developer Lv.10), or undefined. */
+/** Reward label for skill milestone at this level (e.g. "Coding Intern" at Developer LVL 10), or undefined. */
 export function getSkillMilestoneReward(skillId: string, level: number): string | undefined {
   const def = getAchievementById(`skill_${skillId}_${level}`)
   return def?.reward?.label

@@ -1,6 +1,6 @@
 {
-  "name": "idly",
-  "version": "1.0.0",
+  "name": "grindly",
+  "version": "2.0.0",
   "description": "Windows productivity tracker with session timer, activity monitoring, and gamification",
   "main": "dist/main/main/index.js",
   "scripts": {
@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
+    "@tanstack/react-virtual": "^3.13.19",
     "better-sqlite3": "^11.5.0",
     "dotenv": "^16.6.1",
     "electron-log": "^5.4.3",
@@ -46,8 +47,8 @@
     "wait-on": "^8.0.1"
   },
   "build": {
-    "appId": "com.idly.app",
-    "productName": "Idly",
+    "appId": "com.grindly.app",
+    "productName": "Grindly",
     "directories": {
       "output": "release"
     },

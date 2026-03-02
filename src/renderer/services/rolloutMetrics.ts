@@ -1,4 +1,4 @@
-const METRICS_STORAGE_KEY = 'idly_rollout_metrics'
+const METRICS_STORAGE_KEY = 'grindly_rollout_metrics'
 
 export type RolloutMetricKey =
   | 'progress_timeline_open'

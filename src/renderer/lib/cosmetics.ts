@@ -100,7 +100,7 @@ export const FRAMES: Frame[] = [
     gradient: 'linear-gradient(135deg, #00FF88 0%, #00B4D8 100%)',
     rarity: 'Epic',
     style: 'matrix',
-    unlockHint: 'Developer Lv.50',
+    unlockHint: 'Developer LVL 50',
     achievementId: 'skill_developer_50',
   },
   {
@@ -110,7 +110,7 @@ export const FRAMES: Frame[] = [
     gradient: 'linear-gradient(135deg, #FF6B9D 0%, #C084FC 100%)',
     rarity: 'Epic',
     style: 'liquid',
-    unlockHint: 'Designer Lv.50',
+    unlockHint: 'Designer LVL 50',
     achievementId: 'skill_designer_50',
   },
   {
@@ -130,7 +130,7 @@ export const FRAMES: Frame[] = [
     gradient: 'linear-gradient(135deg, #FFD700 0%, #FF6B35 50%, #FF1493 100%)',
     rarity: 'Legendary',
     style: 'holographic',
-    unlockHint: '3 skills at Lv.25+',
+    unlockHint: '3 skills at LVL 25+',
     achievementId: 'polymath',
   },
   {
@@ -194,10 +194,10 @@ export const ACHIEVEMENT_COSMETIC_UNLOCKS: Record<string, AchievementCosmeticUnl
 
 // ─── LOCAL STORAGE HELPERS ────────────────────────────────
 
-const STORAGE_BADGES = 'idly_equipped_badges'
-const STORAGE_FRAME = 'idly_equipped_frame'
-const STORAGE_UNLOCKED_BADGES = 'idly_unlocked_badges'
-const STORAGE_UNLOCKED_FRAMES = 'idly_unlocked_frames'
+const STORAGE_BADGES = 'grindly_equipped_badges'
+const STORAGE_FRAME = 'grindly_equipped_frame'
+const STORAGE_UNLOCKED_BADGES = 'grindly_unlocked_badges'
+const STORAGE_UNLOCKED_FRAMES = 'grindly_unlocked_frames'
 
 export function getEquippedBadges(): string[] {
   try { return JSON.parse(localStorage.getItem(STORAGE_BADGES) || '[]') } catch { return [] }
@@ -229,7 +229,7 @@ export function getUnlockedFrames(): string[] {
 }
 
 export function getUnlockedAvatarEmojis(): string[] {
-  try { return JSON.parse(localStorage.getItem('idly_unlocked_avatars') || '[]') } catch { return [] }
+  try { return JSON.parse(localStorage.getItem('grindly_unlocked_avatars') || '[]') } catch { return [] }
 }
 
 /** Call when an achievement is unlocked — checks if it grants a badge, frame, or avatar */
@@ -254,7 +254,7 @@ export function unlockCosmeticsFromAchievement(achievementId: string): void {
   if (unlock.avatarEmoji) {
     const current = getUnlockedAvatarEmojis()
     if (!current.includes(unlock.avatarEmoji)) {
-      localStorage.setItem('idly_unlocked_avatars', JSON.stringify([...current, unlock.avatarEmoji]))
+      localStorage.setItem('grindly_unlocked_avatars', JSON.stringify([...current, unlock.avatarEmoji]))
     }
   }
 }

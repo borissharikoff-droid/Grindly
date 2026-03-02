@@ -32,11 +32,11 @@ interface SessionRow {
   summary: string | null
 }
 
-/** Exclude the Idly app itself from stats. */
-function isIdlyApp(name: string): boolean {
+/** Exclude the Grindly app itself from stats. */
+function isGrindlyApp(name: string): boolean {
   if (!name || typeof name !== 'string') return false
   const n = name.toLowerCase()
-  return n.includes('grinder') || n.includes('idly') || n === 'grind tracker' || n === 'grind_tracker' || n === 'electron'
+  return n.includes('grinder') || n.includes('grindly') || n === 'grind tracker' || n === 'grind_tracker' || n === 'electron'
 }
 
 function formatMs(ms: number): string {
@@ -111,11 +111,11 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
         })
     } else {
       try {
-        const sessions: SessionRow[] = JSON.parse(localStorage.getItem('idly_sessions') || '[]')
+        const sessions: SessionRow[] = JSON.parse(localStorage.getItem('grindly_sessions') || '[]')
         const found = sessions.find((s) => s.id === sessionId)
         if (found) setSession(found)
         else setNotFound(true)
-        const allActivities = JSON.parse(localStorage.getItem('idly_activities') || '{}')
+        const allActivities = JSON.parse(localStorage.getItem('grindly_activities') || '{}')
         setActivities(allActivities[sessionId] || [])
       } catch {
         setLoadError('Failed to load session details.')
@@ -123,8 +123,8 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
     }
   }, [sessionId])
 
-  // Filter out Idly
-  const filtered = activities.filter((a) => !isIdlyApp(a.app_name || ''))
+  // Filter out Grindly
+  const filtered = activities.filter((a) => !isGrindlyApp(a.app_name || ''))
 
   // Aggregate by app with window titles
   const appMap = new Map<string, AppEntry>()
@@ -217,6 +217,13 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
     .filter(Boolean) as { idx: number; app: string; category: string; start: number }[]
 
   const keysPerMin = session?.duration_seconds ? Math.round(totalKeystrokes / (session.duration_seconds / 60)) : 0
+  const switchRatePerMin = session?.duration_seconds ? contextSwitches / (session.duration_seconds / 60) : 0
+  const focusRisk =
+    switchRatePerMin > 0.7
+      ? 'High interruption risk'
+      : switchRatePerMin > 0.3
+      ? 'Moderate interruption risk'
+      : 'Steady focus flow'
 
   const storyIntro = (() => {
     if (!session) return ''
@@ -224,7 +231,7 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
     const topCategory = categoryGroups[0]
     const topApp = topCategory?.apps[0]
     const pacing = contextSwitches > 25 ? 'highly fragmented' : contextSwitches > 10 ? 'mixed-focus' : 'deep-focus'
-    return `This session was mostly ${topCategory?.label || 'mixed work'}, led by ${topApp?.name || 'multiple apps'}. Pattern: ${pacing}, ${contextSwitches} switches, ${keysPerMin} keys/min.`
+    return `Most time was spent in ${topCategory?.label || 'mixed activity'}, mainly in ${topApp?.name || 'multiple apps'}. Pattern: ${pacing}, ${contextSwitches} switches, ${keysPerMin} keys/min.`
   })()
 
   if (notFound) {
@@ -281,10 +288,27 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <div className="rounded-lg border border-cyber-neon/20 bg-cyber-neon/5 p-2">
+          <p className="text-[10px] uppercase tracking-wider text-cyber-neon/80 font-mono">What went well</p>
+          <p className="text-xs text-gray-300 mt-1">
+            {categoryGroups[0]
+              ? `${categoryGroups[0].label} led this session at ${Math.round(categoryGroups[0].pct)}% of tracked time.`
+              : 'Tracked activity is limited for this session.'}
+          </p>
+        </div>
+        <div className="rounded-lg border border-discord-red/25 bg-discord-red/10 p-2">
+          <p className="text-[10px] uppercase tracking-wider text-discord-red/90 font-mono">Needs attention</p>
+          <p className="text-xs text-gray-300 mt-1">
+            {focusRisk}. {switchRatePerMin > 0.7 ? 'Try longer uninterrupted blocks in one app.' : 'Keep context switching low to maintain depth.'}
+          </p>
+        </div>
+      </div>
+
       {/* Chronological timeline */}
       {timelineSegments.length > 0 && session && (
         <div className="rounded-xl bg-discord-card/80 border border-white/10 p-3">
-          <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono mb-2">Timeline</p>
+          <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono mb-2">Timeline (what happened)</p>
           <div className="flex gap-px h-3 rounded-full overflow-hidden">
             {timelineSegments.map((seg, i) => {
               const totalSpan = session.end_time - session.start_time
@@ -311,9 +335,9 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
         </div>
       )}
 
-      {/* Session story */}
+      {/* Session diagnosis */}
       <div className="rounded-xl bg-discord-card/80 border border-white/10 p-3 space-y-2">
-        <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono">Session Story</p>
+        <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono">Session Diagnosis</p>
         <p className="text-xs text-gray-300">{storyIntro}</p>
         <div className="space-y-1.5">
           {timelineSegments.slice(0, 8).map((seg, idx) => {

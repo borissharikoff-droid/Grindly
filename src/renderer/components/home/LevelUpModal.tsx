@@ -63,7 +63,7 @@ export function LevelUpModal() {
               transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
               className="text-5xl font-black text-cyber-neon mb-2 drop-shadow-[0_0_20px_rgba(0,255,136,0.8)]"
             >
-              Lv.{level}
+              LVL {level}
             </motion.div>
 
             <p className="text-gray-300 text-xs italic mb-4">&ldquo;{quote}&rdquo;</p>

@@ -16,7 +16,7 @@ export function ChestDrop() {
   const claimPendingReward = useInventoryStore((s) => s.claimPendingReward)
   const openChestAndGrantItem = useInventoryStore((s) => s.openChestAndGrantItem)
   const [progress, setProgress] = useState(100)
-  const [opened, setOpened] = useState<{ chestType: ChestType; itemId: string } | null>(null)
+  const [opened, setOpened] = useState<{ chestType: ChestType; itemId: string; goldDropped?: number } | null>(null)
 
   const current = queue[0] ?? null
   const chest = current ? CHEST_DEFS[current.chestType] : null
@@ -63,7 +63,7 @@ export function ChestDrop() {
     if (!current) return
     claimPendingReward(current.rewardId)
     const result = openChestAndGrantItem(current.chestType, { source: 'skill_grind', focusCategory: 'coding' })
-    if (result) setOpened({ chestType: current.chestType, itemId: result.itemId })
+    if (result) setOpened({ chestType: current.chestType, itemId: result.itemId, goldDropped: result.goldDropped })
     clearByRewardId(current.rewardId)
   }
 
@@ -137,6 +137,7 @@ export function ChestDrop() {
         open={Boolean(opened)}
         chestType={opened?.chestType ?? null}
         item={openedItem}
+        goldDropped={opened?.goldDropped}
         onClose={() => setOpened(null)}
       />
     </>

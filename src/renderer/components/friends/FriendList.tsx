@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
 import type { FriendProfile } from '../../hooks/useFriends'
 import { getSkillByName, MAX_TOTAL_SKILL_LEVEL } from '../../lib/skills'
-import { BADGES } from '../../lib/cosmetics'
-import { LOOT_ITEMS } from '../../lib/loot'
-import { getPersonaById } from '../../lib/persona'
 import { playClickSound } from '../../lib/sounds'
 import { parseFriendPresence, formatSessionDurationCompact } from '../../lib/friendPresence'
 import { AvatarWithFrame } from '../shared/AvatarWithFrame'
@@ -59,27 +55,17 @@ export function FriendList({ friends, onSelectFriend, onMessageFriend, unreadByF
   return (
     <div className="space-y-2">
       {sorted.map((f, i) => {
-        const badges = (f.equipped_badges || [])
-          .map(bId => BADGES.find(b => b.id === bId))
-          .filter(Boolean)
         const { activityLabel, appName, sessionStartMs } = parseFriendPresence(f.current_activity ?? null)
         const isLeveling = f.is_online && activityLabel.startsWith('Leveling ')
         const levelingSkill = isLeveling ? activityLabel.replace('Leveling ', '') : null
-        const persona = getPersonaById(f.persona_id ?? null)
         const unread = unreadByFriendId[f.id] ?? 0
         const liveDuration = f.is_online && sessionStartMs ? formatSessionDurationCompact(sessionStartMs, nowMs) : null
         const hasSyncedSkills = f.skills_sync_status === 'synced'
         const totalSkillDisplay = hasSyncedSkills ? `${f.total_skill_level ?? 0}/${MAX_TOTAL_SKILL_LEVEL}` : '--/--'
-        const equippedLoot = Object.values(f.equipped_loot || {})
-          .map((itemId) => LOOT_ITEMS.find((item) => item.id === itemId))
-          .filter(Boolean)
 
         return (
-          <motion.div
+          <div
             key={f.id}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${
               f.is_online
                 ? 'bg-discord-card/90 border-white/10 hover:border-white/20 hover:-translate-y-[1px]'
@@ -92,14 +78,15 @@ export function FriendList({ friends, onSelectFriend, onMessageFriend, unreadByF
               onClick={() => { playClickSound(); onSelectFriend(f) }}
             >
             {/* Avatar with frame + online indicator */}
-            <div className="relative shrink-0">
+            <div className="relative shrink-0 overflow-visible">
               <AvatarWithFrame
                 avatar={f.avatar_url || '🤖'}
                 frameId={f.equipped_frame}
                 sizeClass="w-10 h-10"
                 textClass="text-lg"
                 roundedClass="rounded-full"
-                ringInsetClass="-inset-1"
+                ringInsetClass="-inset-0.5"
+                ringOpacity={0.95}
               />
               {/* Online indicator */}
               <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-discord-card ${
@@ -117,36 +104,6 @@ export function FriendList({ friends, onSelectFriend, onMessageFriend, unreadByF
                 {f.streak_count > 0 && (
                   <span className="text-[10px] text-orange-400 font-mono shrink-0" title="Streak">🔥{f.streak_count}d</span>
                 )}
-                {persona && (
-                  <span className="text-[9px] px-1 py-0.5 rounded border border-white/10 bg-discord-darker/80 text-gray-400 shrink-0" title={persona.label}>
-                    {persona.emoji}
-                  </span>
-                )}
-                {f.status_title && (
-                  <span className="text-[9px] px-1 py-0.5 rounded border border-cyber-neon/25 bg-cyber-neon/10 text-cyber-neon shrink-0" title="Status title">
-                    {f.status_title}
-                  </span>
-                )}
-                {/* Equipped badges */}
-                {badges.map(badge => badge && (
-                  <span
-                    key={badge.id}
-                    className="text-[9px] px-1 py-0.5 rounded border shrink-0"
-                    style={{ borderColor: `${badge.color}30`, backgroundColor: `${badge.color}10`, color: badge.color }}
-                    title={badge.name}
-                  >
-                    {badge.icon}
-                  </span>
-                ))}
-                {equippedLoot.map((item) => item && (
-                  <span
-                    key={item.id}
-                    className="text-[9px] px-1 py-0.5 rounded border border-cyber-neon/20 bg-cyber-neon/8 text-cyber-neon shrink-0"
-                    title={item.name}
-                  >
-                    {item.icon}
-                  </span>
-                ))}
               </div>
 
               {/* Status line */}
@@ -200,7 +157,7 @@ export function FriendList({ friends, onSelectFriend, onMessageFriend, unreadByF
                 </button>
               </div>
             )}
-          </motion.div>
+          </div>
         )
       })}
     </div>

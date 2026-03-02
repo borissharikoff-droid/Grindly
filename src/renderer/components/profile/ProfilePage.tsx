@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
 import { ACHIEVEMENTS } from '../../lib/xp'
-import { computeTotalSkillLevel, MAX_TOTAL_SKILL_LEVEL } from '../../lib/skills'
+import { computeTotalSkillLevel, getSkillById, MAX_TOTAL_SKILL_LEVEL } from '../../lib/skills'
+import { defaultSkillForAchievement } from '../../services/rewardGrant'
 import type { AchievementDef } from '../../lib/xp'
 import { useAlertStore } from '../../stores/alertStore'
 import { playClickSound } from '../../lib/sounds'
@@ -13,11 +14,12 @@ import { syncCosmeticsToSupabase } from '../../services/supabaseSync'
 import { PageHeader } from '../shared/PageHeader'
 import { InlineSuccess } from '../shared/InlineSuccess'
 import { MOTION } from '../../lib/motion'
-import { LOOT_ITEMS, type LootSlot } from '../../lib/loot'
+import { getEquippedPerkRuntime, LOOT_ITEMS, type LootSlot } from '../../lib/loot'
 import { ensureInventoryHydrated, useInventoryStore } from '../../stores/inventoryStore'
 import { DailyMissionsWidget } from '../home/DailyMissionsWidget'
 import { getDailyActivities } from '../../services/dailyActivityService'
 import { AvatarWithFrame } from '../shared/AvatarWithFrame'
+
 
 const CATEGORY_LABELS: Record<string, string> = {
   grind: '⚡ Grind',
@@ -33,23 +35,21 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
   const inventory = useInventoryStore((s) => s.items)
   const chests = useInventoryStore((s) => s.chests)
   const equippedBySlot = useInventoryStore((s) => s.equippedBySlot)
-  const grantItemForTesting = useInventoryStore((s) => s.grantItemForTesting)
-  const grantChestForTesting = useInventoryStore((s) => s.grantChestForTesting)
 
   const { user } = useAuthStore()
   const pushAlert = useAlertStore((s) => s.push)
 
   // Profile data
-  const [username, setUsername] = useState('Idly')
+  const [username, setUsername] = useState('Grindly')
   const [avatar, setAvatar] = useState('🤖')
-  const [originalUsername, setOriginalUsername] = useState('Idly')
+  const [originalUsername, setOriginalUsername] = useState('Grindly')
   const [originalAvatar, setOriginalAvatar] = useState('🤖')
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false)
   const [isUsernameEditing, setIsUsernameEditing] = useState(false)
-  const [draftUsername, setDraftUsername] = useState('Idly')
+  const [draftUsername, setDraftUsername] = useState('Grindly')
 
   // Stats
   const [totalSkillLevel, setTotalSkillLevel] = useState(0)
@@ -70,11 +70,11 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
 
   useEffect(() => {
     if (user) {
-      const cacheKey = `idly_profile_cache_${user.id}`
+      const cacheKey = `grindly_profile_cache_${user.id}`
       try {
         const cached = JSON.parse(localStorage.getItem(cacheKey) || '{}') as { username?: string; avatar?: string }
         if (cached.username || cached.avatar) {
-          const nextUsername = (cached.username || 'Idly').trim()
+          const nextUsername = (cached.username || 'Grindly').trim()
           const nextAvatar = cached.avatar || '🤖'
           setUsername(nextUsername)
           setAvatar(nextAvatar)
@@ -91,13 +91,13 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
     if (supabase && user) {
       supabase.from('profiles').select('username, avatar_url').eq('id', user.id).single().then(({ data }) => {
         if (data) {
-          const nextUsername = (data.username || 'Idly').trim()
+          const nextUsername = (data.username || 'Grindly').trim()
           const nextAvatar = data.avatar_url || '🤖'
           setUsername(nextUsername)
           setAvatar(nextAvatar)
           setOriginalUsername(nextUsername)
           setOriginalAvatar(nextAvatar)
-          const cacheKey = `idly_profile_cache_${user.id}`
+          const cacheKey = `grindly_profile_cache_${user.id}`
           localStorage.setItem(cacheKey, JSON.stringify({ username: nextUsername, avatar: nextAvatar }))
         }
         setProfileLoaded(true)
@@ -117,15 +117,15 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
       api.db.getUnlockedAchievements().then(setUnlockedIds)
     } else {
       try {
-        const stored = JSON.parse(localStorage.getItem('idly_skill_xp') || '{}') as Record<string, number>
+        const stored = JSON.parse(localStorage.getItem('grindly_skill_xp') || '{}') as Record<string, number>
         setTotalSkillLevel(computeTotalSkillLevel(Object.entries(stored).map(([skill_id, total_xp]) => ({ skill_id, total_xp }))))
       } catch {
         setTotalSkillLevel(0)
       }
-      setUnlockedIds(JSON.parse(localStorage.getItem('idly_unlocked_achievements') || '[]'))
+      setUnlockedIds(JSON.parse(localStorage.getItem('grindly_unlocked_achievements') || '[]'))
     }
 
-    setClaimedIds(JSON.parse(localStorage.getItem('idly_claimed_achievements') || '[]'))
+    setClaimedIds(JSON.parse(localStorage.getItem('grindly_claimed_achievements') || '[]'))
 
     // Persona
     if (api?.db?.getCategoryStats) {
@@ -142,6 +142,18 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
     setUnlockedBadgeIds(getUnlockedBadges())
     setUnlockedFrameIds(getUnlockedFrames())
     ensureInventoryHydrated()
+  }, [user])
+
+  // Sync equipped loot to Supabase when Profile opens (so friends see loadout right away)
+  useEffect(() => {
+    if (!supabase || !user) return
+    ensureInventoryHydrated()
+    const equippedLoot = useInventoryStore.getState().equippedBySlot
+    const perk = getEquippedPerkRuntime(equippedLoot)
+    syncCosmeticsToSupabase(getEquippedBadges(), getEquippedFrame(), {
+      equippedLoot: (equippedLoot ?? {}) as Record<string, string>,
+      statusTitle: perk.statusTitle,
+    }).catch(() => {})
   }, [user])
 
   // Ensure cosmetics are unlocked from already-unlocked achievements (source of truth).
@@ -163,31 +175,14 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
     setIsUsernameEditing(false)
   }, [activeTab])
 
-  useEffect(() => {
-    if (!profileLoaded || !user) return
-    const key = `idly_test_starter_pack_${user.id}_v2`
-    if (localStorage.getItem(key) === '1') return
-    ensureInventoryHydrated()
-    const onePerSlot = new Map<LootSlot, string>()
-    for (const item of LOOT_ITEMS) {
-      if (!onePerSlot.has(item.slot)) onePerSlot.set(item.slot, item.id)
-    }
-    for (const itemId of onePerSlot.values()) {
-      grantItemForTesting(itemId, 1)
-    }
-    grantChestForTesting('common_chest', 7)
-    grantChestForTesting('rare_chest', 5)
-    grantChestForTesting('epic_chest', 3)
-    localStorage.setItem(key, '1')
-    setMessage({ type: 'ok', text: 'Starter pack granted: 4 slot items + 15 chests.' })
-  }, [profileLoaded, user, username, grantItemForTesting, grantChestForTesting])
+  // Starter pack moved to InventoryPage ("Newbie Pack" claim flow)
 
   const persistProfile = async (nextUsername: string, nextAvatar: string) => {
     const trimmedUsername = nextUsername.trim()
     if (!user) return false
 
     // Always keep local state in sync even if cloud is unavailable.
-    const cacheKey = `idly_profile_cache_${user.id}`
+    const cacheKey = `grindly_profile_cache_${user.id}`
     const applyLocal = () => {
       setUsername(trimmedUsername)
       setAvatar(nextAvatar)
@@ -240,14 +235,14 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
     playClickSound()
     const updated = [...claimedIds, def.id]
     setClaimedIds(updated)
-    localStorage.setItem('idly_claimed_achievements', JSON.stringify(updated))
+    localStorage.setItem('grindly_claimed_achievements', JSON.stringify(updated))
     pushAlert(def)
   }
 
   const persistCosmeticsToSupabase = (badges: string[], frame: string | null) => {
     if (!supabase || !user) return
-    const statusTitle = equippedLootItems.find((entry) => entry.item.slot === 'aura')?.item.perkType === 'status_title'
-      ? String(equippedLootItems.find((entry) => entry.item.slot === 'aura')?.item.perkValue ?? '')
+    const statusTitle = equippedLootItems.find((entry) => entry.item.slot === 'ring')?.item.perkType === 'status_title'
+      ? String(equippedLootItems.find((entry) => entry.item.slot === 'ring')?.item.perkValue ?? '')
       : null
     syncCosmeticsToSupabase(badges, frame, {
       equippedLoot: equippedBySlot as Record<string, string>,
@@ -290,8 +285,8 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
 
   const applyDraftUsername = async () => {
     const sanitized = draftUsername.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 20)
-    await persistProfile(sanitized || 'Idly', avatar)
-    setDraftUsername(sanitized || 'Idly')
+    await persistProfile(sanitized || 'Grindly', avatar)
+    setDraftUsername(sanitized || 'Grindly')
     setIsUsernameEditing(false)
   }
 
@@ -335,7 +330,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
               sizeClass="w-16 h-16"
               textClass="text-3xl"
               roundedClass="rounded-xl"
-              ringInsetClass="-inset-1.5"
+              ringInsetClass="-inset-0.5"
               ringOpacity={0.8}
             />
             {!profileLoaded && (
@@ -373,13 +368,12 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
                   className="text-white font-bold text-base truncate hover:text-cyber-neon transition-colors"
                   title="Click to edit username"
                 >
-                  {profileLoaded ? (username || 'Idly') : 'Loading...'}
+                  {profileLoaded ? (username || 'Grindly') : 'Loading...'}
                 </button>
               )}
               <span className="text-cyber-neon font-mono text-xs" title="Total skill level">{totalSkillLevel}/{MAX_TOTAL_SKILL_LEVEL}</span>
             </div>
 
-            {/* Equipped badges */}
             {equippedBadges.length > 0 && (
               <div className="flex items-center gap-1 mb-1.5">
                 {equippedBadges.map(bId => {
@@ -397,24 +391,26 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
                 })}
               </div>
             )}
-            {equippedLootItems.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1 mb-1.5">
-                {equippedLootItems.map(({ slot, item }) => (
-                  <span
-                    key={slot}
-                    className="text-[9px] px-1.5 py-0.5 rounded-md border border-cyber-neon/20 bg-cyber-neon/10 text-cyber-neon"
-                    title={`${slot}: ${item.name}`}
-                  >
-                    {item.icon} {item.name}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {persona && (
-              <span className="text-[10px] text-gray-500">{persona.emoji} {persona.label}</span>
-            )}
             <p className="text-[10px] text-gray-600 mt-1">Click avatar or nickname to edit.</p>
+            {supabase && user && (
+              <button
+                type="button"
+                onClick={async () => {
+                  ensureInventoryHydrated()
+                  const equippedLoot = useInventoryStore.getState().equippedBySlot
+                  const perk = getEquippedPerkRuntime(equippedLoot)
+                  const res = await syncCosmeticsToSupabase(getEquippedBadges(), getEquippedFrame(), {
+                    equippedLoot: (equippedLoot ?? {}) as Record<string, string>,
+                    statusTitle: perk.statusTitle,
+                  })
+                  playClickSound()
+                  setMessage(res.ok ? { type: 'ok', text: 'Cosmetics synced.' } : { type: 'err', text: res.error ?? 'Sync failed' })
+                }}
+                className="text-[9px] text-cyber-neon/80 hover:text-cyber-neon mt-0.5"
+              >
+                Sync cosmetics to cloud
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -505,7 +501,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
       {/* Sub-tabs */}
       <div className="flex gap-1 bg-discord-darker/50 rounded-xl p-1">
         {([
-          { id: 'achievements' as const, label: `Achievements & quests (${unlockedCount}/${ACHIEVEMENTS.length})`, icon: '🏆' },
+          { id: 'achievements' as const, label: `Quests (${unlockedCount}/${ACHIEVEMENTS.length})`, icon: '🏆' },
           { id: 'cosmetics' as const, label: 'Cosmetics', icon: '✨' },
         ]).map(tab => (
           <button
@@ -586,7 +582,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
                             )}
                           </div>
                           <div className="shrink-0 flex items-center gap-2">
-                            <span className={`text-[10px] font-mono ${unlocked ? 'text-cyber-neon' : 'text-gray-600'}`}>+{a.xpReward}</span>
+                            <span className={`text-[10px] font-mono ${unlocked ? 'text-cyber-neon' : 'text-gray-600'}`}>+{a.xpReward} xp {(() => { const s = getSkillById(defaultSkillForAchievement(a)); return s ? s.icon : '' })()}</span>
                             {canClaim && (
                               <button
                                 onClick={() => handleClaim(a)}
@@ -613,7 +609,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="space-y-4"
+            className="space-y-4 min-h-[320px]"
           >
             {/* Badges section */}
             <div className="rounded-xl bg-discord-card/80 border border-white/10 p-4 space-y-3">
@@ -706,11 +702,12 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
                           ? 'bg-discord-dark/90'
                           : isUnlocked
                             ? 'border-white/10 bg-discord-dark/60 hover:border-white/20'
-                            : 'border-white/[0.06] bg-discord-dark/40'
+                            : 'border-white/[0.08] bg-black/55'
                       }`}
                       style={{
                         borderColor: isActive ? `${frame.color}60` : undefined,
-                        boxShadow: isActive ? `0 0 25px ${frame.color}30, inset 0 0 20px ${frame.color}08` : undefined,
+                        boxShadow: isActive ? `0 0 25px ${frame.color}30, inset 0 0 20px ${frame.color}08` : (!isUnlocked ? 'inset 0 0 0 1px rgba(255,255,255,0.04)' : undefined),
+                        filter: !isUnlocked ? 'grayscale(0.92) saturate(0.35) brightness(0.72)' : undefined,
                       }}
                     >
                       {/* Background gradient wash */}
@@ -721,6 +718,14 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
                           opacity: isActive ? 0.1 : 0.05,
                         }}
                       />
+                      {!isUnlocked && (
+                        <div className="absolute inset-0 rounded-2xl pointer-events-none bg-black/35" />
+                      )}
+                      {!isUnlocked && (
+                        <span className="absolute top-2 right-2 z-10 text-[8px] px-1.5 py-0.5 rounded-md border border-red-300/35 bg-black/55 text-red-200 font-mono tracking-wide">
+                          LOCKED
+                        </span>
+                      )}
 
                       {/* Frame avatar preview */}
                       <div className="relative mx-auto w-16 h-16 mb-2">
@@ -766,7 +771,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
                         {frame.rarity === 'Legendary' ? '★ ' : frame.rarity === 'Epic' ? '◆ ' : '● '}{frame.rarity}
                       </p>
                       {!isUnlocked && (
-                        <p className="text-[8px] font-mono mt-1 relative" style={{ color: `${frame.color}90` }}>{frame.unlockHint}</p>
+                        <p className="text-[8px] font-mono mt-1 relative text-gray-300/85">{frame.unlockHint}</p>
                       )}
                     </button>
                   )

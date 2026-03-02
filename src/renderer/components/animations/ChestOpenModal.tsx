@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChestType, LootItemDef } from '../../lib/loot'
-import { CHEST_DEFS } from '../../lib/loot'
+import { CHEST_DEFS, getRarityTheme } from '../../lib/loot'
 import { MOTION } from '../../lib/motion'
 import { PixelConfetti } from '../home/PixelConfetti'
 import { playClickSound, playLootRaritySound } from '../../lib/sounds'
@@ -10,6 +10,7 @@ interface ChestOpenModalProps {
   open: boolean
   chestType: ChestType | null
   item: LootItemDef | null
+  goldDropped?: number
   onClose: () => void
   nextAvailable?: boolean
   onOpenNext?: () => void
@@ -21,6 +22,7 @@ export function ChestOpenModal({
   open,
   chestType,
   item,
+  goldDropped = 0,
   onClose,
   nextAvailable = false,
   onOpenNext,
@@ -29,40 +31,26 @@ export function ChestOpenModal({
 }: ChestOpenModalProps) {
   const chest = chestType ? CHEST_DEFS[chestType] : null
   const revealKey = `${chestType ?? 'none'}:${item?.id ?? 'none'}:${animationSeed ?? 0}`
-  const rarityTheme = item
-    ? item.rarity === 'legendary'
-      ? {
-        color: '#FACC15',
-        border: 'rgba(250, 204, 21, 0.45)',
-        glow: 'rgba(250, 204, 21, 0.3)',
-        panel: 'radial-gradient(circle at 50% 18%, rgba(250,204,21,0.18) 0%, rgba(17,24,39,0.96) 62%)',
-      }
-      : item.rarity === 'epic'
-        ? {
-          color: '#C084FC',
-          border: 'rgba(192, 132, 252, 0.45)',
-          glow: 'rgba(192, 132, 252, 0.3)',
-          panel: 'radial-gradient(circle at 50% 18%, rgba(192,132,252,0.18) 0%, rgba(17,24,39,0.96) 62%)',
-        }
-        : item.rarity === 'rare'
-          ? {
-            color: '#38BDF8',
-            border: 'rgba(56, 189, 248, 0.45)',
-            glow: 'rgba(56, 189, 248, 0.3)',
-            panel: 'radial-gradient(circle at 50% 18%, rgba(56,189,248,0.18) 0%, rgba(17,24,39,0.96) 62%)',
-          }
-          : {
-            color: '#9CA3AF',
-            border: 'rgba(156, 163, 175, 0.35)',
-            glow: 'rgba(156, 163, 175, 0.22)',
-            panel: 'radial-gradient(circle at 50% 18%, rgba(156,163,175,0.16) 0%, rgba(17,24,39,0.96) 62%)',
-          }
-    : {
-      color: '#9CA3AF',
-      border: 'rgba(156, 163, 175, 0.35)',
-      glow: 'rgba(156, 163, 175, 0.22)',
-      panel: 'radial-gradient(circle at 50% 18%, rgba(156,163,175,0.16) 0%, rgba(17,24,39,0.96) 62%)',
-    }
+  const rarityTheme = getRarityTheme(item?.rarity ?? 'common')
+  const lootCardRef = useRef<HTMLDivElement>(null)
+  const [tilt, setTilt] = useState({ x: 0, y: 0 })
+  const [hovering, setHovering] = useState(false)
+  const handleLootMouseMove = useCallback((e: React.MouseEvent) => {
+    const el = lootCardRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    setTilt({
+      x: (e.clientX - cx) / (rect.width / 2),
+      y: (e.clientY - cy) / (rect.height / 2),
+    })
+  }, [])
+
+  const itemX = tilt.x * 6
+  const itemY = tilt.y * -4
+  const glowX = 50 + tilt.x * 12
+  const glowY = 40 + tilt.y * 10
 
   useEffect(() => {
     if (open && item) playLootRaritySound(item.rarity)
@@ -77,9 +65,11 @@ export function ChestOpenModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.14, ease: MOTION.easing }}
-          className="fixed inset-0 z-[120] bg-black/65 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4"
           onClick={onClose}
         >
+          {/* Solid backdrop — no transparency, content never shows through */}
+          <div className="absolute inset-0 bg-discord-darker" />
           <PixelConfetti key={`confetti:${revealKey}`} originX={0.5} originY={0.42} accentColor={rarityTheme.color} duration={1.1} />
           <motion.div
             initial={{ scale: 0.85, opacity: 0, y: 20 }}
@@ -118,12 +108,29 @@ export function ChestOpenModal({
             <p className="text-[11px] font-mono uppercase tracking-wider" style={{ color: rarityTheme.color }}>Chest opened</p>
             <p className="text-sm text-white font-semibold">{chest.name}</p>
             <motion.div
+              ref={lootCardRef}
+              onMouseMove={handleLootMouseMove}
+              onMouseEnter={() => setHovering(true)}
+              onMouseLeave={() => { setHovering(false); setTilt({ x: 0, y: 0 }) }}
               initial={{ opacity: 0, y: 8, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: [0.92, 1.05, 1] }}
               transition={{ delay: 0.2, duration: MOTION.duration.base, ease: MOTION.easing }}
-              className="rounded-xl border p-3 relative overflow-hidden"
-              style={{ borderColor: rarityTheme.border, backgroundColor: `${rarityTheme.color}14` }}
+              className="rounded-xl border p-3 relative overflow-hidden cursor-default"
+              style={{
+                borderColor: rarityTheme.border,
+                backgroundColor: `${rarityTheme.color}14`,
+                transform: hovering ? `perspective(400px) rotateY(${tilt.x * 4}deg) rotateX(${tilt.y * -4}deg)` : undefined,
+                transition: hovering ? 'transform 0.08s ease-out' : 'transform 0.4s ease-out',
+              }}
             >
+              <div
+                className="absolute inset-0 pointer-events-none rounded-xl"
+                style={{
+                  background: `radial-gradient(circle at ${glowX}% ${glowY}%, ${rarityTheme.glow} 0%, transparent 60%)`,
+                  opacity: hovering ? 0.5 : 0.35,
+                  transition: hovering ? 'opacity 0.1s' : 'opacity 0.4s',
+                }}
+              />
               <motion.div
                 className="absolute inset-0 pointer-events-none rounded-xl"
                 initial={{ opacity: 0.35 }}
@@ -131,17 +138,43 @@ export function ChestOpenModal({
                 transition={{ duration: 1.7, repeat: Infinity, ease: MOTION.easing }}
                 style={{ boxShadow: `0 0 20px ${rarityTheme.glow}` }}
               />
-              {item.image ? (
-                <img src={item.image} alt="" className="w-14 h-14 object-contain mx-auto" style={{ imageRendering: 'pixelated' }} draggable={false} />
-              ) : (
-                <p className="text-3xl">{item.icon}</p>
-              )}
-              <p className="text-sm text-white font-semibold mt-1">{item.name}</p>
+              <motion.div
+                className="flex justify-center"
+                animate={{ x: itemX, y: itemY }}
+                transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+              >
+                {item.image ? (
+                  <img src={item.image} alt="" className="w-14 h-14 object-contain" style={{ imageRendering: 'pixelated' }} draggable={false} />
+                ) : (
+                  <p className="text-3xl">{item.icon}</p>
+                )}
+              </motion.div>
+              <motion.p
+                className="text-sm text-white font-semibold mt-1"
+                animate={{ x: tilt.x * 2, y: tilt.y * -1 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+              >
+                {item.name}
+              </motion.p>
               <p className="text-[10px] font-mono uppercase mt-0.5" style={{ color: rarityTheme.color }}>
                 {item.rarity}
               </p>
               <p className="text-[10px] text-gray-300">{item.perkDescription}</p>
             </motion.div>
+            {/* Fixed-height gold row — always reserves space so button never moves */}
+            <div className="h-9 flex items-center justify-center">
+              {goldDropped > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15, duration: 0.2 }}
+                  className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-amber-500/12 border border-amber-500/25"
+                >
+                  <span className="text-amber-400" aria-hidden>🪙</span>
+                  <span className="text-sm font-bold text-amber-400 tabular-nums">+{goldDropped}</span>
+                </motion.div>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => {
@@ -161,9 +194,12 @@ export function ChestOpenModal({
             >
               {nextAvailable ? 'Open next' : 'Done'}
             </button>
-            {chainMessage && (
-              <p className="text-[10px] text-center text-orange-300/95 font-medium">{chainMessage}</p>
-            )}
+            {/* Fixed-height message row — always reserves space so button never moves */}
+            <div className="h-4 flex items-center justify-center">
+              {chainMessage && (
+                <p className="text-[10px] text-center text-orange-300/95 font-medium">{chainMessage}</p>
+              )}
+            </div>
           </motion.div>
         </motion.div>
       )}

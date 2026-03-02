@@ -36,13 +36,13 @@ export function PendingRequests({ requests, onAccept, onReject }: PendingRequest
                   sizeClass="w-9 h-9"
                   textClass="text-sm font-semibold text-white"
                   roundedClass="rounded-full"
-                  ringInsetClass="-inset-1"
+                  ringInsetClass="-inset-0.5"
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-white truncate">
                     {req.profile.username || 'Anonymous'}
                   </p>
-                  <p className="text-xs text-gray-500">{req.profile.level ?? 0} skill lvl</p>
+                  <p className="text-xs text-gray-500">{req.profile.total_skill_level ?? req.profile.level ?? 0} skill lvl</p>
                 </div>
                 <div className="flex gap-1.5 shrink-0">
                   <motion.button
@@ -79,13 +79,13 @@ export function PendingRequests({ requests, onAccept, onReject }: PendingRequest
                 sizeClass="w-9 h-9"
                 textClass="text-sm font-semibold text-white"
                 roundedClass="rounded-full"
-                ringInsetClass="-inset-1"
+                ringInsetClass="-inset-0.5"
               />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">
                   {req.profile.username || 'Anonymous'}
                 </p>
-                <p className="text-xs text-gray-500">{req.profile.level ?? 0} skill lvl</p>
+                <p className="text-xs text-gray-500">{req.profile.total_skill_level ?? req.profile.level ?? 0} skill lvl</p>
               </div>
               <span className="text-xs text-gray-500 italic shrink-0">pending</span>
               <motion.button

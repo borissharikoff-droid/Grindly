@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { SKILLS, skillLevelFromXP, skillXPProgress, formatSkillTime, categoryToSkillId } from '../../lib/skills'
 import { useSessionStore } from '../../stores/sessionStore'
 import { MOTION } from '../../lib/motion'
-import { PageLoading } from '../shared/PageLoading'
+import { SkeletonBlock } from '../shared/PageLoading'
 import { EmptyState } from '../shared/EmptyState'
 
 interface SkillRow {
@@ -36,6 +36,7 @@ export function SkillsPage() {
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [topAppsBySkill, setTopAppsBySkill] = useState<Record<string, { app_name: string; total_ms: number }[]>>({})
+  const [topAppsLoadingBySkill, setTopAppsLoadingBySkill] = useState<Record<string, boolean>>({})
   const { status, currentActivity, sessionSkillXP } = useSessionStore()
   const levelingSkillId = status === 'running' && currentActivity ? categoryToSkillId(currentActivity.category) : null
   const hasMountedRef = useRef(false)
@@ -51,6 +52,19 @@ export function SkillsPage() {
     return base
   }, [skillData, status, sessionSkillXP])
 
+  const handleToggleExpand = (skillId: string) => {
+    const isExpanded = expandedId === skillId
+    if (isExpanded) {
+      setExpandedId(null)
+      return
+    }
+    // Show skeleton immediately on click to avoid one-frame content jump.
+    if (!topAppsBySkill[skillId]) {
+      setTopAppsLoadingBySkill((prev) => ({ ...prev, [skillId]: true }))
+    }
+    setExpandedId(skillId)
+  }
+
   const load = async () => {
     setLoading(true)
     const api = window.electronAPI
@@ -59,7 +73,7 @@ export function SkillsPage() {
       setSkillData(rows)
     } else {
       try {
-        const stored = JSON.parse(localStorage.getItem('idly_skill_xp') || '{}') as Record<string, number>
+        const stored = JSON.parse(localStorage.getItem('grindly_skill_xp') || '{}') as Record<string, number>
         setSkillData(Object.entries(stored).map(([skill_id, total_xp]) => ({ skill_id, total_xp })))
       } catch {
         setSkillData([])
@@ -73,10 +87,13 @@ export function SkillsPage() {
   // Load top 3 apps for expanded skill
   useEffect(() => {
     if (!expandedId) return
+    if (topAppsBySkill[expandedId]) return
     const skill = SKILLS.find((s) => s.id === expandedId)
     if (!skill) return
+    if (skill.category === 'farming') return // XP earned via farming actions, no app data
     const api = window.electronAPI
     if (!api?.db?.getAppUsageStats) return
+    setTopAppsLoadingBySkill((prev) => ({ ...prev, [expandedId]: true }))
     api.db.getAppUsageStats().then((raw) => {
       const apps = (raw as AppStat[]) || []
       const forCategory = apps
@@ -84,8 +101,12 @@ export function SkillsPage() {
         .slice(0, 3)
         .map((a) => ({ app_name: a.app_name, total_ms: a.total_ms }))
       setTopAppsBySkill((prev) => ({ ...prev, [expandedId]: forCategory }))
-    }).catch(() => {})
-  }, [expandedId])
+    }).catch(() => {
+      setTopAppsBySkill((prev) => ({ ...prev, [expandedId]: [] }))
+    }).finally(() => {
+      setTopAppsLoadingBySkill((prev) => ({ ...prev, [expandedId]: false }))
+    })
+  }, [expandedId, topAppsBySkill])
 
   const totalLevel = SKILLS.reduce((sum, s) => sum + skillLevelFromXP(liveById.get(s.id) ?? 0), 0)
 
@@ -96,8 +117,40 @@ export function SkillsPage() {
 
   if (loading) {
     return (
-      <div className="p-4">
-        <PageLoading label="Loading skills..." />
+      <div className="p-4 pb-20 max-w-lg mx-auto">
+        <div className="space-y-3">
+          <div className="rounded-xl border border-white/10 bg-discord-card/70 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <SkeletonBlock className="w-8 h-8" />
+                <div className="space-y-1.5">
+                  <SkeletonBlock className="h-4 w-20" />
+                  <SkeletonBlock className="h-2.5 w-28" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <SkeletonBlock className="h-5 w-8" />
+                <SkeletonBlock className="h-2.5 w-12" />
+              </div>
+            </div>
+          </div>
+          {[1, 2, 3, 4].map((row) => (
+            <div key={row} className="rounded-xl border border-white/10 bg-discord-card/70 p-3">
+              <div className="flex items-center gap-3">
+                <SkeletonBlock className="w-10 h-10" />
+                <div className="flex-1 space-y-2">
+                  <SkeletonBlock className="h-3 w-24" />
+                  <SkeletonBlock className="h-1.5 w-full" />
+                  <div className="flex items-center justify-between">
+                    <SkeletonBlock className="h-2.5 w-24" />
+                    <SkeletonBlock className="h-2.5 w-16" />
+                  </div>
+                </div>
+                <SkeletonBlock className="w-11 h-11" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
@@ -122,7 +175,7 @@ export function SkillsPage() {
         </div>
         <div className="text-right">
           <p className="text-cyber-neon font-mono text-lg font-bold leading-tight">{totalLevel}</p>
-          <p className="text-[10px] text-gray-500 font-mono">TOTAL LV</p>
+          <p className="text-[10px] text-gray-500 font-mono">TOTAL LVL</p>
         </div>
       </div>
 
@@ -151,7 +204,7 @@ export function SkillsPage() {
             >
               <button
                 type="button"
-                onClick={() => setExpandedId(isExpanded ? null : skill.id)}
+                onClick={() => handleToggleExpand(skill.id)}
                 className="w-full rounded-xl border transition-all duration-200 text-left relative overflow-hidden group bg-discord-card border-cyber-neon/40 shadow-[0_0_20px_rgba(0,255,136,0.08)]"
               >
                 <div
@@ -176,14 +229,16 @@ export function SkillsPage() {
                       </span>
                     </div>
                     <div className="h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-700 ease-out"
-                        style={{ backgroundColor: skill.color, width: `${pct}%` }}
+                      <motion.div
+                        className="h-full rounded-full"
+                        style={{ backgroundColor: skill.color }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 0.7, ease: 'easeOut' }}
                       />
                     </div>
                     <div className="flex items-center justify-between mt-1">
                       <span className="text-[10px] text-gray-500 font-mono">{formatXP(current)} / {formatXP(needed)} XP</span>
-                      <span className="text-[10px] text-gray-600 font-mono">{timeStr} played</span>
+                      <span className="text-[10px] text-gray-600 font-mono">{skill.category === 'farming' ? `${formatXP(xp)} XP` : `${timeStr} played`}</span>
                     </div>
                   </div>
                   <div className="shrink-0 text-center ml-1">
@@ -191,7 +246,7 @@ export function SkillsPage() {
                       className="w-11 h-11 rounded-lg flex flex-col items-center justify-center"
                       style={{ backgroundColor: `${skill.color}10`, border: `1px solid ${skill.color}20` }}
                     >
-                      <span className="text-[10px] text-gray-500 font-mono leading-none">LV</span>
+                      <span className="text-[10px] text-gray-500 font-mono leading-none">LVL</span>
                       <span className="text-base font-mono font-bold leading-tight" style={{ color: skill.color }}>{level}</span>
                     </div>
                   </div>
@@ -209,7 +264,7 @@ export function SkillsPage() {
                     <div className="mx-1 px-3 py-2.5 rounded-b-xl bg-discord-card/50 border border-t-0 border-white/[0.04] space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-gray-400">Next level</span>
-                        <span className="text-[11px] font-mono text-white">Lv.{level + 1}</span>
+                        <span className="text-[11px] font-mono text-white">LVL {level + 1}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-gray-400">XP remaining</span>
@@ -217,25 +272,46 @@ export function SkillsPage() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-gray-400">Time to next</span>
-                        <span className="text-[11px] font-mono text-gray-300">~{Math.ceil((needed - current) / 3600)}h</span>
+                        <span className="text-[11px] font-mono text-gray-300">{skill.category === 'farming' ? 'via farming' : `~${Math.ceil((needed - current) / 3600)}h`}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-gray-400">Total XP</span>
                         <span className="text-[11px] font-mono text-gray-300">{formatXP(xp)}</span>
                       </div>
-                      {topAppsBySkill[skill.id] && topAppsBySkill[skill.id].length > 0 && (
-                        <div className="pt-2 border-t border-white/[0.04]">
-                          <span className="text-[10px] text-gray-500 font-mono uppercase">Top apps</span>
-                          <div className="mt-1.5 space-y-1">
-                            {topAppsBySkill[skill.id].map((a, i) => (
-                              <div key={a.app_name} className="flex items-center justify-between text-[11px]">
-                                <span className="text-gray-300 truncate">{a.app_name}</span>
-                                <span className="text-gray-500 font-mono shrink-0 ml-2">{formatAppTime(a.total_ms)}</span>
+                      <div className="pt-2 border-t border-white/[0.04] min-h-[74px]">
+                        {skill.category === 'farming' ? (
+                          <>
+                            <span className="text-[10px] text-gray-500 font-mono uppercase">XP Source</span>
+                            <p className="mt-1.5 text-[10px] text-gray-400 leading-relaxed">Earned by planting and harvesting crops in the Farm tab.</p>
+                            <p className="mt-0.5 text-[9px] text-gray-600 font-mono">Plant +10–160 XP · Harvest +50–800 XP</p>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-[10px] text-gray-500 font-mono uppercase">Top apps</span>
+                            {topAppsLoadingBySkill[skill.id] ? (
+                              <div className="mt-1.5 space-y-1.5">
+                                {[1, 2, 3].map((row) => (
+                                  <div key={row} className="flex items-center justify-between">
+                                    <SkeletonBlock className="h-2.5 w-24" />
+                                    <SkeletonBlock className="h-2.5 w-10" />
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                            ) : topAppsBySkill[skill.id] && topAppsBySkill[skill.id].length > 0 ? (
+                              <div className="mt-1.5 space-y-1">
+                                {topAppsBySkill[skill.id].map((a) => (
+                                  <div key={a.app_name} className="flex items-center justify-between text-[11px]">
+                                    <span className="text-gray-300 truncate">{a.app_name}</span>
+                                    <span className="text-gray-500 font-mono shrink-0 ml-2">{formatAppTime(a.total_ms)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="mt-1.5 text-[10px] text-gray-600">No app data yet.</p>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -276,7 +352,7 @@ export function SkillsPage() {
             >
               <button
                 type="button"
-                onClick={() => setExpandedId(isExpanded ? null : skill.id)}
+                onClick={() => handleToggleExpand(skill.id)}
                 className={`w-full rounded-xl border transition-all duration-200 text-left relative overflow-hidden group ${
                   isLeveling
                     ? 'bg-discord-card border-cyber-neon/40 shadow-[0_0_20px_rgba(0,255,136,0.08)]'
@@ -313,14 +389,16 @@ export function SkillsPage() {
                     </div>
                     {/* XP bar */}
                     <div className="h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-700 ease-out"
-                        style={{ backgroundColor: skill.color, width: `${pct}%` }}
+                      <motion.div
+                        className="h-full rounded-full"
+                        style={{ backgroundColor: skill.color }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 0.7, ease: 'easeOut' }}
                       />
                     </div>
                     <div className="flex items-center justify-between mt-1">
                       <span className="text-[10px] text-gray-500 font-mono">{formatXP(current)} / {formatXP(needed)} XP</span>
-                      <span className="text-[10px] text-gray-600 font-mono">{timeStr} played</span>
+                      <span className="text-[10px] text-gray-600 font-mono">{skill.category === 'farming' ? `${formatXP(xp)} XP` : `${timeStr} played`}</span>
                     </div>
                   </div>
 
@@ -330,7 +408,7 @@ export function SkillsPage() {
                       className="w-11 h-11 rounded-lg flex flex-col items-center justify-center"
                       style={{ backgroundColor: `${skill.color}10`, border: `1px solid ${skill.color}20` }}
                     >
-                      <span className="text-[10px] text-gray-500 font-mono leading-none">LV</span>
+                      <span className="text-[10px] text-gray-500 font-mono leading-none">LVL</span>
                       <span className="text-base font-mono font-bold leading-tight" style={{ color: skill.color }}>{level}</span>
                     </div>
                   </div>
@@ -351,7 +429,7 @@ export function SkillsPage() {
                       {/* Progress details */}
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-gray-400">Next level</span>
-                        <span className="text-[11px] font-mono text-white">Lv.{level + 1}</span>
+                        <span className="text-[11px] font-mono text-white">LVL {level + 1}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-gray-400">XP remaining</span>
@@ -359,25 +437,46 @@ export function SkillsPage() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-gray-400">Time to next</span>
-                        <span className="text-[11px] font-mono text-gray-300">~{Math.ceil((needed - current) / 3600)}h</span>
+                        <span className="text-[11px] font-mono text-gray-300">{skill.category === 'farming' ? 'via farming' : `~${Math.ceil((needed - current) / 3600)}h`}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-gray-400">Total XP</span>
                         <span className="text-[11px] font-mono text-gray-300">{formatXP(xp)}</span>
                       </div>
-                      {topAppsBySkill[skill.id] && topAppsBySkill[skill.id].length > 0 && (
-                        <div className="pt-2 border-t border-white/[0.04]">
-                          <span className="text-[10px] text-gray-500 font-mono uppercase">Top apps</span>
-                          <div className="mt-1.5 space-y-1">
-                            {topAppsBySkill[skill.id].map((a) => (
-                              <div key={a.app_name} className="flex items-center justify-between text-[11px]">
-                                <span className="text-gray-300 truncate">{a.app_name}</span>
-                                <span className="text-gray-500 font-mono shrink-0 ml-2">{formatAppTime(a.total_ms)}</span>
+                      <div className="pt-2 border-t border-white/[0.04] min-h-[74px]">
+                        {skill.category === 'farming' ? (
+                          <>
+                            <span className="text-[10px] text-gray-500 font-mono uppercase">XP Source</span>
+                            <p className="mt-1.5 text-[10px] text-gray-400 leading-relaxed">Earned by planting and harvesting crops in the Farm tab.</p>
+                            <p className="mt-0.5 text-[9px] text-gray-600 font-mono">Plant +10–160 XP · Harvest +50–800 XP</p>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-[10px] text-gray-500 font-mono uppercase">Top apps</span>
+                            {topAppsLoadingBySkill[skill.id] ? (
+                              <div className="mt-1.5 space-y-1.5">
+                                {[1, 2, 3].map((row) => (
+                                  <div key={row} className="flex items-center justify-between">
+                                    <SkeletonBlock className="h-2.5 w-24" />
+                                    <SkeletonBlock className="h-2.5 w-10" />
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                            ) : topAppsBySkill[skill.id] && topAppsBySkill[skill.id].length > 0 ? (
+                              <div className="mt-1.5 space-y-1">
+                                {topAppsBySkill[skill.id].map((a) => (
+                                  <div key={a.app_name} className="flex items-center justify-between text-[11px]">
+                                    <span className="text-gray-300 truncate">{a.app_name}</span>
+                                    <span className="text-gray-500 font-mono shrink-0 ml-2">{formatAppTime(a.total_ms)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="mt-1.5 text-[10px] text-gray-600">No app data yet.</p>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </motion.div>
                 )}

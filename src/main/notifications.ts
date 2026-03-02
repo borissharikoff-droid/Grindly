@@ -42,11 +42,11 @@ function checkAndNotify() {
   const hour = new Date().getHours()
 
   // Check if global notifications are enabled
-  const globalEnabled = getNotifPref(db, 'idly_notifications_enabled')
+  const globalEnabled = getNotifPref(db, 'grindly_notifications_enabled')
   if (!globalEnabled) return
 
   // 1. Grind reminder: no session today and it's after 12:00
-  const grindReminderEnabled = getNotifPref(db, 'idly_notif_grind_reminder')
+  const grindReminderEnabled = getNotifPref(db, 'grindly_notif_grind_reminder')
   if (grindReminderEnabled && hour >= 12 && now - lastGrindReminder > 4 * ONE_HOUR) {
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
@@ -58,7 +58,7 @@ function checkAndNotify() {
   }
 
   // 2. Streak at risk: past 20:00 and no session today
-  const streakWarningEnabled = getNotifPref(db, 'idly_notif_streak_warning')
+  const streakWarningEnabled = getNotifPref(db, 'grindly_notif_streak_warning')
   if (streakWarningEnabled && hour >= 20 && now - lastStreakWarning > 2 * ONE_HOUR) {
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
@@ -71,7 +71,7 @@ function checkAndNotify() {
   }
 
   // 3. Distraction alert: current session has >60% social/games
-  const distractionEnabled = getNotifPref(db, 'idly_notif_distraction')
+  const distractionEnabled = getNotifPref(db, 'grindly_notif_distraction')
   if (distractionEnabled && now - lastDistractionAlert > THIRTY_MIN) {
     // Check if there's an active session (recent activities in last 30 min)
     const recentActivities = db.getCategoryStats(now - THIRTY_MIN)
@@ -89,7 +89,7 @@ function checkAndNotify() {
   }
 
   // 4. Focus praise: 30+ min of uninterrupted coding
-  const praiseEnabled = getNotifPref(db, 'idly_notif_praise')
+  const praiseEnabled = getNotifPref(db, 'grindly_notif_praise')
   if (praiseEnabled && now - lastFocusPraise > ONE_HOUR) {
     const recentCats = db.getCategoryStats(now - THIRTY_MIN)
     const codingMs = recentCats.find(c => c.category === 'coding')?.total_ms || 0
@@ -105,7 +105,7 @@ function checkAndNotify() {
   const milestones = [10, 25, 50, 100, 250, 500, 1000]
   for (const m of milestones) {
     if (totalHours === m) {
-      const milestoneKey = `idly_milestone_${m}h`
+      const milestoneKey = `grindly_milestone_${m}h`
       const already = db.getLocalStat(milestoneKey)
       if (!already) {
         showNotification(`${m}h Milestone! 🏆`, `You've grinded for ${m} total hours. Legendary!`)

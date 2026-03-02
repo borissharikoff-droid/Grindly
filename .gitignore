@@ -8,3 +8,6 @@ release
 Thumbs.db
 *.sqlite
 *.db
+.claude/worktrees
+.cursor
+.vscode

@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAlertStore } from '../../stores/alertStore'
 import { playAchievementSound, playClickSound } from '../../lib/sounds'
 import { MOTION } from '../../lib/motion'
+import { defaultSkillForAchievement } from '../../services/rewardGrant'
+import { getSkillById } from '../../lib/skills'
 
 const AUTO_DISMISS_MS = 12000
 
@@ -116,7 +118,13 @@ export function LootDrop() {
                 transition={{ delay: 0.5, duration: MOTION.duration.base, ease: MOTION.easing }}
                 className="flex items-center justify-center mb-2 shrink-0"
               >
-                <span className="text-cyber-neon font-mono text-sm font-bold">+{currentAlert.achievement.xpReward} XP</span>
+                <span className="text-cyber-neon font-mono text-sm font-bold">
+                  +{currentAlert.achievement.xpReward} XP
+                  {(() => {
+                    const skill = getSkillById(defaultSkillForAchievement(currentAlert.achievement))
+                    return skill ? <span className="text-gray-400 font-normal text-xs ml-1.5">→ {skill.icon} {skill.name}</span> : null
+                  })()}
+                </span>
               </motion.div>
 
               <div className="flex-1 flex items-center justify-center">

@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { claimDailyActivity, getDailyActivities, type DailyActivityId } from '../../services/dailyActivityService'
 import { useInventoryStore } from '../../stores/inventoryStore'
-import { CHEST_DEFS } from '../../lib/loot'
+import { CHEST_DEFS, LOOT_ITEMS, type ChestType } from '../../lib/loot'
+import { ChestOpenModal } from '../animations/ChestOpenModal'
+import { playClickSound } from '../../lib/sounds'
 
 function ChestVisual({ name, icon, image }: { name: string; icon: string; image?: string }) {
   return (
@@ -25,19 +27,32 @@ function ChestVisual({ name, icon, image }: { name: string; icon: string; image?
 
 export function DailyMissionsWidget() {
   const [tick, setTick] = useState(0)
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(true)
+  const [opened, setOpened] = useState<{ chestType: ChestType; itemId: string; goldDropped?: number } | null>(null)
   const missions = useMemo(() => getDailyActivities(), [tick])
   const addChest = useInventoryStore((s) => s.addChest)
+  const claimPendingReward = useInventoryStore((s) => s.claimPendingReward)
+  const openChestAndGrantItem = useInventoryStore((s) => s.openChestAndGrantItem)
   const completedCount = missions.filter((m) => m.completed).length
 
   const handleClaim = (id: DailyActivityId) => {
     const chestType = claimDailyActivity(id)
     if (!chestType) return
-    addChest(chestType, 'daily_activity', 100)
+    playClickSound()
+    const rewardId = addChest(chestType, 'daily_activity', 100)
+    claimPendingReward(rewardId)
+    const result = openChestAndGrantItem(chestType, { source: 'daily_activity' })
+    if (result) setOpened({ chestType, itemId: result.itemId, goldDropped: result.goldDropped })
     setTick((v) => v + 1)
   }
 
+  const openedItem = useMemo(
+    () => (opened ? LOOT_ITEMS.find((x) => x.id === opened.itemId) ?? null : null),
+    [opened],
+  )
+
   return (
+    <>
     <div className="w-full rounded-xl bg-discord-card/70 border border-white/10 p-2.5 space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono">Daily quests</p>
@@ -115,5 +130,13 @@ export function DailyMissionsWidget() {
         </div>
       )}
     </div>
+    <ChestOpenModal
+      open={Boolean(opened)}
+      chestType={opened?.chestType ?? null}
+      item={openedItem}
+      goldDropped={opened?.goldDropped}
+      onClose={() => setOpened(null)}
+    />
+    </>
   )
 }

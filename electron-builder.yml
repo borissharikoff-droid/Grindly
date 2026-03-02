@@ -1,5 +1,5 @@
-appId: com.idly.app
-productName: Idly
+appId: com.grindly.app
+productName: Grindly
 directories:
   output: release
 files:
@@ -23,10 +23,10 @@ nsis:
   oneClick: true
   perMachine: false
   allowToChangeInstallationDirectory: false
-  artifactName: "Idly-Setup-${version}.exe"
+  artifactName: "Grindly-Setup-${version}.exe"
 forceCodeSigning: false
 # For auto-updates: create a GitHub Release with latest.yml + installer. If 404 in logs, set repo to your actual repo name.
 publish:
   provider: github
   owner: borissharikoff-droid
-  repo: idly
+  repo: grindly

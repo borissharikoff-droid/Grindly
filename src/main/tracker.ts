@@ -239,7 +239,7 @@ function parseLine(line: string): void {
   if (trimmed.startsWith('ERR:')) {
     const msg = trimmed.slice(4).trim()
     log.error('[tracker] Detector script error:', msg)
-    latestWinInfo = { appName: 'Idly.TrackerError', title: msg, keys: 0, idleMs: 0, bgCategories: [] }
+    latestWinInfo = { appName: 'Grindly.TrackerError', title: msg, keys: 0, idleMs: 0, bgCategories: [] }
     return
   }
   if (!trimmed.startsWith('WIN:')) {
@@ -277,7 +277,7 @@ const STDERR_TAIL_LINES = 10
 function probePowerShell(): Promise<boolean> {
   return new Promise((resolve) => {
     const psExe = getPowerShellPath()
-    const args = ['-NoProfile', '-NoLogo', '-NonInteractive', '-Command', "Write-Output 'IDLY_PROBE_OK'"]
+    const args = ['-NoProfile', '-NoLogo', '-NonInteractive', '-Command', "Write-Output 'GRINDLY_PROBE_OK'"]
     let stdout = ''
     let resolved = false
     const done = (ok: boolean) => {
@@ -300,13 +300,13 @@ function probePowerShell(): Promise<boolean> {
     }
     child.stdout?.on('data', (chunk: Buffer) => {
       stdout += chunk.toString('utf8')
-      if (stdout.includes('IDLY_PROBE_OK')) done(true)
+      if (stdout.includes('GRINDLY_PROBE_OK')) done(true)
     })
     child.on('error', () => done(false))
     child.on('exit', () => {
-      if (!resolved) done(stdout.includes('IDLY_PROBE_OK'))
+      if (!resolved) done(stdout.includes('GRINDLY_PROBE_OK'))
     })
-    setTimeout(() => done(stdout.includes('IDLY_PROBE_OK')), PROBE_TIMEOUT_MS)
+    setTimeout(() => done(stdout.includes('GRINDLY_PROBE_OK')), PROBE_TIMEOUT_MS)
   })
 }
 
@@ -350,7 +350,7 @@ function startWindowDetector(): void {
   // 2) Fallback or restart: -File only (avoids command-line length / encoding issues)
   if (!detectorProcess || useFileOnly) {
     try {
-      detectorScriptPath = path.join(scriptDir, 'idly-window-detector.ps1')
+      detectorScriptPath = path.join(scriptDir, 'grindly-window-detector.ps1')
       fs.writeFileSync(detectorScriptPath, '\uFEFF' + DETECTOR_SCRIPT, { encoding: 'utf8' })
     } catch (e) {
       log.error('[tracker] Failed to write detector script', e)
@@ -512,9 +512,20 @@ const BROWSER_HOST_CODING = /github\.dev|vscode\.dev|codesandbox|stackblitz|repl
 const BROWSER_HOST_DESIGN = /figma\.com|canva\.com|dribbble\.com|behance\.net/i
 const BROWSER_HOST_SOCIAL = /x\.com|twitter\.com|reddit\.com|facebook\.com|instagram\.com|linkedin\.com/i
 const BROWSER_HOST_LEARNING = /udemy|coursera|khan academy|edx|stepik|tutorial|documentation|docs|wikipedia|notion|readthedocs|developer\.mozilla|mdn/i
-const DOC_READING_TITLE = /readme|documentation|docs|wiki|manual|guide|api reference|knowledge base|paper|article|research|syllabus|chapter|lesson|lecture|курс|лекц|документац|справка/i
+const DOC_READING_TITLE = /readme|documentation|docs|wiki|manual|guide|api reference|knowledge base|paper|article|research|syllabus|chapter|lesson|lecture|курс|лекц|документац|справка|blog|post|medium\.com|habr|vc\.ru|dev\.to|stackoverflow|stack overflow|mdn|developer\.mozilla|notion|evernote|obsidian|book|книг|статья|статьи|reading|читаю|читать/i
 const TERMINAL_APP = /^(windowsterminal|terminal|powershell|pwsh|cmd|bash|zsh|wsl|wezterm|alacritty|hyper|conhost|mintty|putty|mobaxterm)$/i
 const TERMINAL_WORK_TITLE = /npm|pnpm|yarn|bun|node|python|pip|poetry|cargo|rust|go\s(test|run|build)|javac|gradle|maven|dotnet|tsc|vite|webpack|docker|kubectl|git|ssh|make|cmake|build|test|serve|dev/i
+
+/** Passive activities (reading, learning) get extended AFK threshold so you don't lose XP while focused on content. */
+function getEffectiveAfkThreshold(windowTitle: string, previousCategory: ActivityCategory | null): number {
+  const lowerTitle = windowTitle.toLowerCase()
+  const isPassiveReading =
+    DOC_READING_TITLE.test(lowerTitle) ||
+    /\.pdf|\.epub|\.mobi|kindle|reader|sumatrapdf|acrobat|foxit|calibre/i.test(lowerTitle)
+  const isPassiveCategory = previousCategory === 'learning'
+  // 10× for reading/learning: ~30 min idle before AFK vs 3 min for active work
+  return isPassiveReading || isPassiveCategory ? afkThresholdMs * 10 : afkThresholdMs
+}
 
 interface AiRefinementCacheEntry {
   category: ActivityCategory
@@ -578,7 +589,7 @@ function shouldUseAiRefinement(appName: string, windowTitle: string, base: Class
   const lowerApp = appName.toLowerCase().replace(/\.(exe|app)$/i, '')
   const lowerTitle = windowTitle.toLowerCase()
   if (!lowerTitle || lowerTitle.length < 4) return false
-  if (/\bidly\b/.test(lowerApp) || /\bidly\b/.test(lowerTitle)) return false
+  if (/\bgrindly\b/.test(lowerApp) || /\bgrindly\b/.test(lowerTitle)) return false
   if (/^(new tab|about:blank|start page|home)$/.test(lowerTitle.trim())) return false
   const browserLike = /^(chrome|firefox|msedge|brave|opera|vivaldi|arc|yandex|applicationframehost)$/i.test(lowerApp)
   const terminalLike = TERMINAL_APP.test(lowerApp)
@@ -735,11 +746,11 @@ export function categorizeDetailed(appName: string, windowTitle: string): Classi
 }
 
 function getAppDisplayName(appName: string): string {
-  if (appName === 'Idly.TrackerError') return 'Window detector error'
+  if (appName === 'Grindly.TrackerError') return 'Window detector error'
   if (appName === 'Unknown') return 'Window'
   const base = appName.replace(/\.(exe|app)$/i, '').replace(/\s+/g, '')
   const baseLower = base.toLowerCase()
-  if (baseLower === 'electron' || baseLower === 'idly') return 'Idly'
+  if (baseLower === 'electron' || baseLower === 'grindly') return 'Grindly'
   const map: Record<string, string> = {
     code: 'VS Code',
     cursor: 'Cursor',
@@ -811,9 +822,13 @@ function poll(): void {
 
     // AFK detection: real idle = no mouse/keyboard (GetLastInputInfo from detector)
     const idleMs = latestWinInfo.idleMs ?? 0
-    if (idleMs >= afkThresholdMs && !isIdle) {
+    const effectiveAfkThresholdMs = getEffectiveAfkThreshold(
+      windowTitle,
+      (lastActivity?.category as ActivityCategory | undefined) ?? null,
+    )
+    if (idleMs >= effectiveAfkThresholdMs && !isIdle) {
       emitIdle(true)
-    } else if (idleMs < afkThresholdMs && isIdle) {
+    } else if (idleMs < effectiveAfkThresholdMs && isIdle) {
       emitIdle(false)
     }
 
