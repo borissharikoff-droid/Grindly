@@ -17,6 +17,7 @@ import { ensureInventoryHydrated, useInventoryStore } from './inventoryStore'
 import { recordDeveloperXp, recordFocusSeconds, recordSessionWithoutAfk } from '../services/dailyActivityService'
 import { useChestDropStore } from './chestDropStore'
 import { getEquippedPerkRuntime } from '../lib/loot'
+import { track } from '../lib/analytics'
 
 type SessionStatus = 'idle' | 'running' | 'paused'
 
@@ -451,6 +452,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       skillLevelNotified: {},
       pendingSkillLevelUpSkill: null,
     })
+    track('session_start')
     if (api) {
       api.tracker.start()
       // AFK uses fixed 3 min threshold; passive activities (reading, learning) get extended automatically
@@ -491,6 +493,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       await api.focus.disable().catch(() => {})
     }
     set({ status: 'idle', pendingSkillLevelUpSkill: null })
+    track('session_end', { duration_seconds: elapsedSeconds })
     const endTime = Date.now()
 
     // Clear checkpoint since session is ending normally.

@@ -2,6 +2,7 @@ import type { TabId } from '../../App'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { playTabSound, playClickSound } from '../../lib/sounds'
+import { track } from '../../lib/analytics'
 import { useAlertStore } from '../../stores/alertStore'
 import { useNavBadgeStore } from '../../stores/navBadgeStore'
 import { useArenaStore } from '../../stores/arenaStore'
@@ -56,6 +57,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
 
   const navigate = (id: TabId) => {
     playTabSound()
+    track('tab_click', { tab: id })
     onTabChange(id)
     setMoreOpen(false)
   }

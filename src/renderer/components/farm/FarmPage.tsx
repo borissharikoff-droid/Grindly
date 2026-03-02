@@ -14,6 +14,7 @@ import { GoldDisplay } from '../marketplace/GoldDisplay'
 import { PixelConfetti } from '../home/PixelConfetti'
 import { MOTION } from '../../lib/motion'
 import { playClickSound, playLootRaritySound } from '../../lib/sounds'
+import { track } from '../../lib/analytics'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -583,7 +584,7 @@ function SeedPicker({ slotIndex, seeds, onClose }: { slotIndex: number; seeds: R
                   key={seed.id}
                   type="button"
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => { playClickSound(); plantSeed(slotIndex, seed.id); onClose() }}
+                  onClick={() => { playClickSound(); track('farm_plant', { seed_id: seed.id }); plantSeed(slotIndex, seed.id); onClose() }}
                   className="w-full rounded-xl border p-3 flex items-center gap-3 text-left transition-opacity hover:opacity-90"
                   style={{ borderColor: t.border, background: `linear-gradient(135deg, ${t.glow}18 0%, rgba(10,10,20,0.95) 60%)` }}
                 >

@@ -1,4 +1,5 @@
 import { getUnlockedAvatarEmojis, getUnlockedBadges, getUnlockedFrames, unlockCosmeticsFromAchievement } from '../lib/cosmetics'
+import { track } from '../lib/analytics'
 import type { AchievementDef } from '../lib/xp'
 import type { ProgressionEvent, RewardGrantPayload } from '../lib/progressionContract'
 import { SKILL_BOOST_SECONDS } from '../lib/rewardConfig'
@@ -100,6 +101,9 @@ export async function grantRewardPayloads(
   }
 
   saveClaimedRewardKeys(claimed)
+  if (granted.length > 0) {
+    track('reward_claimed', { count: granted.length, types: granted.map((p) => p.destination) })
+  }
   return { granted, skipped }
 }
 

@@ -21,9 +21,11 @@ import { SkillLevelUpModal } from './components/home/SkillLevelUpModal'
 import { InventoryPage } from './components/inventory/InventoryPage'
 import { useFriends } from './hooks/useFriends'
 import { useMessageNotifier } from './hooks/useMessageNotifier'
+import { useAnnouncements } from './hooks/useAnnouncements'
 import { UpdateBanner } from './components/UpdateBanner'
 import { useSessionStore } from './stores/sessionStore'
 import { useChatTargetStore } from './stores/chatTargetStore'
+import { useAuthStore } from './stores/authStore'
 import { categoryToSkillId, getSkillById } from './lib/skills'
 import { warmUpAudio } from './lib/sounds'
 import { runSupabaseHealthCheck } from './services/supabaseHealth'
@@ -122,6 +124,8 @@ export default function App() {
   const [healthDismissed, setHealthDismissed] = useState(false)
   const [isBackground, setIsBackground] = useState(false)
   const lastHiddenActivityPushRef = useRef(0)
+  const healthCheckDoneRef = useRef(false)
+  const { user } = useAuthStore()
   const handleEscapeToHome = useCallback(() => {
     if (activeTab !== 'home') navigateTo('home')
   }, [activeTab, navigateTo])
@@ -141,6 +145,7 @@ export default function App() {
   useKeyboardShortcuts({ onEscapeToHome: handleEscapeToHome })
   const friendsModel = useFriends() // single orchestrator for friends/presence/notifications
   useMessageNotifier() // sound, taskbar badge, toasts on new messages
+  useAnnouncements()   // fetch missed + realtime announcements → notification bell
   useArenaBattleTick(activeTab) // battle completion: toast+bell when off Arena, modal when on Arena
   const arenaResultModal = useArenaStore((s) => s.resultModal)
   const setArenaResultModal = useArenaStore((s) => s.setResultModal)
@@ -185,7 +190,12 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    // Only run after user is authenticated, and only once per session
     if (!window.electronAPI) return
+    if (!user) return
+    if (healthCheckDoneRef.current) return
+    healthCheckDoneRef.current = true
+
     runSupabaseHealthCheck().then((result) => {
       if (result.ok) {
         setHealthIssues([])
@@ -194,7 +204,7 @@ export default function App() {
       const issues = result.checks.filter((c) => !c.ok).map((c) => `${c.name}: ${c.detail}`)
       setHealthIssues(issues)
       setHealthDismissed(false)
-      // Auto-dismiss connectivity issues after 8s (auth errors stay visible)
+      // Auto-dismiss connectivity issues after 8s
       const isConnectivity = issues.every((i) => /network|fetch|connect|offline/i.test(i))
       if (isConnectivity) setTimeout(() => setHealthDismissed(true), 8_000)
     }).catch(() => {
@@ -203,7 +213,7 @@ export default function App() {
       setHealthDismissed(false)
       setTimeout(() => setHealthDismissed(true), 8_000)
     })
-  }, [])
+  }, [user])
 
   // Check streak once on app startup
   useEffect(() => {

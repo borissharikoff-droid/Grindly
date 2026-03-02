@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { MARKETPLACE_BLOCKED_ITEMS } from '../lib/loot'
+import { track } from '../lib/analytics'
 
 export interface CreateListingResult {
   ok: boolean
@@ -91,6 +92,7 @@ export async function buyListing(listingId: string): Promise<BuyListingResult> {
   if (error) return { ok: false, error: error.message }
   const result = data as { ok?: boolean; error?: string; item_id?: string; quantity?: number }
   if (!result?.ok) return { ok: false, error: result?.error ?? 'Purchase failed' }
+  track('marketplace_buy', { item_id: result.item_id, quantity: result.quantity })
   return {
     ok: true,
     item_id: result.item_id,

@@ -167,7 +167,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t)
   }, [username])
 
-  if (!supabase) return <>{children}</>
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center bg-discord-darker">

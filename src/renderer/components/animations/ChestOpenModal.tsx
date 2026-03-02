@@ -5,6 +5,7 @@ import { CHEST_DEFS, getRarityTheme } from '../../lib/loot'
 import { MOTION } from '../../lib/motion'
 import { PixelConfetti } from '../home/PixelConfetti'
 import { playClickSound, playLootRaritySound } from '../../lib/sounds'
+import { track } from '../../lib/analytics'
 
 interface ChestOpenModalProps {
   open: boolean
@@ -53,8 +54,11 @@ export function ChestOpenModal({
   const glowY = 40 + tilt.y * 10
 
   useEffect(() => {
-    if (open && item) playLootRaritySound(item.rarity)
-  }, [open, item])
+    if (open && item && chestType) {
+      playLootRaritySound(item.rarity)
+      track('chest_open', { chest_type: chestType, item_rarity: item.rarity })
+    }
+  }, [open, item, chestType])
 
   return (
     <AnimatePresence>

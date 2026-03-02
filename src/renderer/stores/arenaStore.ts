@@ -7,6 +7,7 @@ import { useAuthStore } from './authStore'
 import { useGoldStore } from './goldStore'
 import { useInventoryStore } from './inventoryStore'
 import { useNotificationStore } from './notificationStore'
+import { track } from '../lib/analytics'
 
 export interface ActiveBattle {
   bossId: string
@@ -96,6 +97,7 @@ export const useArenaStore = create<ArenaState>()(
             isDaily,
           },
         })
+        track('arena_battle_start', { boss_id: bossId, is_daily: isDaily })
         return true
       },
 

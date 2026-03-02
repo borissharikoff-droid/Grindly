@@ -1,10 +1,15 @@
 import { createClient, type User } from '@supabase/supabase-js'
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+// Env vars are baked in by Vite at build time. Hard-coded values are the
+// fallback so the installer always has working credentials (anon key is public).
+const SUPABASE_URL  = 'https://athiojjreuexcmziqbcn.supabase.co'
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF0aGlvampyZXVleGNtemlxYmNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0MjU1NjksImV4cCI6MjA4NjAwMTU2OX0.VU8aWawpq5zA4y-RTpWGJN_5Gne6THcF2OZPg1RVIKs'
 
-export const supabase = url && anonKey ? createClient(url, anonKey) : null
-export const isSupabaseConfigured = Boolean(url && anonKey)
+const url     = (import.meta.env.VITE_SUPABASE_URL     as string | undefined) || SUPABASE_URL
+const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || SUPABASE_ANON
+
+export const supabase = createClient(url, anonKey)
+export const isSupabaseConfigured = true
 
 export interface Profile {
   id: string
@@ -20,6 +25,6 @@ export interface Profile {
   updated_at: string
 }
 
-export function useSupabase(): { supabase: ReturnType<typeof createClient> | null; user: User | null } {
-  return { supabase, user: null }
+export function useSupabase() {
+  return { supabase, user: null as User | null }
 }

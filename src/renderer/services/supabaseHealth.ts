@@ -6,34 +6,18 @@ export interface SupabaseHealthResult {
 }
 
 export async function runSupabaseHealthCheck(): Promise<SupabaseHealthResult> {
-  if (!supabase) {
-    return {
-      ok: false,
-      checks: [{ name: 'supabase_client', ok: false, detail: 'Supabase is not configured' }],
-    }
-  }
-
   const checks: SupabaseHealthResult['checks'] = []
 
-  const skillsCheck = await supabase
-    .from('user_skills')
-    .select('user_id', { head: true, count: 'exact' })
+  // Lightweight reachability check — no write operations, no destructive queries
+  const reachCheck = await supabase
+    .from('profiles')
+    .select('id', { head: true, count: 'exact' })
     .limit(1)
-  checks.push({
-    name: 'table_user_skills',
-    ok: !skillsCheck.error,
-    detail: skillsCheck.error?.message ?? 'reachable',
-  })
 
-  const friendshipsDeleteCheck = await supabase
-    .from('friendships')
-    .delete()
-    .eq('id', '00000000-0000-0000-0000-000000000000')
-    .select('id')
   checks.push({
-    name: 'rls_friendships_delete',
-    ok: !friendshipsDeleteCheck.error,
-    detail: friendshipsDeleteCheck.error?.message ?? 'policy seems present',
+    name: 'api_reachable',
+    ok: !reachCheck.error,
+    detail: reachCheck.error?.message ?? 'reachable',
   })
 
   return {
@@ -41,4 +25,3 @@ export async function runSupabaseHealthCheck(): Promise<SupabaseHealthResult> {
     checks,
   }
 }
-
