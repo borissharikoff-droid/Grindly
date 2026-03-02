@@ -128,11 +128,16 @@ export function useProfileSync() {
     sync()
     // Sync local skill XP to user_skills so friends/leaderboard show real levels
     if (window.electronAPI?.db?.getAllSkillXP) {
+      const api = window.electronAPI
       setSyncState({ status: 'syncing' })
-      syncSkillsToSupabase(window.electronAPI, { maxAttempts: 3 })
+      syncSkillsToSupabase(api, { maxAttempts: 3 })
         .then((result) => {
           if (result.ok) {
             setSyncState({ status: 'success', at: result.lastSkillSyncAt })
+            // Restore cloud skill XP to local SQLite if local was empty (e.g. fresh install)
+            if (result.cloudSkillRows?.length && api.db.restoreSkillXP) {
+              api.db.restoreSkillXP(result.cloudSkillRows).catch(() => {})
+            }
             return
           }
           setSyncState({ status: 'error', error: result.error ?? 'Skill sync failed' })

@@ -285,6 +285,15 @@ export function getDatabaseApi() {
     getAllSkillXP(): { skill_id: string; total_xp: number }[] {
       return database.prepare('SELECT skill_id, total_xp FROM skill_xp ORDER BY total_xp DESC').all() as { skill_id: string; total_xp: number }[]
     },
+    restoreSkillXPFromCloud(rows: { skill_id: string; total_xp: number }[]): void {
+      const stmt = database.prepare(
+        'INSERT INTO skill_xp (skill_id, total_xp, updated_at) VALUES (?, ?, ?) ON CONFLICT(skill_id) DO UPDATE SET total_xp = MAX(skill_xp.total_xp, excluded.total_xp), updated_at = excluded.updated_at'
+      )
+      const now = Date.now()
+      for (const row of rows) {
+        stmt.run(row.skill_id, row.total_xp, now)
+      }
+    },
 
     // ── Goals ──
     getActiveGoals(): { id: string; type: string; target_seconds: number; target_category: string | null; period: string; start_date: string; completed_at: number | null }[] {

@@ -124,6 +124,10 @@ export function registerIpcHandlers() {
     return db.addSkillXP(stringId.parse(skillId), nonNegativeInt.parse(amount))
   })
   ipcMain.handle(IPC_CHANNELS.db.getAllSkillXP, () => db.getAllSkillXP())
+  ipcMain.handle(IPC_CHANNELS.db.restoreSkillXP, (_, rows: unknown) => {
+    const parsed = (rows as { skill_id: string; total_xp: number }[])
+    db.restoreSkillXPFromCloud(parsed)
+  })
 
   // Goals
   ipcMain.handle(IPC_CHANNELS.db.getActiveGoals, () => db.getActiveGoals())

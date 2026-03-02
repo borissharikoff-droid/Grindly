@@ -15,6 +15,8 @@ export interface SkillSyncResult {
   syncedSkills: number
   lastSkillSyncAt: string | null
   error?: string
+  /** Non-empty when local SQLite was all-zeros but cloud had XP — caller should restore to SQLite */
+  cloudSkillRows?: { skill_id: string; total_xp: number }[]
 }
 
 export interface AchievementSyncResult {
@@ -229,6 +231,15 @@ export async function syncSkillsToSupabase(
       }
       const payload = localPayload.map((entry) => mergeSkillPayload(entry, existingBySkill.get(entry.skill_id)))
 
+      // Detect: local SQLite was empty but cloud has data → caller should restore to SQLite
+      const localTotalXP = localPayload.reduce((sum, r) => sum + r.total_xp, 0)
+      const cloudSkillRows: { skill_id: string; total_xp: number }[] | undefined =
+        localTotalXP === 0 && existingBySkill.size > 0
+          ? [...existingBySkill.values()]
+              .filter((r) => (r.total_xp ?? 0) > 0)
+              .map((r) => ({ skill_id: normalizeSkillId(r.skill_id), total_xp: r.total_xp ?? 0 }))
+          : undefined
+
       const primaryRes = await withTimeout(
         supabase
           .from('user_skills')
@@ -263,6 +274,7 @@ export async function syncSkillsToSupabase(
         attempts,
         syncedSkills: payload.length,
         lastSkillSyncAt: syncAt,
+        cloudSkillRows,
       }
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err)
@@ -562,7 +574,8 @@ export async function syncInventoryToSupabase(
       const { error: chestErr } = await supabase
         .from('user_chests')
         .upsert(chestPayload, { onConflict: 'user_id,chest_type' })
-      if (chestErr) return { ok: false, itemsSynced: 0, chestsSynced: 0, error: chestErr.message }
+      // Don't abort the whole sync if user_chests table is missing — items still sync correctly
+      if (chestErr) console.warn('[supabaseSync] user_chests sync skipped:', chestErr.message)
     }
 
     const mergedItems: Record<string, number> = {}
