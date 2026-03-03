@@ -254,10 +254,12 @@ export default function App() {
     checkStreak()
   }, [])
 
-  // Sync admin config from Supabase once per session (updates localStorage cache for next launch)
+  // Sync admin config from Supabase once per session and re-apply immediately
   useEffect(() => {
     if (!supabase) return
-    syncAdminConfigFromSupabase(supabase).catch(() => {})
+    syncAdminConfigFromSupabase(supabase)
+      .then(() => applyAdminConfig(LOOT_ITEMS, BOSSES))
+      .catch(() => {})
   }, [])
 
   const handleNavigateProfile = useCallback(() => navigateTo('profile'), [navigateTo])
