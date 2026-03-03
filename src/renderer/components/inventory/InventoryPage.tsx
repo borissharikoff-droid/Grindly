@@ -5,6 +5,7 @@ import { CHEST_DEFS, LOOT_ITEMS, LOOT_SLOTS, MARKETPLACE_BLOCKED_ITEMS, POTION_I
 import { computePlayerStats } from '../../lib/combat'
 import { ensureInventoryHydrated, useInventoryStore } from '../../stores/inventoryStore'
 import { useArenaStore } from '../../stores/arenaStore'
+import { useAdminConfigStore } from '../../stores/adminConfigStore'
 import { ChestOpenModal } from '../animations/ChestOpenModal'
 import { ListForSaleModal } from './ListForSaleModal'
 import { PageHeader } from '../shared/PageHeader'
@@ -21,6 +22,7 @@ type SlotEntry =
   | { id: string; kind: 'item'; icon: string; image?: string; title: string; subtitle: string; quantity: number; itemId: string; equipped: boolean }
 
 export function InventoryPage({ onBack }: { onBack: () => void }) {
+  useAdminConfigStore((s) => s.rev) // re-render when admin config updates (item skins etc.)
   const items = useInventoryStore((s) => s.items)
   const chests = useInventoryStore((s) => s.chests)
   const pendingRewards = useInventoryStore((s) => s.pendingRewards)

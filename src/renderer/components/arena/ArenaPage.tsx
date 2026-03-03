@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { BOSSES, computeBattleOutcome, computePlayerStats, meetsBossRequirements, getDailyBossId } from '../../lib/combat'
 import { LOOT_ITEMS, LOOT_SLOTS, POTION_MAX, getItemPower, CHEST_DEFS, GOLD_BY_CHEST, type LootSlot, type ChestType } from '../../lib/loot'
 import { useArenaStore } from '../../stores/arenaStore'
+import { useAdminConfigStore } from '../../stores/adminConfigStore'
 import { useInventoryStore } from '../../stores/inventoryStore'
 import { SKILLS, skillLevelFromXP } from '../../lib/skills'
 import { SLOT_META, SLOT_LABEL, LootVisual, RARITY_THEME, normalizeRarity } from '../loot/LootUI'
@@ -32,6 +33,7 @@ const TIER_COLORS: Record<string, string> = {
 }
 
 export function ArenaPage() {
+  useAdminConfigStore((s) => s.rev) // re-render when admin config updates (boss skins etc.)
   const [showBackpack, setShowBackpack] = useState(false)
   const [inspectItemId, setInspectItemId] = useState<string | null>(null)
   const equippedBySlot = useInventoryStore((s) => s.equippedBySlot)

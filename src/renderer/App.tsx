@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useCallback, useEffect, useRef, lazy, Suspense, Component } from 'react'
+import type { ReactNode } from 'react'
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
 import { AuthGate } from './components/auth/AuthGate'
 import { useProfileSync, usePresenceSync } from './hooks/useProfileSync'
@@ -35,10 +36,39 @@ import { PageLoading } from './components/shared/PageLoading'
 import { LOOT_ITEMS } from './lib/loot'
 import { BOSSES } from './lib/combat'
 import { applyAdminConfig, syncAdminConfigFromSupabase } from './lib/itemConfig'
+import { useAdminConfigStore } from './stores/adminConfigStore'
 import { supabase } from './lib/supabase'
 
 // Apply cached admin overrides before first render (populated after first Supabase sync)
 applyAdminConfig(LOOT_ITEMS, BOSSES)
+
+class PageErrorBoundary extends Component<
+  { children: ReactNode; onReset: () => void },
+  { crashed: boolean }
+> {
+  constructor(props: { children: ReactNode; onReset: () => void }) {
+    super(props)
+    this.state = { crashed: false }
+  }
+  static getDerivedStateFromError() { return { crashed: true } }
+  render() {
+    if (this.state.crashed) {
+      return (
+        <div className="p-8 flex flex-col items-center justify-center gap-3 text-center">
+          <span className="text-3xl">💥</span>
+          <p className="text-sm text-gray-300 font-semibold">Page crashed</p>
+          <button
+            onClick={() => { this.setState({ crashed: false }); this.props.onReset() }}
+            className="px-4 py-2 rounded-lg border border-cyber-neon/30 text-cyber-neon text-xs hover:bg-cyber-neon/10 transition-colors"
+          >
+            Reload page
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 const StatsPage = lazy(() => import('./components/stats/StatsPage').then((m) => ({ default: m.StatsPage })))
 const FriendsPage = lazy(() => import('./components/friends/FriendsPage').then((m) => ({ default: m.FriendsPage })))
@@ -254,12 +284,18 @@ export default function App() {
     checkStreak()
   }, [])
 
-  // Sync admin config from Supabase once per session and re-apply immediately
+  // Sync admin config from Supabase and re-apply; poll every 5 minutes so all
+  // players pick up boss/item/skin changes without restarting the app.
   useEffect(() => {
     if (!supabase) return
-    syncAdminConfigFromSupabase(supabase)
-      .then(() => applyAdminConfig(LOOT_ITEMS, BOSSES))
-      .catch(() => {})
+    const { bump } = useAdminConfigStore.getState()
+    const sync = () =>
+      syncAdminConfigFromSupabase(supabase)
+        .then(() => { applyAdminConfig(LOOT_ITEMS, BOSSES); bump() })
+        .catch(() => {})
+    sync()
+    const id = setInterval(sync, 5 * 60 * 1000)
+    return () => clearInterval(id)
   }, [])
 
   const handleNavigateProfile = useCallback(() => navigateTo('profile'), [navigateTo])
@@ -383,9 +419,11 @@ export default function App() {
               )}
               {activeTab === 'marketplace' && (
                 <motion.div key="marketplace" custom={slideDir} variants={PAGE_SLIDE} initial="initial" animate="animate" exit="exit">
-                  <Suspense fallback={<MarketplaceFallback />}>
-                    <MarketplacePage />
-                  </Suspense>
+                  <PageErrorBoundary onReset={() => navigateTo('home')}>
+                    <Suspense fallback={<MarketplaceFallback />}>
+                      <MarketplacePage />
+                    </Suspense>
+                  </PageErrorBoundary>
                 </motion.div>
               )}
               {activeTab === 'arena' && (
