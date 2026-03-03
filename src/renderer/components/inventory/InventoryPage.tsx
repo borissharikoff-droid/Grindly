@@ -319,125 +319,146 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
     >
       <PageHeader title="Inventory" onBack={onBack} />
 
-      <div className="rounded-xl border border-white/[0.09] bg-discord-card/80 p-3 space-y-2.5">
+      <div className="rounded-xl border border-white/[0.09] bg-discord-card/80 p-3 space-y-2">
         {/* Header */}
         <div className="flex items-center justify-between">
           <p className="text-[10px] uppercase tracking-widest text-gray-500 font-mono font-semibold">Character</p>
           {inBattle && <p className="text-[9px] text-amber-400/70 font-mono">⚔ locked in battle</p>}
         </div>
 
-        {/* Gear slots — full-width RPG character sheet rows */}
-        <div className="space-y-1">
-          {(LOOT_SLOTS as LootSlot[]).map((slot) => {
+        {/* 3-column layout: gear rows | ring+weapon squares | stats */}
+        {(() => {
+          const renderRowSlot = (slot: LootSlot) => {
             const meta = SLOT_META[slot]
             const equippedItem = LOOT_ITEMS.find((item) => item.id === equippedBySlot[slot])
             const theme = equippedItem ? RARITY_THEME[normalizeRarity(equippedItem.rarity)] : null
-            const perkDesc = equippedItem ? getItemPerkDescription(equippedItem) : null
             const row = (
               <div
-                className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg border overflow-hidden"
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg border overflow-hidden h-full"
                 style={theme
                   ? { borderColor: theme.border, background: `linear-gradient(90deg, ${theme.glow}16 0%, rgba(12,12,20,0.92) 55%)` }
                   : { borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(12,12,20,0.55)' }}
               >
-                {/* Rarity bar */}
+                <div className="w-[3px] rounded-full self-stretch flex-shrink-0" style={{ background: theme ? theme.color : 'rgba(255,255,255,0.07)', minHeight: 28 }} />
                 <div
-                  className="w-[3px] rounded-full self-stretch flex-shrink-0"
-                  style={{ background: theme ? theme.color : 'rgba(255,255,255,0.07)', minHeight: 30 }}
-                />
-                {/* Icon */}
-                <div
-                  className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
+                  className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden"
                   style={theme
                     ? { background: `radial-gradient(circle at 50% 40%, ${theme.glow}50 0%, rgba(9,9,17,0.95) 68%)`, border: `1px solid ${theme.border}55` }
                     : { background: 'rgba(9,9,17,0.80)', border: '1px solid rgba(255,255,255,0.06)' }}
                 >
                   {equippedItem
                     ? <LootVisual icon={equippedItem.icon} image={equippedItem.image} className="w-5 h-5 object-contain" scale={equippedItem.renderScale ?? 1} />
-                    : <span className="text-[14px]" style={{ opacity: 0.18 }}>{meta.icon}</span>}
+                    : <span className="text-[13px]" style={{ opacity: 0.18 }}>{meta.icon}</span>}
                 </div>
-                {/* Labels */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[8px] font-mono uppercase tracking-widest leading-none" style={{ color: 'rgba(156,163,175,0.5)' }}>{meta.label}</p>
-                  <p
-                    className={`text-[11px] font-semibold mt-0.5 truncate leading-tight ${equippedItem ? 'text-white' : 'italic'}`}
-                    style={equippedItem ? undefined : { color: 'rgba(255,255,255,0.2)' }}
-                  >
-                    {equippedItem ? equippedItem.name : '— empty —'}
+                  <p className="text-[7px] font-mono uppercase tracking-widest leading-none" style={{ color: 'rgba(156,163,175,0.45)' }}>{meta.label}</p>
+                  <p className={`text-[10px] font-semibold mt-0.5 truncate leading-tight ${equippedItem ? 'text-white' : 'italic'}`}
+                    style={equippedItem ? undefined : { color: 'rgba(255,255,255,0.2)' }}>
+                    {equippedItem ? equippedItem.name : 'empty'}
                   </p>
                 </div>
-                {/* Perk */}
-                {perkDesc && theme && (
-                  <p className="text-[9px] font-mono font-bold flex-shrink-0 leading-none" style={{ color: theme.color }}>{perkDesc}</p>
-                )}
-                {/* Rarity dot */}
-                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: theme ? theme.color : 'rgba(255,255,255,0.1)' }} />
+                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: theme ? theme.color : 'rgba(255,255,255,0.08)' }} />
               </div>
             )
             return (
               <BuffTooltip key={slot} item={equippedItem ?? null} placement="bottom" stretch>
-                {equippedItem ? (
-                  <button
-                    type="button"
-                    onClick={() => { playClickSound(); setInspectSlotId(`item:${equippedItem.id}`) }}
-                    onContextMenu={(e) => { e.preventDefault(); unequipSlot(slot) }}
-                    className="w-full text-left hover:brightness-110 active:scale-[0.99] transition-all"
-                  >
-                    {row}
-                  </button>
-                ) : (
-                  <div>{row}</div>
-                )}
+                {equippedItem
+                  ? <button type="button" onClick={() => { playClickSound(); setInspectSlotId(`item:${equippedItem.id}`) }} onContextMenu={(e) => { e.preventDefault(); unequipSlot(slot) }} className="w-full h-full text-left hover:brightness-110 active:scale-[0.99] transition-all">{row}</button>
+                  : <div className="h-full">{row}</div>}
               </BuffTooltip>
             )
-          })}
-        </div>
+          }
 
-        {/* Divider */}
-        <div className="border-t border-white/[0.06]" />
+          const renderSquareSlot = (slot: LootSlot) => {
+            const meta = SLOT_META[slot]
+            const equippedItem = LOOT_ITEMS.find((item) => item.id === equippedBySlot[slot])
+            const theme = equippedItem ? RARITY_THEME[normalizeRarity(equippedItem.rarity)] : null
+            const sq = (
+              <div
+                className="rounded-lg border overflow-hidden h-full"
+                style={theme
+                  ? { borderColor: theme.border, background: `linear-gradient(160deg, ${theme.glow}14 0%, rgba(12,12,20,0.92) 60%)` }
+                  : { borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(12,12,20,0.55)' }}
+              >
+                <div className="flex flex-col items-center justify-center gap-0.5 w-full h-full py-1.5 px-1">
+                  <div
+                    className="w-7 h-7 rounded-md flex items-center justify-center overflow-hidden"
+                    style={theme
+                      ? { background: `radial-gradient(circle at 50% 40%, ${theme.glow}55 0%, rgba(9,9,17,0.95) 70%)` }
+                      : { background: 'rgba(9,9,17,0.85)' }}
+                  >
+                    {equippedItem
+                      ? <LootVisual icon={equippedItem.icon} image={equippedItem.image} className="w-4 h-4 object-contain" scale={equippedItem.renderScale ?? 1} />
+                      : <span className="text-[11px]" style={{ opacity: 0.18 }}>{meta.icon}</span>}
+                  </div>
+                  <p className="text-[7px] font-mono uppercase tracking-wider leading-none text-center w-full truncate"
+                    style={{ color: equippedItem ? 'rgba(255,255,255,0.65)' : 'rgba(156,163,175,0.35)' }}>
+                    {equippedItem ? equippedItem.name : meta.label}
+                  </p>
+                  {theme && <div className="w-1 h-1 rounded-full" style={{ background: theme.color }} />}
+                </div>
+              </div>
+            )
+            return (
+              <BuffTooltip key={slot} item={equippedItem ?? null} placement="bottom" stretch>
+                {equippedItem
+                  ? <button type="button" onClick={() => { playClickSound(); setInspectSlotId(`item:${equippedItem.id}`) }} onContextMenu={(e) => { e.preventDefault(); unequipSlot(slot) }} className="w-full h-full hover:brightness-110 transition-all">{sq}</button>
+                  : <div className="h-full">{sq}</div>}
+              </BuffTooltip>
+            )
+          }
 
-        {/* Stats — 4 chips */}
-        {(() => {
           const stats = computePlayerStats(equippedBySlot, permanentStats)
           const ip = LOOT_SLOTS.reduce((sum, s) => {
-            const id = equippedBySlot[s]
-            if (!id) return sum
+            const id = equippedBySlot[s]; if (!id) return sum
             const it = LOOT_ITEMS.find((x) => x.id === id)
             return sum + (it ? getItemPower(it.rarity) : 0)
           }, 0)
-          const statChips = [
-            { label: 'ATK',   unit: '/s', value: stats.atk,    icon: '⚔️', color: '#f87171', maxed: permanentStats.atk >= POTION_MAX,     title: 'Damage per second' },
-            { label: 'HP',    unit: '',   value: stats.hp,      icon: '❤️', color: '#4ade80', maxed: permanentStats.hp >= POTION_MAX,      title: 'Total health' },
-            { label: 'Regen', unit: '/s', value: stats.hpRegen, icon: '💧', color: '#22d3ee', maxed: permanentStats.hpRegen >= POTION_MAX, title: 'HP regen per second' },
-            { label: 'IP',    unit: '',   value: ip,            icon: '✨', color: '#fcd34d', maxed: false,                               title: 'Item Power' },
+          const statRows = [
+            { icon: '⚔️', value: stats.atk,    label: 'ATK', unit: '/s', color: '#f87171', maxed: permanentStats.atk >= POTION_MAX },
+            { icon: '❤️', value: stats.hp,      label: 'HP',  unit: '',   color: '#4ade80', maxed: permanentStats.hp >= POTION_MAX },
+            { icon: '💧', value: stats.hpRegen, label: 'REG', unit: '/s', color: '#22d3ee', maxed: permanentStats.hpRegen >= POTION_MAX },
+            { icon: '✨', value: ip,            label: 'IP',  unit: '',   color: '#fcd34d', maxed: false },
           ]
+
           return (
-            <div className="grid grid-cols-4 gap-1.5">
-              {statChips.map(({ label, unit, value, icon, color, maxed, title }) => {
-                const displayColor = maxed ? '#f59e0b' : color
-                return (
-                  <div
-                    key={label}
-                    className="flex flex-col items-center py-2 px-1 rounded-lg border gap-0.5"
-                    style={{
-                      borderColor: maxed ? '#f59e0b44' : 'rgba(255,255,255,0.07)',
-                      background: maxed ? 'rgba(245,158,11,0.07)' : 'rgba(10,10,18,0.55)',
-                    }}
-                    title={title}
-                  >
-                    <span className="text-[11px] leading-none">{icon}</span>
-                    <span
-                      className="text-[15px] font-mono font-bold leading-tight tabular-nums"
-                      style={{ color: displayColor, textShadow: `0 0 8px ${displayColor}55` }}
-                    >
-                      {value}
-                    </span>
-                    <span className="text-[8px] font-mono uppercase tracking-wide leading-none" style={{ color: 'rgba(156,163,175,0.6)' }}>
-                      {label}{unit}
-                    </span>
-                  </div>
-                )
-              })}
+            <div className="flex gap-1.5">
+              {/* Col 1: Head / Body / Legs */}
+              <div className="flex flex-col gap-1 flex-1 min-w-0">
+                {(['head', 'body', 'legs'] as LootSlot[]).map((s) => (
+                  <div key={s} className="flex-1 min-h-0">{renderRowSlot(s)}</div>
+                ))}
+              </div>
+
+              {/* Col 2: Ring (top) + Weapon (taller bottom) */}
+              <div className="flex flex-col gap-1" style={{ width: 50 }}>
+                <div style={{ flex: 1 }}>{renderSquareSlot('ring')}</div>
+                <div style={{ flex: 2 }}>{renderSquareSlot('weapon')}</div>
+              </div>
+
+              {/* Col 3: Stats */}
+              <div
+                className="flex flex-col justify-between rounded-lg border border-white/[0.08] p-2"
+                style={{ width: 66, background: 'rgba(8,8,16,0.55)' }}
+              >
+                <p className="text-[7px] font-mono uppercase tracking-widest text-center mb-1" style={{ color: 'rgba(156,163,175,0.4)' }}>Stats</p>
+                {statRows.map(({ icon, value, label, unit, color, maxed }) => {
+                  const c = maxed ? '#f59e0b' : color
+                  return (
+                    <div key={label} className="flex items-center gap-1.5">
+                      <span className="text-[10px] leading-none flex-shrink-0">{icon}</span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[12px] font-mono font-bold leading-none tabular-nums" style={{ color: c, textShadow: `0 0 6px ${c}55` }}>
+                          {value}
+                        </span>
+                        <span className="text-[7px] font-mono uppercase leading-none" style={{ color: 'rgba(156,163,175,0.45)' }}>
+                          {label}{unit}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )
         })()}
