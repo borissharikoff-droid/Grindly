@@ -17,10 +17,24 @@ class ErrorBoundary extends React.Component<
   render() {
     if (this.state.error) {
       return (
-        <div style={{ padding: 20, background: '#1e1e2e', color: '#ff6b6b', fontFamily: 'monospace', height: '100vh' }}>
-          <h2 style={{ color: '#fff' }}>Runtime Error</h2>
-          <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>{this.state.error.message}</pre>
-          <pre style={{ whiteSpace: 'pre-wrap', fontSize: 10, color: '#888', marginTop: 10 }}>{this.state.error.stack}</pre>
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          height: '100vh', background: '#0d0d1a', color: '#fff', fontFamily: 'sans-serif', padding: 24, gap: 16,
+        }}>
+          <div style={{ fontSize: 40 }}>💥</div>
+          <p style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Something went wrong</p>
+          <p style={{ fontSize: 12, color: '#888', margin: 0, maxWidth: 320, textAlign: 'center', wordBreak: 'break-word' }}>
+            {this.state.error.message}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: 8, padding: '10px 28px', borderRadius: 10, border: '1px solid #00ff8840',
+              background: '#00ff8820', color: '#00ff88', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            Reload
+          </button>
         </div>
       )
     }
@@ -28,10 +42,25 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+// Catch unhandled async errors and promise rejections — these don't reach ErrorBoundary
+// but can cause blank/gray screens. Reload after a short delay.
+let reloadScheduled = false
+function scheduleReload(msg: string) {
+  if (reloadScheduled) return
+  reloadScheduled = true
+  console.error('[crash]', msg)
+  setTimeout(() => window.location.reload(), 2500)
+}
+
+window.addEventListener('unhandledrejection', (e) => {
+  const msg = e.reason instanceof Error ? e.reason.message : String(e.reason)
+  // Ignore harmless promise rejections (network timeouts, Supabase 406/404, etc.)
+  const benign = /404|406|network|failed to fetch|aborted|canceled|supabase/i.test(msg)
+  if (!benign) scheduleReload(`Unhandled rejection: ${msg}`)
+})
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </React.StrictMode>
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
 )

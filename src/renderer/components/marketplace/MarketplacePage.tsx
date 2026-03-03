@@ -200,6 +200,8 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
     return result
   }, [listings, search, perkFilter, skillFilter, rarityFilter, priceMin, priceMax, sortBy])
 
+  const [refreshing, setRefreshing] = useState(false)
+
   const loadListings = async (withExpiry = false) => {
     setLoading(true)
     if (withExpiry) await expireOldListings()
@@ -208,20 +210,30 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
     setLoading(false)
   }
 
+  const handleRefresh = async () => {
+    if (refreshing) return
+    setRefreshing(true)
+    await loadListings(false)
+    if (user) syncFromSupabase(user.id)
+    setRefreshing(false)
+  }
+
   useEffect(() => {
     loadListings(true)
   }, [])
 
   useEffect(() => {
-    if (!supabase) return
+    if (!supabase || !user) return
     const channel = supabase
       .channel('marketplace-listings-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'marketplace_listings' }, () => {
-        loadListings(false) // no expiry — avoids triggering another UPDATE → infinite loop
+        loadListings(false)
+        // Re-sync gold in case one of our listings was sold
+        syncFromSupabase(user.id)
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [])
+  }, [user])
 
   useEffect(() => {
     if (user) syncFromSupabase(user.id)
@@ -323,7 +335,29 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
       <PageHeader
         title="Marketplace"
         onBack={onBack}
-        rightSlot={<GoldDisplay />}
+        rightSlot={
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="w-7 h-7 flex items-center justify-center rounded-lg border border-white/10 text-gray-400 hover:text-white hover:border-white/25 transition-colors disabled:opacity-40"
+              title="Refresh listings"
+            >
+              <svg
+                className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}
+                strokeLinecap="round" strokeLinejoin="round"
+              >
+                <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                <path d="M21 3v5h-5" />
+                <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+                <path d="M3 21v-5h5" />
+              </svg>
+            </button>
+            <GoldDisplay />
+          </div>
+        }
         titleSlot={
           <div className="relative" ref={infoRef}>
             <button
