@@ -379,6 +379,7 @@ export function ArenaPage() {
 
                 {/* Boss info */}
                 <div className="min-w-0 flex-1">
+                  {/* Row 1: name + badges */}
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <p className="text-sm font-semibold text-white leading-tight">{boss.name}</p>
                     <span className={`text-[9px] font-mono px-1 rounded border leading-[1.4] ${TIER_COLORS[tier]}`}>
@@ -399,28 +400,45 @@ export function ArenaPage() {
                       <span className="text-[9px] text-gray-500 font-mono">🔒</span>
                     )}
                   </div>
-                  <p className="text-[11px] text-gray-400 font-mono mt-0.5">
-                    {formatShort(boss.hp)} HP · {boss.atk} dmg/s
-                    <span className="text-amber-400/80"> · 🪙 {displayGold}</span>
-                    {isDaily && !dailyClaimed && <span className="text-amber-300/80"> ×2</span>}
-                  </p>
-                  {isLocked && reqTexts.length > 0 && (
-                    <p className="text-[10px] text-amber-400/60 mt-0.5">
-                      <span className="text-gray-600">Requires:</span> {reqTexts.join(' · ')}
-                    </p>
-                  )}
+
+                  {/* Row 2: stat chips — HP / ATK / Gold */}
+                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-mono font-semibold text-red-300 bg-red-500/10 border border-red-500/25 px-1.5 py-0.5 rounded">
+                      ❤️ {formatShort(boss.hp)}
+                    </span>
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-mono font-semibold text-orange-300 bg-orange-500/10 border border-orange-500/25 px-1.5 py-0.5 rounded">
+                      ⚔️ {boss.atk}<span className="text-[8px] text-orange-400/60">/s</span>
+                    </span>
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-mono font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/25 px-1.5 py-0.5 rounded">
+                      🪙 {displayGold}{isDaily && !dailyClaimed && <span className="text-amber-200/70 text-[8px]"> ×2</span>}
+                    </span>
+                  </div>
+
+                  {/* Row 3: chest drop */}
                   {boss.rewards.lootTier && boss.rewards.lootChance && (() => {
                     const chestDef = CHEST_DEFS[boss.rewards.lootTier as ChestType]
                     const goldRange = GOLD_BY_CHEST[boss.rewards.lootTier as ChestType]
                     if (!chestDef) return null
                     return (
-                      <p className="text-[10px] text-gray-500 font-mono mt-0.5">
-                        <span className="text-purple-400/70">{Math.round(boss.rewards.lootChance * 100)}%</span>
-                        {' '}→ {chestDef.icon} {chestDef.name}
-                        {goldRange && <span className="text-amber-400/60"> · {goldRange.min}–{goldRange.max} 🪙 inside</span>}
-                      </p>
+                      <div className="flex items-center gap-1 mt-1.5">
+                        <span className="text-[10px] font-mono text-purple-300/80 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 rounded">
+                          {Math.round(boss.rewards.lootChance * 100)}%
+                        </span>
+                        <span className="text-[10px] text-gray-500">→</span>
+                        <span className="text-[10px] text-gray-300 font-medium">{chestDef.icon} {chestDef.name}</span>
+                        {goldRange && (
+                          <span className="text-[9px] text-amber-400/50 font-mono">({goldRange.min}–{goldRange.max}🪙)</span>
+                        )}
+                      </div>
                     )
                   })()}
+
+                  {/* Row 4: requirements if locked */}
+                  {isLocked && reqTexts.length > 0 && (
+                    <p className="text-[10px] text-amber-400/60 mt-1">
+                      <span className="text-gray-600">Requires:</span> {reqTexts.join(' · ')}
+                    </p>
+                  )}
                 </div>
 
                 {/* Action button */}

@@ -155,15 +155,18 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
   const listingsRef = useRef<ListingWithSeller[]>([])
   const cancelledListingIdsRef = useRef<Set<string>>(new Set())
 
-  // Close all modals when the page starts its exit animation (prevents stuck overlay)
-  const [isPresent] = usePresence()
+  // Close all modals when the page starts its exit animation (prevents stuck overlay).
+  // IMPORTANT: safeToRemove() MUST be called — otherwise AnimatePresence mode="wait" never
+  // unmounts this element and the next tab is permanently blocked from rendering (gray screen).
+  const [isPresent, safeToRemove] = usePresence()
   useEffect(() => {
     if (!isPresent) {
       setBuyConfirmTarget(null)
       setCancelConfirmTarget(null)
       setNoGoldAlert(null)
+      safeToRemove?.()
     }
-  }, [isPresent])
+  }, [isPresent]) // safeToRemove is stable — omitting it from deps is intentional
 
   const filteredListings = useMemo(() => {
     let result = listings.filter((l) => !MARKETPLACE_BLOCKED_ITEMS.includes(l.item_id))
