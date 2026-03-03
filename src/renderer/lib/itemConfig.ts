@@ -2,7 +2,7 @@
  * Admin config — stored in localStorage so it's synchronous and fast.
  * Applied at app startup to patch LOOT_ITEMS and BOSSES in place.
  */
-import type { LootItemDef, LootRarity, LootSlot } from './loot'
+import { CHEST_DEFS, type LootItemDef, type LootItemPerk, type LootRarity, type LootSlot, type ChestType } from './loot'
 import type { BossDef } from './combat'
 
 const STORAGE_KEY = 'grindly_admin_config'
@@ -17,6 +17,7 @@ export interface ItemOverride {
   perkValue?: number | string
   perkTarget?: string
   perkDescription?: string
+  perks?: LootItemPerk[]
 }
 
 export interface CustomItem extends LootItemDef {
@@ -55,6 +56,7 @@ export interface AdminConfig {
   }>
   bossOverrides?: Record<string, BossOverride>
   chestWeightOverrides?: Record<string, ChestWeightEntry[]>
+  chestOverrides?: Record<string, { icon?: string; image?: string }>
 }
 
 export function loadAdminConfig(): AdminConfig {
@@ -127,6 +129,15 @@ export function applyAdminConfig(items: LootItemDef[], bosses: BossDef[]): void 
       if (overrides.hp !== undefined) boss.hp = overrides.hp
       if (overrides.atk !== undefined) boss.atk = overrides.atk
       if (overrides.rewards) Object.assign(boss.rewards, overrides.rewards)
+    }
+  }
+
+  // Patch chest icon/image
+  for (const [id, ov] of Object.entries(cfg.chestOverrides ?? {})) {
+    const chest = CHEST_DEFS[id as ChestType]
+    if (chest) {
+      if (ov.icon) chest.icon = ov.icon
+      if (ov.image) chest.image = ov.image
     }
   }
 }

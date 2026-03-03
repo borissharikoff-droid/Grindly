@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CHEST_DEFS, LOOT_ITEMS, LOOT_SOURCE_LABELS, LOOT_SLOTS, POTION_MAX, getItemPower, type ChestType, type LootSlot } from '../../lib/loot'
+import { CHEST_DEFS, LOOT_ITEMS, LOOT_SOURCE_LABELS, LOOT_SLOTS, POTION_MAX, getItemPower, getItemPerkDescription, type ChestType, type LootSlot } from '../../lib/loot'
 import { computePlayerStats } from '../../lib/combat'
 import { publishSocialFeedEvent } from '../../services/socialFeed'
 import { SLOT_META, SLOT_LABEL, LootVisual, RARITY_THEME, normalizeRarity } from '../loot/LootUI'
@@ -82,7 +82,7 @@ export function BackpackPanel({ open, onClose, backpackRef }: BackpackPanelProps
         icon: item.icon,
         image: item.image,
         title: item.name,
-        subtitle: item.perkDescription,
+        subtitle: getItemPerkDescription(item),
         quantity: qty,
         itemId: item.id,
         equipped: equippedBySlot[item.slot] === item.id,
@@ -274,7 +274,7 @@ export function BackpackPanel({ open, onClose, backpackRef }: BackpackPanelProps
                                   {item.name}
                                 </p>
                               </div>
-                              <p className="text-[9px] text-gray-300 leading-snug">{item.perkDescription}</p>
+                              <p className="text-[9px] text-gray-300 leading-snug">{getItemPerkDescription(item)}</p>
                             </div>
                           ))}
                         </div>

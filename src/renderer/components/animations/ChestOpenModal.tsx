@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChestType, LootItemDef } from '../../lib/loot'
-import { CHEST_DEFS, getRarityTheme } from '../../lib/loot'
+import { CHEST_DEFS, getRarityTheme, getItemPerkDescription } from '../../lib/loot'
 import { SEED_ZIP_LABELS, type SeedZipTier } from '../../lib/farming'
 import { MOTION } from '../../lib/motion'
 import { PixelConfetti } from '../home/PixelConfetti'
@@ -166,7 +166,7 @@ export function ChestOpenModal({
               <p className="text-[10px] font-mono uppercase mt-0.5" style={{ color: rarityTheme.color }}>
                 {item.rarity}
               </p>
-              <p className="text-[10px] text-gray-300">{item.perkDescription}</p>
+              <p className="text-[10px] text-gray-300">{getItemPerkDescription(item)}</p>
             </motion.div>
             {/* Bonus drops row */}
             <div className="flex flex-col items-center gap-1.5">

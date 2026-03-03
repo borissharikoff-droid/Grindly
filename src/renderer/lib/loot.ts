@@ -116,6 +116,13 @@ export type LootPerkType =
   | 'harvested_plant'
 export type ChestType = 'common_chest' | 'rare_chest' | 'epic_chest' | 'legendary_chest'
 
+export interface LootItemPerk {
+  perkType: LootPerkType
+  perkValue: number | string
+  perkTarget?: string
+  perkDescription: string
+}
+
 export interface LootItemDef {
   id: string
   name: string
@@ -129,6 +136,7 @@ export interface LootItemDef {
   perkValue: number | string
   perkTarget?: string
   perkDescription: string
+  perks?: LootItemPerk[]
 }
 
 export interface LootPerkRuntime {
@@ -1252,6 +1260,17 @@ export function openChest(chestType: ChestType, context: LootDropContext): Chest
   }
 }
 
+/** Returns the perks array for an item, falling back to the legacy single-perk fields. */
+export function getItemPerks(item: LootItemDef): LootItemPerk[] {
+  if (item.perks?.length) return item.perks
+  return [{ perkType: item.perkType, perkValue: item.perkValue, perkTarget: item.perkTarget, perkDescription: item.perkDescription }]
+}
+
+/** Human-readable description of all perks on an item, joined with ' · '. */
+export function getItemPerkDescription(item: LootItemDef): string {
+  return getItemPerks(item).map(p => p.perkDescription).filter(Boolean).join(' · ')
+}
+
 export function getEquippedPerkRuntime(equippedBySlot: Partial<Record<LootSlot, string>>): LootPerkRuntime {
   const out: LootPerkRuntime = {
     skillXpMultiplierBySkill: {},
@@ -1267,28 +1286,30 @@ export function getEquippedPerkRuntime(equippedBySlot: Partial<Record<LootSlot, 
     .filter((item): item is LootItemDef => Boolean(item))
 
   for (const item of equippedItems) {
-    if (item.perkType === 'xp_skill_boost') {
-      const skillKey = item.perkTarget || 'developer'
-      out.skillXpMultiplierBySkill[skillKey] = Math.max(
-        out.skillXpMultiplierBySkill[skillKey] ?? 1,
-        1 + Number(item.perkValue || 0),
-      )
-    } else if (item.perkType === 'chest_drop_boost') {
-      const categoryKey = item.perkTarget || 'coding'
-      out.chestDropChanceBonusByCategory[categoryKey] = Math.max(
-        out.chestDropChanceBonusByCategory[categoryKey] ?? 0,
-        Number(item.perkValue || 0),
-      )
-    } else if (item.perkType === 'status_title') {
-      out.statusTitle = String(item.perkValue || '')
-    } else if (item.perkType === 'xp_global_boost') {
-      out.globalXpMultiplier = Math.max(out.globalXpMultiplier, 1 + Number(item.perkValue || 0))
-    } else if (item.perkType === 'streak_shield') {
-      out.streakShield = out.streakShield || Boolean(item.perkValue)
-    } else if (item.perkType === 'focus_boost') {
-      out.focusBoostMultiplier = Math.max(out.focusBoostMultiplier, 1 + Number(item.perkValue || 0))
+    for (const p of getItemPerks(item)) {
+      if (p.perkType === 'xp_skill_boost') {
+        const skillKey = p.perkTarget || 'developer'
+        out.skillXpMultiplierBySkill[skillKey] = Math.max(
+          out.skillXpMultiplierBySkill[skillKey] ?? 1,
+          1 + Number(p.perkValue || 0),
+        )
+      } else if (p.perkType === 'chest_drop_boost') {
+        const categoryKey = p.perkTarget || 'coding'
+        out.chestDropChanceBonusByCategory[categoryKey] = Math.max(
+          out.chestDropChanceBonusByCategory[categoryKey] ?? 0,
+          Number(p.perkValue || 0),
+        )
+      } else if (p.perkType === 'status_title') {
+        out.statusTitle = String(p.perkValue || '')
+      } else if (p.perkType === 'xp_global_boost') {
+        out.globalXpMultiplier = Math.max(out.globalXpMultiplier, 1 + Number(p.perkValue || 0))
+      } else if (p.perkType === 'streak_shield') {
+        out.streakShield = out.streakShield || Boolean(p.perkValue)
+      } else if (p.perkType === 'focus_boost') {
+        out.focusBoostMultiplier = Math.max(out.focusBoostMultiplier, 1 + Number(p.perkValue || 0))
+      }
+      // Combat perks (atk_boost, hp_boost, hp_regen_boost) are summed in getCombatStatsFromEquipped
     }
-    // Combat perks (atk_boost, hp_boost, hp_regen_boost) are summed in getCombatStatsFromEquipped
   }
 
   return out
@@ -1308,12 +1329,14 @@ export function getCombatStatsFromEquipped(equippedBySlot: Partial<Record<LootSl
     .filter((item): item is LootItemDef => Boolean(item))
 
   for (const item of equippedItems) {
-    if (item.perkType === 'atk_boost') {
-      out.atk += Number(item.perkValue || 0)
-    } else if (item.perkType === 'hp_boost') {
-      out.hp += Number(item.perkValue || 0)
-    } else if (item.perkType === 'hp_regen_boost') {
-      out.hpRegen += Number(item.perkValue || 0)
+    for (const p of getItemPerks(item)) {
+      if (p.perkType === 'atk_boost') {
+        out.atk += Number(p.perkValue || 0)
+      } else if (p.perkType === 'hp_boost') {
+        out.hp += Number(p.perkValue || 0)
+      } else if (p.perkType === 'hp_regen_boost') {
+        out.hpRegen += Number(p.perkValue || 0)
+      }
     }
   }
   return out

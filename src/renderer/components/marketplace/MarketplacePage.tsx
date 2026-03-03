@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, usePresence } from 'framer-motion'
-import { LOOT_ITEMS, getRarityTheme, getItemPower, MARKETPLACE_BLOCKED_ITEMS, estimateLootDropRate, type LootRarity } from '../../lib/loot'
+import { LOOT_ITEMS, getRarityTheme, getItemPower, MARKETPLACE_BLOCKED_ITEMS, estimateLootDropRate, getItemPerkDescription, type LootRarity } from '../../lib/loot'
 import { getFarmItemDisplay, isSeedId, isSeedZipId } from '../../lib/farming'
 import { SKILLS } from '../../lib/skills'
 import { fetchActiveListings, partialBuyListing, cancelListing, expireOldListings, type ListingWithSeller } from '../../services/marketplaceService'
@@ -75,7 +75,7 @@ function ListingCard({
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-white truncate">{item?.name ?? farmDisplay?.name ?? listing.item_id}</p>
-        <p className="text-[11px] text-gray-400 truncate mt-0.5">{item?.perkDescription ?? ''}</p>
+        <p className="text-[11px] text-gray-400 truncate mt-0.5">{item ? getItemPerkDescription(item) : ''}</p>
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           <span
             className="text-[10px] font-medium px-2 py-0.5 rounded-md capitalize"
@@ -853,7 +853,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                     {alertItem && (
                       <>
                         <p className="text-[10px] text-gray-300"><span className="text-gray-500">Slot:</span> {SLOT_LABEL[alertItem.slot]}</p>
-                        <p className="text-[10px]" style={{ color: alertTheme.color }}><span className="text-gray-500">Effect:</span> {alertItem.perkDescription}</p>
+                        <p className="text-[10px]" style={{ color: alertTheme.color }}><span className="text-gray-500">Effect:</span> {getItemPerkDescription(alertItem)}</p>
                         <p className="text-[10px] text-gray-300"><span className="text-gray-500">Drop rate:</span> ~{dropRate}%</p>
                       </>
                     )}
@@ -931,8 +931,8 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                       >
                         {confirmRarity}
                       </span>
-                      {item?.perkDescription && (
-                        <p className="text-[10px] text-gray-400 text-center mt-1 leading-snug">{item.perkDescription}</p>
+                      {item && getItemPerkDescription(item) && (
+                        <p className="text-[10px] text-gray-400 text-center mt-1 leading-snug">{getItemPerkDescription(item)}</p>
                       )}
                     </div>
 

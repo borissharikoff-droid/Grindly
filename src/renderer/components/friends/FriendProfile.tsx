@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import type { FriendProfile as FriendProfileType } from '../../hooks/useFriends'
 import { BADGES, FRAMES } from '../../lib/cosmetics'
-import { LOOT_ITEMS, LOOT_SLOTS, normalizeEquippedLoot, getItemPower, type LootSlot } from '../../lib/loot'
+import { LOOT_ITEMS, LOOT_SLOTS, normalizeEquippedLoot, getItemPower, type LootSlot, getItemPerkDescription } from '../../lib/loot'
 import { computePlayerStats } from '../../lib/combat'
 import { RARITY_THEME, normalizeRarity } from '../loot/LootUI'
 import { getSkillByName, SKILLS, computeTotalSkillLevelFromLevels, MAX_TOTAL_SKILL_LEVEL, normalizeSkillId, skillLevelFromXP, skillXPProgress } from '../../lib/skills'
@@ -500,7 +500,7 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
                             {item.name}
                           </p>
                         </div>
-                        <p className="text-[9px] text-gray-300 leading-snug">{item.perkDescription}</p>
+                        <p className="text-[9px] text-gray-300 leading-snug">{getItemPerkDescription(item)}</p>
                       </div>
                     ))}
                   </div>

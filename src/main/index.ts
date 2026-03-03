@@ -133,6 +133,14 @@ function createWindow() {
     setMainWindow(null)
     mainWindow = null
   })
+  if (isDev) {
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      if (input.control && input.key.toLowerCase() === 'r') {
+        event.preventDefault()
+        mainWindow?.webContents.reloadIgnoringCache()
+      }
+    })
+  }
   setMainWindow(mainWindow)
   startSmartNotifications(mainWindow)
 }

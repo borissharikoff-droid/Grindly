@@ -1,3 +1,14 @@
+## What's new in v2.1.4
+
+**Inventory — Character panel redesign:**
+- Gear slots now full-width RPG character sheet rows: colored left bar shows rarity, icon, slot name, item name, and perk value inline
+- Stats shown as 4 clean chips — ATK ⚔️ / HP ❤️ / Regen 💧 / IP ✨ — with glow color, large readable number
+- Maxed stats turn gold to indicate cap reached
+- Removed redundant "Buffs" list (perk now shows directly in each slot row)
+
+---
+Released: 2026-03-03
+
 ## What's new in v2.1.3
 
 **Inventory:**

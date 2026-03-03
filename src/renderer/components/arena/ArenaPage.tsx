@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BOSSES, computeBattleOutcome, computePlayerStats, meetsBossRequirements, getDailyBossId } from '../../lib/combat'
-import { LOOT_ITEMS, LOOT_SLOTS, POTION_MAX, getItemPower, CHEST_DEFS, GOLD_BY_CHEST, type LootSlot, type ChestType } from '../../lib/loot'
+import { LOOT_ITEMS, LOOT_SLOTS, POTION_MAX, getItemPower, CHEST_DEFS, GOLD_BY_CHEST, type LootSlot, type ChestType, getItemPerkDescription } from '../../lib/loot'
 import { useArenaStore } from '../../stores/arenaStore'
 import { useAdminConfigStore } from '../../stores/adminConfigStore'
 import { useInventoryStore } from '../../stores/inventoryStore'
@@ -361,7 +361,7 @@ export function ArenaPage() {
                             {item.name}
                           </p>
                         </div>
-                        <p className="text-[9px] text-gray-300 leading-snug">{item.perkDescription}</p>
+                        <p className="text-[9px] text-gray-300 leading-snug">{getItemPerkDescription(item)}</p>
                       </div>
                     ))}
                   </div>
@@ -684,7 +684,7 @@ export function ArenaPage() {
                     </div>
                   </div>
                   <div className="mt-3 rounded-lg border border-white/10 bg-discord-darker/40 p-2.5 relative">
-                    <p className="text-[11px] text-gray-300 leading-relaxed">{item.perkDescription}</p>
+                    <p className="text-[11px] text-gray-300 leading-relaxed">{getItemPerkDescription(item)}</p>
                   </div>
                   <div className="mt-3 flex gap-2 relative">
                     <button
