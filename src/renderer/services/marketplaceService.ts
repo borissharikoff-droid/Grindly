@@ -27,6 +27,30 @@ export async function createListing(
   })
 
   if (error) return { ok: false, error: error.message }
+
+  // Deduct from user_inventory in Supabase so the item doesn't return on next merge sync.
+  try {
+    const { data: invRow } = await supabase
+      .from('user_inventory')
+      .select('quantity')
+      .eq('user_id', sellerId)
+      .eq('item_id', itemId)
+      .maybeSingle()
+    const cloudQty = (invRow as { quantity: number } | null)?.quantity ?? 0
+    const newQty = cloudQty - quantity
+    if (newQty <= 0) {
+      await supabase.from('user_inventory').delete().eq('user_id', sellerId).eq('item_id', itemId)
+    } else {
+      await supabase
+        .from('user_inventory')
+        .update({ quantity: newQty, updated_at: new Date().toISOString() })
+        .eq('user_id', sellerId)
+        .eq('item_id', itemId)
+    }
+  } catch {
+    // Non-fatal — local state and listing are correct; cloud will self-correct on next full sync.
+  }
+
   return { ok: true }
 }
 

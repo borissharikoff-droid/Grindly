@@ -87,6 +87,9 @@ export const IPC_CHANNELS = {
     disable: 'focus:disable',
     status: 'focus:status',
   },
+  admin: {
+    pickImageFile: 'admin.pickImageFile',
+  },
   window: {
     flashFrame: 'window:flashFrame',
     setBadgeCount: 'window:setBadgeCount',

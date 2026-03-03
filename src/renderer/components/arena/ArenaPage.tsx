@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BOSSES, computeBattleOutcome, computePlayerStats, meetsBossRequirements, getDailyBossId } from '../../lib/combat'
-import { LOOT_ITEMS, LOOT_SLOTS, POTION_MAX, getItemPower, type LootSlot } from '../../lib/loot'
+import { LOOT_ITEMS, LOOT_SLOTS, POTION_MAX, getItemPower, CHEST_DEFS, GOLD_BY_CHEST, type LootSlot, type ChestType } from '../../lib/loot'
 import { useArenaStore } from '../../stores/arenaStore'
 import { useInventoryStore } from '../../stores/inventoryStore'
 import { SKILLS, skillLevelFromXP } from '../../lib/skills'
@@ -407,6 +407,18 @@ export function ArenaPage() {
                       <span className="text-gray-600">Requires:</span> {reqTexts.join(' · ')}
                     </p>
                   )}
+                  {boss.rewards.lootTier && boss.rewards.lootChance && (() => {
+                    const chestDef = CHEST_DEFS[boss.rewards.lootTier as ChestType]
+                    const goldRange = GOLD_BY_CHEST[boss.rewards.lootTier as ChestType]
+                    if (!chestDef) return null
+                    return (
+                      <p className="text-[10px] text-gray-500 font-mono mt-0.5">
+                        <span className="text-purple-400/70">{Math.round(boss.rewards.lootChance * 100)}%</span>
+                        {' '}→ {chestDef.icon} {chestDef.name}
+                        {goldRange && <span className="text-amber-400/60"> · {goldRange.min}–{goldRange.max} 🪙 inside</span>}
+                      </p>
+                    )
+                  })()}
                 </div>
 
                 {/* Action button */}

@@ -860,6 +860,13 @@ declare global {
         disable: () => Promise<void>
         status: () => Promise<{ active: boolean; endsAt: number | null; osApplied: boolean }>
       }
+      admin?: {
+        pickImageFile: () => Promise<string | null>
+      }
+      window?: {
+        flashFrame: () => Promise<void>
+        setBadgeCount: (count: number) => Promise<void>
+      }
     }
   }
 }

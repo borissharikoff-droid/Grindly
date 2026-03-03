@@ -29,6 +29,7 @@ export function ChatThread({ profile, onBack, onOpenProfile, messages, loading, 
   const { user } = useAuthStore()
   const [input, setInput] = useState('')
   const listRef = useRef<HTMLDivElement>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const wasAtBottomRef = useRef(true)
   const prevMessageCountRef = useRef(0)
@@ -75,7 +76,8 @@ export function ChatThread({ profile, onBack, onOpenProfile, messages, loading, 
     const shouldScrollOnSend = !isIncoming
 
     if (isInitialLoad || shouldScrollOnIncoming || shouldScrollOnSend) {
-      el.scrollTop = el.scrollHeight
+      bottomRef.current?.scrollIntoView({ block: 'end', behavior: 'instant' })
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ block: 'end', behavior: 'instant' }))
     }
     wasAtBottomRef.current = true
   }, [loading, messages, user?.id])
@@ -203,6 +205,7 @@ export function ChatThread({ profile, onBack, onOpenProfile, messages, loading, 
             </div>
           ))
         )}
+        <div ref={bottomRef} />
       </div>
 
       {sendError && (

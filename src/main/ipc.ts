@@ -380,6 +380,25 @@ export function registerIpcHandlers() {
     return getFocusModeStatus()
   })
 
+  // ── Admin: image file picker ──────────────────────────────────────────────
+  ipcMain.handle(IPC_CHANNELS.admin.pickImageFile, async () => {
+    const { filePaths, canceled } = await dialog.showOpenDialog({
+      title: 'Pick Image',
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }],
+      properties: ['openFile'],
+    })
+    if (canceled || !filePaths[0]) return null
+    const filePath = filePaths[0]
+    const ext = path.extname(filePath).slice(1).toLowerCase()
+    const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
+      : ext === 'png' ? 'image/png'
+      : ext === 'gif' ? 'image/gif'
+      : 'image/webp'
+    const buf = fs.readFileSync(filePath)
+    if (buf.length > 2 * 1024 * 1024) throw new Error('Image must be under 2 MB')
+    return `data:${mime};base64,${buf.toString('base64')}`
+  })
+
   // ── Window: flash + taskbar badge (Windows overlay) ───────────────────────
   ipcMain.handle(IPC_CHANNELS.window.flashFrame, () => {
     if (mainWindow && !mainWindow.isDestroyed()) {

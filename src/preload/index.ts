@@ -207,6 +207,9 @@ try {
       disable: () => ipcRenderer.invoke(CH.focus.disable),
       status: () => ipcRenderer.invoke(CH.focus.status),
     },
+    admin: {
+      pickImageFile: (): Promise<string | null> => ipcRenderer.invoke('admin.pickImageFile'),
+    },
   }
   contextBridge.exposeInMainWorld('electronAPI', api)
 } catch (err) {

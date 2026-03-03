@@ -42,21 +42,12 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-// Catch unhandled async errors and promise rejections — these don't reach ErrorBoundary
-// but can cause blank/gray screens. Reload after a short delay.
-let reloadScheduled = false
-function scheduleReload(msg: string) {
-  if (reloadScheduled) return
-  reloadScheduled = true
-  console.error('[crash]', msg)
-  setTimeout(() => window.location.reload(), 2500)
-}
-
+// Log unhandled promise rejections to console. The ErrorBoundary handles actual render errors.
+// Auto-reloading on unhandled rejections causes the "black screen" problem since many benign
+// network/Supabase errors are not caught at the call site.
 window.addEventListener('unhandledrejection', (e) => {
   const msg = e.reason instanceof Error ? e.reason.message : String(e.reason)
-  // Ignore harmless promise rejections (network timeouts, Supabase 406/404, etc.)
-  const benign = /404|406|network|failed to fetch|aborted|canceled|supabase/i.test(msg)
-  if (!benign) scheduleReload(`Unhandled rejection: ${msg}`)
+  console.warn('[unhandledrejection]', msg)
 })
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

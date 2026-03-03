@@ -32,6 +32,13 @@ import { runSupabaseHealthCheck } from './services/supabaseHealth'
 import { routeNotification } from './services/notificationRouter'
 import { MOTION } from './lib/motion'
 import { PageLoading } from './components/shared/PageLoading'
+import { AdminDashboard } from './components/admin/AdminDashboard'
+import { LOOT_ITEMS } from './lib/loot'
+import { BOSSES } from './lib/combat'
+import { applyAdminConfig } from './lib/itemConfig'
+
+// Apply admin overrides at module load — before any React render
+applyAdminConfig(LOOT_ITEMS, BOSSES)
 
 const StatsPage = lazy(() => import('./components/stats/StatsPage').then((m) => ({ default: m.StatsPage })))
 const FriendsPage = lazy(() => import('./components/friends/FriendsPage').then((m) => ({ default: m.FriendsPage })))
@@ -77,8 +84,8 @@ function MarketplaceFallback() {
   )
 }
 
-export type TabId = 'home' | 'inventory' | 'skills' | 'stats' | 'profile' | 'friends' | 'marketplace' | 'arena' | 'farm' | 'settings'
-const TAB_ORDER: TabId[] = ['home', 'inventory', 'skills', 'stats', 'profile', 'friends', 'marketplace', 'arena', 'farm', 'settings']
+export type TabId = 'home' | 'inventory' | 'skills' | 'stats' | 'profile' | 'friends' | 'marketplace' | 'arena' | 'farm' | 'settings' | 'admin'
+const TAB_ORDER: TabId[] = ['home', 'inventory', 'skills', 'stats', 'profile', 'friends', 'marketplace', 'arena', 'farm', 'settings', 'admin']
 
 const PAGE_SLIDE = {
   initial: (dir: number) => ({ opacity: 0, x: dir * 16 }),
@@ -360,7 +367,7 @@ export default function App() {
                 </motion.div>
               )}
               {activeTab === 'friends' && (
-                <motion.div key="friends" custom={slideDir} variants={PAGE_SLIDE} initial="initial" animate="animate" exit="exit">
+                <motion.div key="friends" className="h-full" custom={slideDir} variants={PAGE_SLIDE} initial="initial" animate="animate" exit="exit">
                   <Suspense fallback={<PageFallback />}>
                     <FriendsPage friendsModel={friendsModel} />
                   </Suspense>
@@ -389,7 +396,12 @@ export default function App() {
               )}
               {activeTab === 'settings' && (
                 <motion.div key="settings" custom={slideDir} variants={PAGE_SLIDE} initial="initial" animate="animate" exit="exit">
-                  <SettingsPage />
+                  <SettingsPage onNavigateAdmin={() => navigateTo('admin')} />
+                </motion.div>
+              )}
+              {activeTab === 'admin' && (
+                <motion.div key="admin" custom={slideDir} variants={PAGE_SLIDE} initial="initial" animate="animate" exit="exit">
+                  <AdminDashboard onBack={() => navigateTo('settings')} />
                 </motion.div>
               )}
             </AnimatePresence>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { LOOT_ITEMS, getRarityTheme, getItemPower, MARKETPLACE_BLOCKED_ITEMS, estimateLootDropRate, type LootRarity } from '../../lib/loot'
-import { getFarmItemDisplay } from '../../lib/farming'
+import { getFarmItemDisplay, isSeedId, isSeedZipId } from '../../lib/farming'
 import { SKILLS } from '../../lib/skills'
 import { fetchActiveListings, buyListing, cancelListing, expireOldListings, type ListingWithSeller } from '../../services/marketplaceService'
 import { useGoldStore } from '../../stores/goldStore'
@@ -138,7 +138,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
   const [showInfo, setShowInfo] = useState(false)
   const infoRef = useRef<HTMLDivElement>(null)
   const [search, setSearch] = useState('')
-  const [perkFilter, setPerkFilter] = useState<'' | 'combat' | 'xp' | 'drops' | 'cosmetic'>('')
+  const [perkFilter, setPerkFilter] = useState<'' | 'combat' | 'xp' | 'drops' | 'cosmetic' | 'seeds'>('')
   const [skillFilter, setSkillFilter] = useState<string>('')
   const [rarityFilter, setRarityFilter] = useState<string>('')
   const [priceMin, setPriceMin] = useState('')
@@ -161,6 +161,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
     }
     if (perkFilter) {
       result = result.filter((l) => {
+        if (perkFilter === 'seeds') return isSeedId(l.item_id) || isSeedZipId(l.item_id)
         const item = LOOT_ITEMS.find((x) => x.id === l.item_id)
         if (!item) return false
         if (perkFilter === 'combat') return ['atk_boost', 'hp_boost', 'hp_regen_boost'].includes(item.perkType as string)
@@ -204,17 +205,22 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
 
   const loadListings = async (withExpiry = false) => {
     setLoading(true)
-    if (withExpiry) await expireOldListings()
-    const data = await fetchActiveListings()
-    setListings(data)
-    setLoading(false)
+    try {
+      if (withExpiry) await expireOldListings()
+      const data = await fetchActiveListings()
+      setListings(data)
+    } catch {
+      // ignore network errors
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleRefresh = async () => {
     if (refreshing) return
     setRefreshing(true)
     await loadListings(false)
-    if (user) syncFromSupabase(user.id)
+    if (user) syncFromSupabase(user.id).catch(() => {})
     setRefreshing(false)
   }
 
@@ -227,12 +233,12 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
     const channel = supabase
       .channel('marketplace-listings-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'marketplace_listings' }, () => {
-        loadListings(false)
+        loadListings(false).catch(() => {})
         // Re-sync gold in case one of our listings was sold
-        syncFromSupabase(user.id)
+        syncFromSupabase(user.id).catch(() => {})
       })
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    return () => { supabase.removeChannel(channel).catch(() => {}) }
   }, [user])
 
   useEffect(() => {
@@ -283,7 +289,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
         if (merged.mergedSeeds) useFarmStore.getState().mergeSeedsFromCloud(merged.mergedSeeds)
         if (merged.mergedSeedZips) useFarmStore.getState().mergeSeedZipsFromCloud(merged.mergedSeedZips)
       }
-      loadListings()
+      loadListings().catch(() => {})
     }
   }
 
@@ -304,7 +310,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
         if (merged.mergedSeeds) useFarmStore.getState().mergeSeedsFromCloud(merged.mergedSeeds)
         if (merged.mergedSeedZips) useFarmStore.getState().mergeSeedZipsFromCloud(merged.mergedSeedZips)
       }
-      loadListings()
+      loadListings().catch(() => {})
     } else {
       setCancelError(res.error ?? 'Failed to remove listing')
     }
@@ -429,6 +435,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
             { id: 'xp', label: '📈 XP' },
             { id: 'drops', label: '🎁 Drops' },
             { id: 'cosmetic', label: '✨ Cosmetic' },
+            { id: 'seeds', label: '🌱 Seeds' },
           ] as const).map((f) => (
             <button
               key={f.id}

@@ -1,0 +1,113 @@
+/**
+ * Admin config — stored in localStorage so it's synchronous and fast.
+ * Applied at app startup to patch LOOT_ITEMS and BOSSES in place.
+ */
+import type { LootItemDef, LootRarity, LootSlot } from './loot'
+import type { BossDef } from './combat'
+
+const STORAGE_KEY = 'grindly_admin_config'
+
+export interface ItemOverride {
+  name?: string
+  icon?: string
+  image?: string
+  rarity?: LootRarity
+  description?: string
+  perkType?: string
+  perkValue?: number | string
+  perkTarget?: string
+  perkDescription?: string
+}
+
+export interface CustomItem extends LootItemDef {
+  _custom: true
+}
+
+export interface BossOverride {
+  name?: string
+  icon?: string
+  image?: string
+  hp?: number
+  atk?: number
+  rewards?: { gold?: number; lootChance?: number; lootTier?: string }
+}
+
+export interface ChestWeightEntry {
+  itemId: string
+  weight: number
+}
+
+export interface AdminConfig {
+  itemOverrides?: Record<string, ItemOverride>
+  hiddenItems?: string[]
+  customItems?: Array<{
+    id: string
+    name: string
+    slot: LootSlot
+    rarity: LootRarity
+    icon: string
+    image?: string
+    description: string
+    perkType: string
+    perkValue: number | string
+    perkTarget?: string
+    perkDescription: string
+  }>
+  bossOverrides?: Record<string, BossOverride>
+  chestWeightOverrides?: Record<string, ChestWeightEntry[]>
+}
+
+export function loadAdminConfig(): AdminConfig {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return {}
+    return JSON.parse(raw) as AdminConfig
+  } catch {
+    return {}
+  }
+}
+
+export function saveAdminConfig(cfg: AdminConfig): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg))
+}
+
+/** Apply overrides to LOOT_ITEMS and BOSSES arrays in-place. Call once at app startup. */
+export function applyAdminConfig(items: LootItemDef[], bosses: BossDef[]): void {
+  const cfg = loadAdminConfig()
+
+  // Patch existing items
+  for (const [id, overrides] of Object.entries(cfg.itemOverrides ?? {})) {
+    const item = items.find((x) => x.id === id)
+    if (item) Object.assign(item, overrides)
+  }
+
+  // Remove hidden items
+  const hidden = new Set(cfg.hiddenItems ?? [])
+  if (hidden.size > 0) {
+    const toRemove: number[] = []
+    items.forEach((x, i) => { if (hidden.has(x.id)) toRemove.push(i) })
+    for (let i = toRemove.length - 1; i >= 0; i--) items.splice(toRemove[i], 1)
+  }
+
+  // Append custom items (skip duplicates)
+  const existingIds = new Set(items.map((x) => x.id))
+  for (const custom of cfg.customItems ?? []) {
+    if (!existingIds.has(custom.id)) {
+      items.push(custom as unknown as LootItemDef)
+      existingIds.add(custom.id)
+    }
+  }
+
+  // Patch existing bosses
+  for (const [id, overrides] of Object.entries(cfg.bossOverrides ?? {})) {
+    const boss = bosses.find((x) => x.id === id)
+    if (boss) {
+      if (overrides.name !== undefined) boss.name = overrides.name
+      if (overrides.icon !== undefined) boss.icon = overrides.icon
+      if (overrides.image !== undefined) boss.image = overrides.image
+      if (overrides.hp !== undefined) boss.hp = overrides.hp
+      if (overrides.atk !== undefined) boss.atk = overrides.atk
+      if (overrides.rewards) Object.assign(boss.rewards, overrides.rewards)
+    }
+  }
+}
