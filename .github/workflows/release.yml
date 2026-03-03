@@ -12,7 +12,7 @@ jobs:
   release:
     runs-on: windows-latest
     permissions:
-      contents: write  # для создания Release и загрузки .exe
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -23,7 +23,18 @@ jobs:
 
       - run: npm ci
 
-      # electron-builder с publish: github в electron-builder.yml сам создаёт Release и заливает .exe
-      - run: npm run electron:build
+      # Строим без publish — electron-builder генерирует .exe и latest.yml в ./release/
+      - run: npm run electron:build -- --publish never
+
+      # Создаём GitHub Release и заливаем installer + latest.yml (нужен electron-updater)
+      - name: Publish GitHub Release
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "Release $TAG" \
+            release/*.exe \
+            release/latest.yml
