@@ -68,7 +68,7 @@ export function BackpackPanel({ open, onClose, backpackRef }: BackpackPanelProps
         icon: chest.icon,
         image: chest.image,
         title: chest.name,
-        subtitle: `${chest.rarity.toUpperCase()} chest`,
+        subtitle: `${chest.rarity.toUpperCase()} bag`,
         quantity: qty,
         chestType,
       })
@@ -244,7 +244,7 @@ export function BackpackPanel({ open, onClose, backpackRef }: BackpackPanelProps
                       <div className="flex items-center justify-between" title="Total Item Power from equipped gear">
                         <span className="text-[10px] text-gray-400">IP</span>
                         <span className="text-[12px] font-mono font-bold text-amber-300">
-                          {LOOT_SLOTS.reduce((sum, s) => { const id = equippedBySlot[s]; if (!id) return sum; const it = LOOT_ITEMS.find((x) => x.id === id); return sum + (it ? getItemPower(it.rarity) : 0) }, 0)}
+                          {LOOT_SLOTS.reduce((sum, s) => { const id = equippedBySlot[s]; if (!id) return sum; const it = LOOT_ITEMS.find((x) => x.id === id); return sum + (it ? getItemPower(it) : 0) }, 0)}
                         </span>
                       </div>
                     </div>
@@ -448,7 +448,7 @@ export function BackpackPanel({ open, onClose, backpackRef }: BackpackPanelProps
                     ? `Delete ${deleteConfirmTarget.title}? This cannot be undone.`
                     : deleteConfirmTarget.kind === 'chest'
                       ? `Delete ${deleteConfirmTarget.title} x${deleteConfirmTarget.quantity}? This cannot be undone.`
-                      : 'Discard this chest drop? You won\'t be able to open it.'}
+                      : 'Discard this bag drop? You won\'t be able to open it.'}
                 </p>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => { playClickSound(); setDeleteConfirmTarget(null) }} className="flex-1 py-2 rounded-lg border border-white/20 text-gray-300 text-sm font-semibold hover:bg-white/5">

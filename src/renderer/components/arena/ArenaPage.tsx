@@ -266,7 +266,7 @@ export function ArenaPage() {
           const ip = LOOT_SLOTS.reduce((sum, s) => {
             const id = equippedBySlot[s]; if (!id) return sum
             const it = LOOT_ITEMS.find((x) => x.id === id)
-            return sum + (it ? getItemPower(it.rarity) : 0)
+            return sum + (it ? getItemPower(it) : 0)
           }, 0)
           const statRows = [
             { icon: '⚔️', value: playerStats.atk,    label: 'ATK', unit: '/s', color: '#f87171', maxed: permanentStats.atk >= POTION_MAX },

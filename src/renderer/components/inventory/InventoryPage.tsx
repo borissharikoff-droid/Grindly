@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CHEST_DEFS, LOOT_ITEMS, LOOT_SLOTS, MARKETPLACE_BLOCKED_ITEMS, POTION_IDS, POTION_MAX, estimateLootDropRate, getItemPower, type ChestType, type LootSlot, getItemPerkDescription } from '../../lib/loot'
@@ -37,7 +37,8 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
   const deleteItem = useInventoryStore((s) => s.deleteItem)
   const consumePotion = useInventoryStore((s) => s.consumePotion)
   const inBattle = Boolean(useArenaStore((s) => s.activeBattle))
-  const [sortBy, setSortBy] = useState<'rarity' | 'name'>('rarity')
+  const [sortBy, setSortBy] = useState<'rarity' | 'name' | 'slot'>('rarity')
+  const [viewMode, setViewMode] = useState<'list' | 'grid' | 'compact'>('grid')
   const [filterBy, setFilterBy] = useState<'all' | 'combat' | 'weapons' | 'xp' | 'drops' | 'potions' | 'chests' | 'cosmetic' | 'plants'>('all')
   const [inspectSlotId, setInspectSlotId] = useState<string | null>(null)
   const [listForSaleTarget, setListForSaleTarget] = useState<string | null>(null)
@@ -79,7 +80,7 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
         icon: chest.icon,
         image: chest.image,
         title: chest.name,
-        subtitle: `${chest.rarity.toUpperCase()} chest`,
+        subtitle: `${chest.rarity.toUpperCase()} bag`,
         quantity: qty,
         chestType,
       })
@@ -121,20 +122,36 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
     { id: 'plants',  label: 'Plants',   icon: '🌿' },
   ] as const
 
-  const slotMatchesFilter = (slot: SlotEntry): boolean => {
-    if (filterBy === 'all') return true
-    if (filterBy === 'chests') return slot.kind === 'chest' || slot.kind === 'pending'
+  const slotMatchesFilterId = (slot: SlotEntry, fid: string): boolean => {
+    if (fid === 'all') return true
+    if (fid === 'chests') return slot.kind === 'chest' || slot.kind === 'pending'
     if (slot.kind !== 'item') return false
     const item = LOOT_ITEMS.find((x) => x.id === slot.itemId)
     if (!item) return false
-    if (filterBy === 'weapons')  return item.slot === 'weapon'
-    if (filterBy === 'combat')  return ['atk_boost', 'hp_boost', 'hp_regen_boost'].includes(item.perkType as string)
-    if (filterBy === 'xp')      return ['xp_skill_boost', 'xp_global_boost', 'focus_boost'].includes(item.perkType as string)
-    if (filterBy === 'drops')   return (item.perkType as string) === 'chest_drop_boost'
-    if (filterBy === 'potions') return item.slot === 'consumable'
-    if (filterBy === 'cosmetic') return ['cosmetic', 'status_title', 'streak_shield'].includes(item.perkType as string)
-    if (filterBy === 'plants') return item.slot === 'plant'
+    if (fid === 'weapons')  return item.slot === 'weapon'
+    if (fid === 'combat')   return ['atk_boost', 'hp_boost', 'hp_regen_boost'].includes(item.perkType as string)
+    if (fid === 'xp')       return ['xp_skill_boost', 'xp_global_boost', 'focus_boost'].includes(item.perkType as string)
+    if (fid === 'drops')    return (item.perkType as string) === 'chest_drop_boost'
+    if (fid === 'potions')  return item.slot === 'consumable'
+    if (fid === 'cosmetic') return ['cosmetic', 'status_title', 'streak_shield'].includes(item.perkType as string)
+    if (fid === 'plants')   return item.slot === 'plant'
     return true
+  }
+
+  const slotMatchesFilter = (slot: SlotEntry) => slotMatchesFilterId(slot, filterBy)
+
+  const filterCounts = useMemo(() => {
+    const counts: Partial<Record<string, number>> = {}
+    for (const f of FILTERS) {
+      if (f.id === 'all') { counts[f.id] = slots.length; continue }
+      counts[f.id] = slots.filter((s) => slotMatchesFilterId(s, f.id)).length
+    }
+    return counts
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slots])
+
+  const SLOT_SORT_ORDER: Record<string, number> = {
+    weapon: 0, head: 1, body: 2, legs: 3, ring: 4, consumable: 5, plant: 6,
   }
 
   const sortedSlots = useMemo(() => {
@@ -145,10 +162,27 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
         const kd = kindOrder(a) - kindOrder(b)
         if (kd !== 0) return kd
         if (sortBy === 'rarity') return (RARITY_ORDER[getSlotRarity(b)] ?? 0) - (RARITY_ORDER[getSlotRarity(a)] ?? 0)
+        if (sortBy === 'slot') {
+          const aSlot = a.kind === 'item' ? (LOOT_ITEMS.find((x) => x.id === a.itemId)?.slot ?? '') : ''
+          const bSlot = b.kind === 'item' ? (LOOT_ITEMS.find((x) => x.id === b.itemId)?.slot ?? '') : ''
+          return (SLOT_SORT_ORDER[aSlot] ?? 99) - (SLOT_SORT_ORDER[bSlot] ?? 99)
+        }
         return a.title.localeCompare(b.title)
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slots, sortBy, filterBy])
+
+  const groupedSlots = useMemo(() => {
+    if (filterBy !== 'all') return null
+    const pending = sortedSlots.filter((s) => s.kind === 'pending')
+    const bags = sortedSlots.filter((s) => s.kind === 'chest')
+    const regularItems = sortedSlots.filter((s) => s.kind === 'item')
+    const groups: { label: string; icon: string; slots: SlotEntry[] }[] = []
+    if (pending.length > 0) groups.push({ label: 'Inbox', icon: '📥', slots: pending })
+    if (bags.length > 0) groups.push({ label: 'Bags', icon: '📦', slots: bags })
+    if (regularItems.length > 0) groups.push({ label: 'Items', icon: '🎒', slots: regularItems })
+    return groups.length >= 2 ? groups : null
+  }, [sortedSlots, filterBy])
 
   const inspectSlot = useMemo(
     () => slots.find((slot) => slot.id === inspectSlotId) ?? null,
@@ -423,7 +457,7 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
           const ip = LOOT_SLOTS.reduce((sum, s) => {
             const id = equippedBySlot[s]; if (!id) return sum
             const it = LOOT_ITEMS.find((x) => x.id === id)
-            return sum + (it ? getItemPower(it.rarity) : 0)
+            return sum + (it ? getItemPower(it) : 0)
           }, 0)
           const statRows = [
             { icon: '⚔️', value: stats.atk,    label: 'ATK', unit: '/s', color: '#f87171', maxed: permanentStats.atk >= POTION_MAX },
@@ -478,159 +512,259 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
 
       <div className="rounded-xl border border-white/[0.08] bg-discord-card/80 p-3 space-y-2.5">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <p className="text-[11px] uppercase tracking-widest text-gray-400 font-mono font-semibold">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] uppercase tracking-widest text-gray-400 font-mono font-semibold shrink-0">
             Inventory
             <span className="ml-1.5 text-gray-500 normal-case tracking-normal font-normal">
               {sortedSlots.length}{sortedSlots.length !== slots.length ? `\u00a0/\u00a0${slots.length}` : ''}
             </span>
           </p>
-          <button
-            type="button"
-            onClick={() => setSortBy((s) => s === 'rarity' ? 'name' : 'rarity')}
-            className="flex items-center gap-1 text-[9px] font-mono px-2 py-0.5 rounded border border-white/[0.07] text-gray-500 hover:text-gray-300 hover:border-white/15 transition-colors"
-          >
-            <span>{sortBy === 'rarity' ? '▼ Rarity' : '▼ A–Z'}</span>
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            {/* View mode segmented control */}
+            <div className="flex items-center rounded border border-white/[0.09] overflow-hidden">
+              {(['list', 'grid', 'compact'] as const).map((mode, i) => {
+                const labels = ['≡ List', '⊞ Grid', '⊟ Mini'] as const
+                const active = viewMode === mode
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setViewMode(mode)}
+                    className={`text-[8px] font-mono px-1.5 py-0.5 transition-colors ${i > 0 ? 'border-l border-white/[0.07]' : ''} ${
+                      active ? 'text-cyber-neon bg-cyber-neon/10' : 'text-gray-500 hover:text-gray-300'
+                    }`}
+                  >
+                    {labels[i]}
+                  </button>
+                )
+              })}
+            </div>
+            {/* Sort cycle button */}
+            <button
+              type="button"
+              onClick={() => setSortBy((s) => s === 'rarity' ? 'name' : s === 'name' ? 'slot' : 'rarity')}
+              className="text-[9px] font-mono px-2 py-0.5 rounded border border-white/[0.07] text-gray-500 hover:text-gray-300 hover:border-white/15 transition-colors"
+            >
+              {sortBy === 'rarity' ? '▼ Rarity' : sortBy === 'name' ? '▼ A–Z' : '▼ Slot'}
+            </button>
+          </div>
         </div>
 
-        {/* Filter pills — wrapping, no scroll */}
-        <div className="flex flex-wrap gap-1">
-          {FILTERS.map((f) => {
-            const active = filterBy === f.id
-            return (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => { playClickSound(); setFilterBy(f.id) }}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[10px] font-medium transition-all ${
-                  active
-                    ? 'border-cyber-neon/40 bg-cyber-neon/10 text-cyber-neon'
-                    : 'border-white/[0.08] bg-discord-darker/30 text-gray-400 hover:text-gray-200 hover:border-white/20'
-                }`}
-              >
-                <span className="text-[11px] leading-none">{f.icon}</span>
-                <span>{f.label}</span>
-              </button>
-            )
-          })}
+        {/* Filter pills — single scrollable row */}
+        <div className="relative overflow-hidden">
+          <div
+            className="flex gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {FILTERS.map((f) => {
+              const active = filterBy === f.id
+              const count = filterCounts[f.id] ?? 0
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => { playClickSound(); setFilterBy(f.id) }}
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded-md border text-[9px] font-medium transition-all flex-shrink-0 ${
+                    active
+                      ? 'border-cyber-neon/40 bg-cyber-neon/10 text-cyber-neon'
+                      : 'border-white/[0.08] bg-discord-darker/30 text-gray-400 hover:text-gray-200 hover:border-white/20'
+                  }`}
+                >
+                  <span className="text-[10px] leading-none">{f.icon}</span>
+                  <span>{f.label}</span>
+                  {!active && count > 0 && (
+                    <span className="ml-0.5 text-[8px] font-mono opacity-50">{count}</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+          {/* Right fade mask */}
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-discord-card/80 to-transparent" />
         </div>
 
         {/* Divider */}
         <div className="border-t border-white/[0.05]" />
 
-        {/* List */}
+        {/* Items */}
         {slots.length === 0 ? (
           <p className="text-[11px] text-gray-500 py-2">No loot yet.</p>
         ) : sortedSlots.length === 0 ? (
           <p className="text-[11px] text-gray-500 py-2">Nothing here.</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-1.5">
-            {sortedSlots.map((slot) => {
-              const slotRarity = getSlotRarity(slot)
-              const slotTheme = RARITY_THEME[normalizeRarity(slotRarity)]
-              const isEquipped = slot.kind === 'item' && slot.equipped
-              const isPending = slot.kind === 'pending'
-              const lootItem = slot.kind === 'item' ? LOOT_ITEMS.find((x) => x.id === slot.itemId) : null
-              const perkChip = lootItem && lootItem.perkType !== 'cosmetic' && lootItem.slot !== 'consumable' && lootItem.slot !== 'plant'
-                ? getItemPerkDescription(lootItem)
-                : null
+        ) : (() => {
+          const renderCard = (slot: SlotEntry) => {
+            const slotRarity = getSlotRarity(slot)
+            const slotTheme = RARITY_THEME[normalizeRarity(slotRarity)]
+            const isEquipped = slot.kind === 'item' && slot.equipped
+            const isPending = slot.kind === 'pending'
+            const lootItem = slot.kind === 'item' ? LOOT_ITEMS.find((x) => x.id === slot.itemId) : null
+            const perkChip = lootItem && lootItem.perkType !== 'cosmetic' && lootItem.slot !== 'consumable' && lootItem.slot !== 'plant'
+              ? getItemPerkDescription(lootItem)
+              : null
+            const rarityNorm = normalizeRarity(slotRarity)
+            const typeLabel = slot.kind === 'chest' || slot.kind === 'pending'
+              ? (isPending ? 'INBOX' : 'BAG')
+              : lootItem?.slot === 'consumable' ? 'POTION'
+              : lootItem?.slot === 'plant' ? 'PLANT'
+              : lootItem ? SLOT_LABEL[lootItem.slot]
+              : '?'
+            const cardStyle = {
+              borderColor: isEquipped ? `${slotTheme.color}CC` : `${slotTheme.color}55`,
+              background: isEquipped
+                ? `linear-gradient(160deg, ${slotTheme.glow}22 0%, rgba(12,12,20,0.95) 60%)`
+                : `linear-gradient(160deg, ${slotTheme.glow}10 0%, rgba(12,12,20,0.92) 65%)`,
+            }
+            const onClickCard = () => { playClickSound(); setInspectSlotId(slot.id); setContextMenu(null) }
+            const onRightClick = (e: React.MouseEvent) => {
+              e.preventDefault()
+              setContextMenu({ x: Math.min(e.clientX, window.innerWidth - 168), y: Math.min(e.clientY, window.innerHeight - 128), slotId: slot.id })
+            }
 
-              // slotTheme.color is always a proper hex (#rrggbb) — safe to append hex alpha.
-              // slotTheme.border is rgba(...) so we avoid concatenating hex onto it.
-              const rarityNorm = normalizeRarity(slotRarity)
-              const glowSizes: Record<string, [string, string]> = {
-                // [normal, equipped] — [spread, spread]
-                common:    ['none',                             'none'],
-                rare:      [`0 0 8px ${slotTheme.color}55`,   `0 0 12px ${slotTheme.color}88`],
-                epic:      [`0 0 10px ${slotTheme.color}66`,  `0 0 16px ${slotTheme.color}99`],
-                legendary: [`0 0 14px ${slotTheme.color}77`,  `0 0 20px ${slotTheme.color}AA`],
-                mythical:  [`0 0 18px ${slotTheme.color}88`,  `0 0 26px ${slotTheme.color}BB`],
-              }
-              const [glowNormal, glowEquipped] = glowSizes[rarityNorm] ?? ['none', 'none']
-              const itemBoxShadow = isEquipped ? glowEquipped : glowNormal
-
+            if (viewMode === 'list') {
               return (
                 <button
                   key={slot.id}
                   type="button"
-                  onClick={() => { playClickSound(); setInspectSlotId(slot.id); setContextMenu(null) }}
-                  onContextMenu={(e) => {
-                    e.preventDefault()
-                    const MENU_W = 164
-                    const MENU_H = 124
-                    setContextMenu({
-                      x: Math.min(e.clientX, window.innerWidth - MENU_W - 4),
-                      y: Math.min(e.clientY, window.innerHeight - MENU_H - 4),
-                      slotId: slot.id,
-                    })
-                  }}
-                  className="relative flex flex-col items-center gap-1.5 p-2.5 rounded-lg border hover:brightness-110 active:scale-[0.98] transition-all text-center overflow-hidden"
-                  style={{
-                    borderColor: isEquipped ? `${slotTheme.color}CC` : `${slotTheme.color}66`,
-                    boxShadow: itemBoxShadow,
-                    background: isEquipped
-                      ? `linear-gradient(160deg, ${slotTheme.glow}22 0%, rgba(12,12,20,0.95) 60%)`
-                      : `linear-gradient(160deg, ${slotTheme.glow}10 0%, rgba(12,12,20,0.92) 65%)`,
-                  }}
+                  onClick={onClickCard}
+                  onContextMenu={onRightClick}
+                  className="relative w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg border hover:brightness-110 active:scale-[0.99] transition-all text-left overflow-hidden"
+                  style={cardStyle}
                 >
-                  {isPending && (
-                    <span className="absolute inset-0 rounded-lg pointer-events-none animate-pulse border border-amber-400/30" />
-                  )}
+                  {isPending && <span className="absolute inset-0 rounded-lg pointer-events-none animate-pulse border border-amber-400/30" />}
+                  {/* Left rarity bar */}
+                  <div className="w-[3px] self-stretch rounded-full flex-shrink-0" style={{ background: slotTheme.color }} />
+                  {/* Icon */}
+                  <div className="w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden relative" style={{ background: 'rgba(9,9,17,0.85)' }}>
+                    <LootVisual icon={slot.icon} image={slot.image} className="w-6 h-6 object-contain" scale={lootItem?.renderScale ?? 1} />
+                    {isEquipped && <span className="absolute bottom-0 right-0 text-[6px] font-bold font-mono px-0.5 rounded-tl leading-tight" style={{ background: slotTheme.color, color: '#000' }}>EQ</span>}
+                  </div>
+                  {/* Text */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-[11px] font-semibold text-white truncate">{slot.title}</p>
+                      {typeLabel && <span className="text-[7px] font-mono uppercase px-1 py-px rounded border border-white/10 text-gray-500 flex-shrink-0">{typeLabel}</span>}
+                    </div>
+                    <p className="text-[9px] text-gray-400 truncate mt-0.5">{perkChip ?? rarityNorm}</p>
+                  </div>
+                  {/* Right: qty + dot */}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {slot.quantity > 1 && <span className="text-[9px] font-mono" style={{ color: slotTheme.color }}>×{slot.quantity}</span>}
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ background: slotTheme.color }} />
+                  </div>
+                </button>
+              )
+            }
 
-                  {/* Qty badge — top-right corner */}
+            if (viewMode === 'compact') {
+              return (
+                <button
+                  key={slot.id}
+                  type="button"
+                  onClick={onClickCard}
+                  onContextMenu={onRightClick}
+                  className="relative flex flex-col items-center gap-1 p-1.5 rounded-lg border hover:brightness-110 active:scale-[0.97] transition-all overflow-hidden"
+                  style={cardStyle}
+                >
+                  {isPending && <span className="absolute inset-0 rounded-lg pointer-events-none animate-pulse border border-amber-400/30" />}
                   {slot.quantity > 1 && (
                     <span
-                      className="absolute top-1.5 right-1.5 text-[9px] font-bold font-mono px-1 py-px rounded leading-none z-10"
-                      style={{ background: `${slotTheme.border}55`, color: slotTheme.color }}
-                    >
-                      ×{slot.quantity}
-                    </span>
+                      className="absolute top-1 right-1 text-[8px] font-bold font-mono leading-none px-0.5 rounded z-10"
+                      style={{ background: `${slotTheme.color}44`, color: slotTheme.color }}
+                    >×{slot.quantity}</span>
                   )}
+                  <div className="w-9 h-9 rounded-md flex items-center justify-center overflow-hidden relative" style={{ background: 'rgba(9,9,17,0.85)' }}>
+                    <LootVisual icon={slot.icon} image={slot.image} className="w-6 h-6 object-contain" scale={lootItem?.renderScale ?? 1} />
+                    {isEquipped && <span className="absolute bottom-0 right-0 text-[6px] font-bold font-mono px-0.5 rounded-tl leading-tight" style={{ background: slotTheme.color, color: '#000' }}>EQ</span>}
+                  </div>
+                  <p className="text-[9px] font-semibold text-white leading-tight w-full truncate text-center">{slot.title}</p>
+                  {/* Bottom rarity bar */}
+                  <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: slotTheme.color, opacity: rarityNorm === 'common' ? 0.6 : 1 }} />
+                </button>
+              )
+            }
 
-                  {/* Icon box */}
+            // grid (2-col) mode
+            return (
+              <button
+                key={slot.id}
+                type="button"
+                onClick={onClickCard}
+                onContextMenu={onRightClick}
+                className="relative flex flex-col gap-1.5 p-2 rounded-lg border hover:brightness-110 active:scale-[0.98] transition-all text-left overflow-hidden"
+                style={cardStyle}
+              >
+                {isPending && (
+                  <span className="absolute inset-0 rounded-lg pointer-events-none animate-pulse border border-amber-400/30" />
+                )}
+                {/* Top row: type chip + qty */}
+                <div className="flex items-center justify-between gap-1">
+                  <span
+                    className="text-[8px] font-mono font-bold uppercase tracking-widest px-1.5 py-0.5 rounded leading-none"
+                    style={{ background: isPending ? 'rgba(251,191,36,0.18)' : `${slotTheme.color}22`, color: isPending ? '#fbbf24' : slotTheme.color }}
+                  >
+                    {typeLabel}
+                  </span>
+                  <span
+                    className="text-[9px] font-bold font-mono leading-none px-1 py-0.5 rounded"
+                    style={{
+                      background: slot.quantity > 1 ? `${slotTheme.color}33` : 'rgba(255,255,255,0.05)',
+                      color: slot.quantity > 1 ? slotTheme.color : 'rgba(255,255,255,0.2)',
+                    }}
+                  >
+                    ×{slot.quantity}
+                  </span>
+                </div>
+                {/* Icon box */}
+                <div className="flex justify-center">
                   <div
                     className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden relative"
                     style={isEquipped
                       ? { background: `radial-gradient(circle at 50% 40%, ${slotTheme.glow}55 0%, rgba(9,9,17,0.95) 70%)` }
                       : { background: 'rgba(9,9,17,0.85)' }}
                   >
-                    <LootVisual
-                      icon={slot.icon}
-                      image={slot.image}
-                      className="w-7 h-7 object-contain"
-                      scale={lootItem?.renderScale ?? 1}
-                    />
+                    <LootVisual icon={slot.icon} image={slot.image} className="w-7 h-7 object-contain" scale={lootItem?.renderScale ?? 1} />
                     {isEquipped && (
-                      <span
-                        className="absolute bottom-0 right-0 text-[7px] font-bold font-mono px-0.5 rounded-tl rounded-br leading-tight"
-                        style={{ background: slotTheme.border, color: '#000' }}
-                      >EQ</span>
+                      <span className="absolute bottom-0 right-0 text-[7px] font-bold font-mono px-0.5 rounded-tl rounded-br leading-tight" style={{ background: slotTheme.color, color: '#000' }}>EQ</span>
                     )}
                   </div>
+                </div>
+                {/* Name */}
+                <p className="text-[11px] font-semibold text-white leading-tight w-full truncate">{slot.title}</p>
+                {/* Perk chip */}
+                {perkChip && (
+                  <span className="text-[9px] font-mono font-semibold leading-none truncate" style={{ color: slotTheme.color }}>{perkChip}</span>
+                )}
+                {/* Bottom rarity bar */}
+                <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: slotTheme.color, opacity: rarityNorm === 'common' ? 0.6 : 1 }} />
+              </button>
+            )
+          }
 
-                  {/* Name */}
-                  <p className="text-[11px] font-semibold text-white leading-tight w-full truncate">{slot.title}</p>
+          const gridClass = viewMode === 'list' ? 'flex flex-col gap-0.5' : viewMode === 'compact' ? 'grid grid-cols-3 gap-1' : 'grid grid-cols-2 gap-1.5'
+          const sectionHdrClass = `${viewMode !== 'list' ? 'col-span-full' : ''} text-[9px] font-mono uppercase tracking-widest text-gray-500 pt-1 pb-0.5 flex items-center gap-2`
 
-                  {/* Perk or subtitle */}
-                  {perkChip ? (
-                    <p className="text-[10px] font-mono font-semibold leading-none" style={{ color: slotTheme.color }}>{perkChip}</p>
-                  ) : (
-                    <p className="text-[9px] text-gray-400 truncate w-full leading-none">{slot.subtitle}</p>
-                  )}
+          if (groupedSlots) {
+            return (
+              <div className={gridClass}>
+                {groupedSlots.map(({ label, icon, slots: grpSlots }) => (
+                  <React.Fragment key={label}>
+                    <div className={sectionHdrClass}>
+                      <span className="flex items-center gap-1.5">
+                        {icon === '📥' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />}
+                        {icon} {label}
+                      </span>
+                      <div className="flex-1 border-t border-white/[0.05]" />
+                      <span>{grpSlots.length}</span>
+                    </div>
+                    {grpSlots.map(renderCard)}
+                  </React.Fragment>
+                ))}
+              </div>
+            )
+          }
 
-                  {/* Rarity dot + slot tag */}
-                  <div className="flex items-center gap-1">
-                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: slotTheme.color }} />
-                    {lootItem && lootItem.slot !== 'consumable' && lootItem.slot !== 'plant' && (
-                      <span className="text-[8px] font-mono uppercase tracking-wide text-gray-500">{SLOT_LABEL[lootItem.slot]}</span>
-                    )}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        )}
+          return <div className={gridClass}>{sortedSlots.map(renderCard)}</div>
+        })()}
       </div>
 
       {inspectSlot &&
@@ -679,20 +813,30 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
                 </div>
                 <p className="text-[10px] text-gray-500 font-mono">qty x{inspectSlot.quantity}</p>
               </div>
-              {inspectSlot.kind === 'item' && inspectItem && (
-                <div className="mt-2">
-                  <span
-                    className="inline-flex text-[10px] px-2 py-0.5 rounded border font-mono uppercase tracking-wide"
-                    style={{
-                      color: inspectTheme.color,
-                      borderColor: inspectTheme.border,
-                      backgroundColor: `${inspectTheme.color}1A`,
-                    }}
-                  >
-                    {inspectRarity}
+              {/* Pills: rarity + slot + equipped */}
+              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                <span
+                  className="text-[9px] px-2 py-0.5 rounded border font-mono uppercase"
+                  style={{ color: inspectTheme.color, borderColor: inspectTheme.border, background: `${inspectTheme.color}1a` }}
+                >
+                  {inspectRarity}
+                </span>
+                {inspectItem && (
+                  <span className="text-[9px] px-2 py-0.5 rounded border border-white/15 text-gray-400 font-mono uppercase">
+                    {SLOT_LABEL[inspectItem.slot]}
                   </span>
-                </div>
-              )}
+                )}
+                {(inspectSlot.kind === 'chest' || inspectSlot.kind === 'pending') && (
+                  <span className="text-[9px] px-2 py-0.5 rounded border border-white/15 text-gray-400 font-mono uppercase">
+                    {inspectSlot.kind === 'pending' ? 'Inbox' : 'Bag'}
+                  </span>
+                )}
+                {inspectSlot.kind === 'item' && inspectSlot.equipped && (
+                  <span className="text-[9px] px-2 py-0.5 rounded border border-cyber-neon/40 text-cyber-neon font-mono">
+                    equipped
+                  </span>
+                )}
+              </div>
               <div className="mt-3 rounded-lg border border-white/10 bg-discord-darker/40 p-2.5 space-y-1">
                 {inspectSlot.kind === 'item' && (() => {
                   if (!inspectItem) return <p className="text-[10px] text-gray-500">Unknown item.</p>
@@ -706,10 +850,6 @@ export function InventoryPage({ onBack }: { onBack: () => void }) {
                   const rate = estimateLootDropRate(inspectItem.id, { source: 'skill_grind', focusCategory: 'coding' })
                   return (
                     <>
-                      <p className="text-[10px] text-gray-300"><span className="text-gray-500">Slot:</span> {SLOT_LABEL[inspectItem.slot]}</p>
-                      <p className="text-[10px]" style={{ color: inspectTheme.color }}>
-                        <span className="text-gray-500">Rarity:</span> {inspectRarity.toUpperCase()}
-                      </p>
                       {isPlant && (
                         <p className="text-[10px] text-lime-400/80 font-mono">🌾 Farm harvest · sell on Marketplace</p>
                       )}

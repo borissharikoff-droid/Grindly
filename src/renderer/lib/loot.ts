@@ -45,8 +45,39 @@ export const ITEM_POWER_BY_RARITY: Record<string, number> = {
   mythic: 450,
 }
 
-export function getItemPower(rarity: string): number {
-  return ITEM_POWER_BY_RARITY[rarity] ?? 100
+/** Stat contribution to IP per perk type, given the numeric perk value. */
+const PERK_IP: Partial<Record<string, (v: number) => number>> = {
+  atk_boost:        v => v * 15,
+  hp_boost:         v => v * 0.5,
+  hp_regen_boost:   v => v * 25,
+  xp_skill_boost:   v => Math.max(0, v - 1) * 150,
+  xp_global_boost:  v => Math.max(0, v - 1) * 300,
+  chest_drop_boost: v => v * 800,
+  focus_boost:      v => Math.max(0, v - 1) * 120,
+  streak_shield:    () => 60,
+  status_title:     () => 15,
+  harvested_plant:  v => v * 0.3,
+}
+
+const SLOT_IP_MULT: Partial<Record<string, number>> = {
+  weapon: 1.2,
+  head: 1.1,
+  body: 1.1,
+}
+
+/** Compute Item Power from the item's rarity, slot, and all perks. */
+export function getItemPower(item: Pick<LootItemDef, 'rarity' | 'slot' | 'perkType' | 'perkValue' | 'perks'>): number {
+  const base = ITEM_POWER_BY_RARITY[item.rarity] ?? 100
+  const perks = item.perks?.length
+    ? item.perks
+    : [{ perkType: item.perkType, perkValue: item.perkValue }]
+  const statPower = perks.reduce((sum, p) => {
+    const v = typeof p.perkValue === 'number' ? p.perkValue : parseFloat(String(p.perkValue)) || 0
+    const fn = PERK_IP[p.perkType]
+    return sum + (fn ? fn(v) : 0)
+  }, 0)
+  const slotMult = SLOT_IP_MULT[item.slot] ?? 1.0
+  return Math.round((base + statPower) * slotMult)
 }
 
 /** Gold drop range per chest type (anti-inflation, small amounts) */
@@ -263,7 +294,7 @@ export const LOOT_ITEMS: LootItemDef[] = [
 export const CHEST_DEFS: Record<ChestType, ChestDef> = {
   common_chest: {
     id: 'common_chest',
-    name: 'Common Chest',
+    name: 'Common Bag',
     icon: '📦',
     image: 'loot/chest_t1_user.png',
     rarity: 'common',
@@ -271,7 +302,7 @@ export const CHEST_DEFS: Record<ChestType, ChestDef> = {
   },
   rare_chest: {
     id: 'rare_chest',
-    name: 'Rare Chest',
+    name: 'Rare Bag',
     icon: '🎁',
     image: 'loot/chest_t2_user.png',
     rarity: 'rare',
@@ -281,7 +312,7 @@ export const CHEST_DEFS: Record<ChestType, ChestDef> = {
   },
   epic_chest: {
     id: 'epic_chest',
-    name: 'Epic Chest',
+    name: 'Epic Bag',
     icon: '🪙',
     image: 'loot/chest_bw_test.png',
     rarity: 'epic',
@@ -294,7 +325,7 @@ export const CHEST_DEFS: Record<ChestType, ChestDef> = {
   },
   legendary_chest: {
     id: 'legendary_chest',
-    name: 'Legendary Chest',
+    name: 'Legendary Bag',
     icon: '💎',
     image: 'loot/chest_bw_test.png',
     rarity: 'legendary',
