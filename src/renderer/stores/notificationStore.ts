@@ -22,6 +22,10 @@ export interface Notification {
     elapsedSeconds: number
     sessionSkillXP?: Record<string, number>
   }
+  chestReward?: {
+    rewardId: string
+    chestType: string
+  }
 }
 
 interface NotificationStore {

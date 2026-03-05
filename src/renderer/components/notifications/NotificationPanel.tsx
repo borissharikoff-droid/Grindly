@@ -1,10 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNotificationStore } from '../../stores/notificationStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useGoldStore } from '../../stores/goldStore'
 import { useAuthStore } from '../../stores/authStore'
 import { useArenaStore } from '../../stores/arenaStore'
+import { useInventoryStore } from '../../stores/inventoryStore'
+import { useFarmStore } from '../../stores/farmStore'
+import { LOOT_ITEMS, type ChestType } from '../../lib/loot'
+import { ChestOpenModal } from '../animations/ChestOpenModal'
 import { playClickSound } from '../../lib/sounds'
 
 function timeAgo(ts: number): string {
@@ -30,9 +34,26 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
   const user = useAuthStore((s) => s.user)
   const setResultModal = useArenaStore((s) => s.setResultModal)
   const presentRecoveryComplete = useSessionStore((s) => s.presentRecoveryComplete)
+  const claimPendingReward = useInventoryStore((s) => s.claimPendingReward)
+  const openChestAndGrantItem = useInventoryStore((s) => s.openChestAndGrantItem)
   const [filter, setFilter] = useState<'all' | 'update' | 'friend_levelup' | 'progression' | 'arena_result' | 'marketplace_sale'>('all')
+  const [openedChest, setOpenedChest] = useState<{ chestType: ChestType; itemId: string; goldDropped?: number } | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const filteredItems = items.filter((i) => (filter === 'all' ? true : i.type === filter))
+
+  const openedItem = useMemo(
+    () => (openedChest ? (LOOT_ITEMS.find((x) => x.id === openedChest.itemId) ?? null) : null),
+    [openedChest],
+  )
+
+  const handleOpenChest = (notifId: string, rewardId: string, chestType: string) => {
+    playClickSound()
+    claimPendingReward(rewardId)
+    const result = openChestAndGrantItem(chestType as ChestType, { source: 'session_complete' })
+    useFarmStore.getState().rollSeedDrop(chestType as ChestType)
+    dismiss(notifId)
+    if (result) setOpenedChest({ chestType: chestType as ChestType, itemId: result.itemId, goldDropped: result.goldDropped })
+  }
 
   useEffect(() => {
     if (open) markAllRead()
@@ -61,6 +82,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
   }, [open])
 
   return (
+    <>
     <AnimatePresence>
       {open && (
         <motion.div
@@ -142,31 +164,50 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                   </div>
                 ) : item.recovery ? (
                   <div key={item.id} className="px-3 py-2 border-b border-white/[0.03] last:border-0">
-                    <div className="rounded-2xl border border-cyber-neon/25 bg-gradient-to-r from-cyber-neon/10 via-cyber-neon/5 to-discord-card/80 px-3 py-2.5 shadow-[0_8px_24px_rgba(0,255,136,0.1)]">
-                      <div className="flex items-start gap-2">
-                        <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
+                    <div className="rounded-xl border border-cyber-neon/20 bg-cyber-neon/[0.05] px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base shrink-0">{item.icon}</span>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-[12px] font-semibold text-white leading-snug">{item.title}</p>
-                            <span className="text-[9px] text-gray-500 font-mono shrink-0 mt-0.5">{timeAgo(item.timestamp)}</span>
-                          </div>
-                          <p className="text-[10px] text-gray-200 leading-snug mt-0.5">{item.body}</p>
+                          <p className="text-[11px] text-white leading-snug">{item.title}</p>
+                          <p className="text-[10px] text-gray-400 leading-snug mt-px truncate">{item.body}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[9px] text-gray-600 font-mono">{timeAgo(item.timestamp)}</span>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await presentRecoveryComplete({
+                                sessionId: item.recovery?.sessionId ?? crypto.randomUUID(),
+                                startTime: item.recovery?.startTime ?? Date.now(),
+                                elapsedSeconds: item.recovery?.elapsedSeconds ?? 0,
+                                sessionSkillXP: item.recovery?.sessionSkillXP || {},
+                              })
+                              window.electronAPI?.db?.clearCheckpoint?.().catch(() => {})
+                              dismiss(item.id)
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-cyber-neon/15 border border-cyber-neon/35 text-cyber-neon text-xs font-semibold hover:bg-cyber-neon/25 transition-colors"
+                          >
+                            Claim
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : item.chestReward ? (
+                  <div key={item.id} className="px-3 py-2 border-b border-white/[0.03] last:border-0">
+                    <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base shrink-0">{item.icon}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] text-white leading-snug">{item.title}</p>
+                          <span className="text-[9px] text-gray-500 font-mono">{timeAgo(item.timestamp)}</span>
                         </div>
                         <button
                           type="button"
-                          onClick={async () => {
-                            await presentRecoveryComplete({
-                              sessionId: item.recovery?.sessionId ?? crypto.randomUUID(),
-                              startTime: item.recovery?.startTime ?? Date.now(),
-                              elapsedSeconds: item.recovery?.elapsedSeconds ?? 0,
-                              sessionSkillXP: item.recovery?.sessionSkillXP || {},
-                            })
-                            window.electronAPI?.db?.clearCheckpoint?.().catch(() => {})
-                            dismiss(item.id)
-                          }}
-                          className="shrink-0 px-2.5 py-1 rounded-lg bg-cyber-neon/20 border border-cyber-neon/40 text-cyber-neon text-xs font-semibold hover:bg-cyber-neon/30 transition-colors"
+                          onClick={() => handleOpenChest(item.id, item.chestReward!.rewardId, item.chestReward!.chestType)}
+                          className="shrink-0 px-2.5 py-1 rounded-lg bg-amber-400/20 border border-amber-400/40 text-amber-300 text-xs font-semibold hover:bg-amber-400/30 transition-colors"
                         >
-                          Yay
+                          Open
                         </button>
                       </div>
                     </div>
@@ -190,5 +231,14 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
         </motion.div>
       )}
     </AnimatePresence>
+
+    <ChestOpenModal
+      open={Boolean(openedChest)}
+      chestType={openedChest?.chestType ?? null}
+      item={openedItem}
+      goldDropped={openedChest?.goldDropped}
+      onClose={() => setOpenedChest(null)}
+    />
+    </>
   )
 }

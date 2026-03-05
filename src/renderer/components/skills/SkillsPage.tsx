@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { SKILLS, skillLevelFromXP, skillXPProgress, formatSkillTime, categoryToSkillId } from '../../lib/skills'
+import { computeWarriorBonuses } from '../../lib/combat'
 import { useSessionStore } from '../../stores/sessionStore'
+import { useCraftingStore } from '../../stores/craftingStore'
 import { MOTION } from '../../lib/motion'
 import { SkeletonBlock } from '../shared/PageLoading'
 import { EmptyState } from '../shared/EmptyState'
@@ -38,9 +40,12 @@ export function SkillsPage() {
   const [topAppsBySkill, setTopAppsBySkill] = useState<Record<string, { app_name: string; total_ms: number }[]>>({})
   const [topAppsLoadingBySkill, setTopAppsLoadingBySkill] = useState<Record<string, boolean>>({})
   const { status, currentActivity, sessionSkillXP } = useSessionStore()
+  const craftXp = useCraftingStore((s) => s.craftXp)
+  const hydrateCrafting = useCraftingStore((s) => s.hydrate)
   const levelingSkillId = status === 'running' && currentActivity ? categoryToSkillId(currentActivity.category) : null
   const hasMountedRef = useRef(false)
   useEffect(() => { hasMountedRef.current = true }, [])
+  useEffect(() => { hydrateCrafting() }, [hydrateCrafting])
 
   const liveById = useMemo(() => {
     const base = new Map(skillData.map((r) => [r.skill_id, r.total_xp]))
@@ -49,8 +54,9 @@ export function SkillsPage() {
         base.set(id, (base.get(id) ?? 0) + xp)
       }
     }
+    base.set('crafter', craftXp)
     return base
-  }, [skillData, status, sessionSkillXP])
+  }, [skillData, status, sessionSkillXP, craftXp])
 
   const handleToggleExpand = (skillId: string) => {
     const isExpanded = expandedId === skillId
@@ -90,7 +96,7 @@ export function SkillsPage() {
     if (topAppsBySkill[expandedId]) return
     const skill = SKILLS.find((s) => s.id === expandedId)
     if (!skill) return
-    if (skill.category === 'farming') return // XP earned via farming actions, no app data
+    if (skill.category === 'farming' || skill.category === 'crafting' || skill.category === 'warrior') return // XP earned via in-game actions, no app data
     const api = window.electronAPI
     if (!api?.db?.getAppUsageStats) return
     setTopAppsLoadingBySkill((prev) => ({ ...prev, [expandedId]: true }))
@@ -272,7 +278,9 @@ export function SkillsPage() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-gray-400">Time to next</span>
-                        <span className="text-[11px] font-mono text-gray-300">{skill.category === 'farming' ? 'via farming' : `~${Math.ceil((needed - current) / 3600)}h`}</span>
+                        <span className="text-[11px] font-mono text-gray-300">
+                          {skill.category === 'farming' || skill.category === 'warrior' || skill.category === 'crafting' ? 'via in-game actions' : `~${Math.ceil((needed - current) / 3600)}h`}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-gray-400">Total XP</span>
@@ -285,7 +293,22 @@ export function SkillsPage() {
                             <p className="mt-1.5 text-[10px] text-gray-400 leading-relaxed">Earned by planting and harvesting crops in the Farm tab.</p>
                             <p className="mt-0.5 text-[9px] text-gray-600 font-mono">Plant +10–160 XP · Harvest +50–800 XP</p>
                           </>
-                        ) : (
+                        ) : skill.category === 'warrior' ? (() => {
+                          const wLevel = skillLevelFromXP(xp)
+                          const bonuses = computeWarriorBonuses(wLevel)
+                          const bonusParts = [bonuses.atk > 0 && `+${bonuses.atk} ATK`, bonuses.hp > 0 && `+${bonuses.hp} HP`, bonuses.hpRegen > 0 && `+${bonuses.hpRegen} Regen`].filter(Boolean)
+                          return (
+                            <>
+                              <span className="text-[10px] text-gray-500 font-mono uppercase">XP Source</span>
+                              <p className="mt-1.5 text-[10px] text-gray-400 leading-relaxed">Earned by defeating enemies in the Arena.</p>
+                              <p className="mt-0.5 text-[9px] text-gray-600 font-mono">Mob +30–90K XP · Boss +120–15K XP</p>
+                              {bonusParts.length > 0 && (
+                                <p className="mt-1.5 text-[10px] font-mono" style={{ color: '#EF4444' }}>Bonuses: {bonusParts.join(' · ')}</p>
+                              )}
+                              <p className="mt-0.5 text-[9px] text-gray-600 font-mono">Next milestone: Lv.{[5,15,20,30,40,60,75].find((m) => m > wLevel) ?? 'MAX'}</p>
+                            </>
+                          )
+                        })() : (
                           <>
                             <span className="text-[10px] text-gray-500 font-mono uppercase">Top apps</span>
                             {topAppsLoadingBySkill[skill.id] ? (
@@ -437,7 +460,9 @@ export function SkillsPage() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-gray-400">Time to next</span>
-                        <span className="text-[11px] font-mono text-gray-300">{skill.category === 'farming' ? 'via farming' : `~${Math.ceil((needed - current) / 3600)}h`}</span>
+                        <span className="text-[11px] font-mono text-gray-300">
+                          {skill.category === 'farming' || skill.category === 'warrior' || skill.category === 'crafting' ? 'via in-game actions' : `~${Math.ceil((needed - current) / 3600)}h`}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-gray-400">Total XP</span>
@@ -450,7 +475,22 @@ export function SkillsPage() {
                             <p className="mt-1.5 text-[10px] text-gray-400 leading-relaxed">Earned by planting and harvesting crops in the Farm tab.</p>
                             <p className="mt-0.5 text-[9px] text-gray-600 font-mono">Plant +10–160 XP · Harvest +50–800 XP</p>
                           </>
-                        ) : (
+                        ) : skill.category === 'warrior' ? (() => {
+                          const wLevel = skillLevelFromXP(xp)
+                          const bonuses = computeWarriorBonuses(wLevel)
+                          const bonusParts = [bonuses.atk > 0 && `+${bonuses.atk} ATK`, bonuses.hp > 0 && `+${bonuses.hp} HP`, bonuses.hpRegen > 0 && `+${bonuses.hpRegen} Regen`].filter(Boolean)
+                          return (
+                            <>
+                              <span className="text-[10px] text-gray-500 font-mono uppercase">XP Source</span>
+                              <p className="mt-1.5 text-[10px] text-gray-400 leading-relaxed">Earned by defeating enemies in the Arena.</p>
+                              <p className="mt-0.5 text-[9px] text-gray-600 font-mono">Mob +30–90K XP · Boss +120–15K XP</p>
+                              {bonusParts.length > 0 && (
+                                <p className="mt-1.5 text-[10px] font-mono" style={{ color: '#EF4444' }}>Bonuses: {bonusParts.join(' · ')}</p>
+                              )}
+                              <p className="mt-0.5 text-[9px] text-gray-600 font-mono">Next milestone: Lv.{[5,15,20,30,40,60,75].find((m) => m > wLevel) ?? 'MAX'}</p>
+                            </>
+                          )
+                        })() : (
                           <>
                             <span className="text-[10px] text-gray-500 font-mono uppercase">Top apps</span>
                             {topAppsLoadingBySkill[skill.id] ? (

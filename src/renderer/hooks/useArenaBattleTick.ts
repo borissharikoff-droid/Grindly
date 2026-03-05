@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useArenaStore } from '../stores/arenaStore'
-import { useArenaToastStore } from '../stores/arenaToastStore'
+import { useToastStore } from '../stores/toastStore'
 import { useNotificationStore } from '../stores/notificationStore'
 import type { TabId } from '../App'
 
@@ -16,7 +16,7 @@ export function useArenaBattleTick(activeTab: TabId) {
   const getBattleState = useArenaStore((s) => s.getBattleState)
   const endBattle = useArenaStore((s) => s.endBattle)
   const endBattleWithoutGold = useArenaStore((s) => s.endBattleWithoutGold)
-  const pushArenaToast = useArenaToastStore((s) => s.push)
+  const pushToast = useToastStore((s) => s.push)
   const pushNotification = useNotificationStore((s) => s.push)
   const setResultModal = useArenaStore((s) => s.setResultModal)
 
@@ -36,6 +36,8 @@ export function useArenaBattleTick(activeTab: TabId) {
     const tick = () => {
       const state = getBattleState()
       if (!state?.isComplete || completedRef.current) return
+      // Mob battles are handled inline by ArenaPage; skip here
+      if (activeBattle.isMob) return
 
       completedRef.current = true
       const victory = state.victory ?? false
@@ -57,7 +59,7 @@ export function useArenaBattleTick(activeTab: TabId) {
             arenaResult: { victory, gold: 0, bossName },
           })
           if (notifId) {
-            pushArenaToast({ victory, bossName, gold: 0, notificationId: notifId })
+            pushToast({ kind: 'arena_boss', victory, bossName, gold: 0, notificationId: notifId })
           }
         }
       }, 1200)
@@ -69,5 +71,5 @@ export function useArenaBattleTick(activeTab: TabId) {
       clearInterval(interval)
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
-  }, [activeBattle, getBattleState, endBattle, endBattleWithoutGold, pushArenaToast, pushNotification, setResultModal])
+  }, [activeBattle, getBattleState, endBattle, endBattleWithoutGold, pushToast, pushNotification, setResultModal])
 }

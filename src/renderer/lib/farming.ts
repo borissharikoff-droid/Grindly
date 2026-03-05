@@ -313,6 +313,70 @@ export async function grantFarmerXP(amount: number): Promise<void> {
   }
 }
 
+// ─── Warrior XP helper ───────────────────────────────────────────────────────
+
+/** Grant XP to the Warrior skill. Writes to both SQLite (via IPC) and localStorage. */
+export async function grantWarriorXP(amount: number): Promise<void> {
+  if (amount <= 0) return
+  const skillId = 'warrior'
+
+  try {
+    const api = (window as Window & typeof globalThis & { electronAPI?: { db?: { addSkillXP?: (id: string, xp: number) => Promise<void> } } }).electronAPI
+    if (api?.db?.addSkillXP) {
+      await api.db.addSkillXP(skillId, amount)
+    }
+  } catch {
+    // ignore IPC errors
+  }
+
+  try {
+    const stored = JSON.parse(localStorage.getItem('grindly_skill_xp') || '{}') as Record<string, number>
+    stored[skillId] = (stored[skillId] ?? 0) + amount
+    localStorage.setItem('grindly_skill_xp', JSON.stringify(stored))
+  } catch {
+    // ignore storage errors
+  }
+}
+
+// ─── Crafter XP helper ───────────────────────────────────────────────────────
+
+/** Grant XP to the Crafter skill. Writes to both SQLite (via IPC) and localStorage. */
+export async function grantCrafterXP(amount: number): Promise<void> {
+  if (amount <= 0) return
+  const skillId = 'crafter'
+
+  try {
+    const api = (window as Window & typeof globalThis & { electronAPI?: { db?: { addSkillXP?: (id: string, xp: number) => Promise<void> } } }).electronAPI
+    if (api?.db?.addSkillXP) {
+      await api.db.addSkillXP(skillId, amount)
+    }
+  } catch {
+    // ignore IPC errors
+  }
+
+  try {
+    const stored = JSON.parse(localStorage.getItem('grindly_skill_xp') || '{}') as Record<string, number>
+    stored[skillId] = (stored[skillId] ?? 0) + amount
+    localStorage.setItem('grindly_skill_xp', JSON.stringify(stored))
+  } catch {
+    // ignore storage errors
+  }
+}
+
+// ─── Plant → Combat buff map ─────────────────────────────────────────────────
+
+export const PLANT_COMBAT_BUFFS: Record<string, { atk: number; hp: number; hpRegen: number }> = {
+  wheat:        { atk: 0,  hp: 5,  hpRegen: 0 },
+  herbs:        { atk: 0,  hp: 0,  hpRegen: 2 },
+  apples:       { atk: 0,  hp: 15, hpRegen: 0 },
+  blossoms:     { atk: 2,  hp: 0,  hpRegen: 0 },
+  clovers:      { atk: 5,  hp: 0,  hpRegen: 0 },
+  orchids:      { atk: 0,  hp: 0,  hpRegen: 4 },
+  star_bloom:   { atk: 8,  hp: 0,  hpRegen: 0 },
+  crystal_root: { atk: 0,  hp: 30, hpRegen: 0 },
+  void_blossom: { atk: 15, hp: 0,  hpRegen: 0 },
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 export function formatGrowTime(seconds: number): string {

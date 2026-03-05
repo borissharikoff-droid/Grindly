@@ -14,6 +14,7 @@ import { publishSocialFeedEvent } from './socialFeed'
 import { CHEST_DEFS } from '../lib/loot'
 import { useNotificationStore } from '../stores/notificationStore'
 import { ensureInventoryHydrated, useInventoryStore } from '../stores/inventoryStore'
+import { rollSessionMaterialDrops } from '../lib/crafting'
 
 export interface AchievementResult {
   streakMultiplier: number
@@ -121,6 +122,22 @@ export async function processAchievementsElectron(
         body: `Sent to Inbox • drop rate ~${estimatedDropRate}%`,
       })
     }
+  }
+
+  // Session crafting material drops — duration-gated supply for the crafting loop
+  const durationHours = session.duration_seconds / 3600
+  const materialDrops = rollSessionMaterialDrops(topCategory, durationHours)
+  if (materialDrops.length > 0) {
+    const inv = useInventoryStore.getState()
+    for (const drop of materialDrops) {
+      inv.addItem(drop.id, drop.qty)
+    }
+    useNotificationStore.getState().push({
+      type: 'progression',
+      icon: '⚒️',
+      title: 'Crafting materials found',
+      body: materialDrops.map((d) => `${d.qty}× ${d.name}`).join(', '),
+    })
   }
 
   for (const ach of newAchievementList) {

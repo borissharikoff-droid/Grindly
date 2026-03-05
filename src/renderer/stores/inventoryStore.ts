@@ -346,7 +346,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     const qty = state.items[itemId] ?? 0
     if (qty <= 0) return
     const item = LOOT_ITEMS.find((x) => x.id === itemId)
-    if (!item || item.slot === 'consumable') return
+    if (!item || item.slot === 'consumable' || item.slot === 'plant') return
     set((prev) => {
       const next: InventoryState = {
         ...prev,

@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CHEST_DEFS, LOOT_ITEMS, LOOT_SOURCE_LABELS, LOOT_SLOTS, POTION_MAX, getItemPower, getItemPerkDescription, type ChestType, type LootSlot } from '../../lib/loot'
-import { computePlayerStats } from '../../lib/combat'
+import { CHEST_DEFS, LOOT_ITEMS, LOOT_SOURCE_LABELS, getItemPerkDescription, type ChestType } from '../../lib/loot'
 import { publishSocialFeedEvent } from '../../services/socialFeed'
-import { SLOT_META, SLOT_LABEL, LootVisual, RARITY_THEME, normalizeRarity } from '../loot/LootUI'
-import { BuffTooltip } from '../shared/BuffTooltip'
+import { SLOT_LABEL, LootVisual, RARITY_THEME, normalizeRarity } from '../loot/LootUI'
+import { CharacterCard } from '../character/CharacterCard'
 import { ensureInventoryHydrated, useInventoryStore } from '../../stores/inventoryStore'
 import { ChestOpenModal } from '../animations/ChestOpenModal'
 import { playClickSound } from '../../lib/sounds'
@@ -23,8 +22,6 @@ export function BackpackPanel({ open, onClose, backpackRef }: BackpackPanelProps
   const chests = useInventoryStore((s) => s.chests)
   const pendingRewards = useInventoryStore((s) => s.pendingRewards)
   const equippedBySlot = useInventoryStore((s) => s.equippedBySlot)
-  const permanentStats = useInventoryStore((s) => s.permanentStats)
-  const playerStats = computePlayerStats(equippedBySlot, permanentStats)
   const claimPendingReward = useInventoryStore((s) => s.claimPendingReward)
   const deletePendingReward = useInventoryStore((s) => s.deletePendingReward)
   const openChestAndGrantItem = useInventoryStore((s) => s.openChestAndGrantItem)
@@ -170,122 +167,12 @@ export function BackpackPanel({ open, onClose, backpackRef }: BackpackPanelProps
               <span className="text-[10px] text-gray-500 font-mono">{slots.length} items</span>
             </div>
 
-            {/* Loadout — identical layout to Arena */}
-            <div className="px-2 pt-2 pb-1">
-              <div className="flex gap-2">
-                {/* Left: gear slots */}
-                {(() => {
-                  const renderSlot = (slot: LootSlot) => {
-                    const meta = SLOT_META[slot]
-                    const item = equippedBySlot[slot]
-                      ? LOOT_ITEMS.find((x) => x.id === equippedBySlot[slot]) ?? null
-                      : null
-                    const theme = item ? RARITY_THEME[normalizeRarity(item.rarity)] : null
-                    const inner = (
-                      <>
-                        <div
-                          className="w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden"
-                          style={theme
-                            ? { background: `radial-gradient(circle at 50% 40%, ${theme.glow}55 0%, rgba(9,9,17,0.95) 70%)` }
-                            : { background: 'rgba(9,9,17,0.85)' }}
-                        >
-                          {item
-                            ? <LootVisual icon={item.icon} image={item.image} className="w-6 h-6 object-contain" scale={item.renderScale ?? 1} />
-                            : <span className="text-[13px] opacity-[0.13]">{meta.icon}</span>}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[7px] text-gray-500 font-mono uppercase tracking-wider leading-none">{meta.label}</p>
-                          <p className={`text-[10px] font-medium truncate mt-0.5 leading-tight ${item ? 'text-white/85' : 'text-gray-600'}`}>
-                            {item ? item.name : 'Empty'}
-                          </p>
-                        </div>
-                        {theme && <div className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: theme.color }} />}
-                      </>
-                    )
-                    return (
-                      <BuffTooltip key={slot} item={item} placement="right" stretch>
-                        <div
-                          className="rounded-md border overflow-hidden h-full"
-                          style={theme
-                            ? { borderColor: theme.border, background: `linear-gradient(135deg, ${theme.glow}10 0%, rgba(12,12,20,0.95) 55%)` }
-                            : { borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(12,12,20,0.70)' }}
-                        >
-                          <div className="h-full px-2 py-3 flex items-center gap-2">{inner}</div>
-                        </div>
-                      </BuffTooltip>
-                    )
-                  }
-                  return (
-                    <div className="flex flex-col gap-1" style={{ flex: '2', minWidth: 0 }}>
-                      {(['head', 'body', 'ring', 'legs'] as LootSlot[]).map((s) => (
-                        <div key={s} className="flex-1 min-h-0">{renderSlot(s)}</div>
-                      ))}
-                    </div>
-                  )
-                })()}
-
-                {/* Right: Stats + Buffs */}
-                <div className="flex-1 min-w-0 rounded-lg border border-white/10 bg-discord-darker/40 p-2 flex flex-col gap-2">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono mb-1.5">Stats</p>
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-gray-400">ATK <span className="text-[9px] text-gray-600">/s</span></span>
-                        <span className={`text-[12px] font-mono font-bold ${permanentStats.atk >= POTION_MAX ? 'text-amber-400' : 'text-red-400'}`}>{playerStats.atk}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-gray-400">HP</span>
-                        <span className={`text-[12px] font-mono font-bold ${permanentStats.hp >= POTION_MAX ? 'text-amber-400' : 'text-green-400'}`}>{playerStats.hp}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-gray-400">Regen <span className="text-[9px] text-gray-600">/s</span></span>
-                        <span className={`text-[12px] font-mono font-bold ${permanentStats.hpRegen >= POTION_MAX ? 'text-amber-400' : 'text-cyan-400'}`}>{playerStats.hpRegen}</span>
-                      </div>
-                      <div className="flex items-center justify-between" title="Total Item Power from equipped gear">
-                        <span className="text-[10px] text-gray-400">IP</span>
-                        <span className="text-[12px] font-mono font-bold text-amber-300">
-                          {LOOT_SLOTS.reduce((sum, s) => { const id = equippedBySlot[s]; if (!id) return sum; const it = LOOT_ITEMS.find((x) => x.id === id); return sum + (it ? getItemPower(it) : 0) }, 0)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono mb-1.5">Buffs</p>
-                    {(() => {
-                      const equippedItems = LOOT_SLOTS.map((slot) => {
-                        const id = equippedBySlot[slot]
-                        if (!id) return null
-                        const it = LOOT_ITEMS.find((x) => x.id === id)
-                        if (!it) return null
-                        return { slot, item: it }
-                      }).filter((e): e is { slot: LootSlot; item: (typeof LOOT_ITEMS)[number] } => Boolean(e))
-                      if (equippedItems.length === 0) {
-                        return <p className="text-[10px] text-gray-600">No gear equipped.</p>
-                      }
-                      return (
-                        <div className="space-y-1.5">
-                          {equippedItems.map(({ slot, item }) => (
-                            <div key={slot} className="rounded-md border border-white/10 bg-discord-card/60 p-1.5">
-                              <div className="flex items-center gap-1.5 mb-0.5">
-                                <span className="text-[8px] font-mono uppercase tracking-wide px-1 py-px rounded border border-white/10 text-gray-500 leading-none flex-shrink-0">
-                                  {SLOT_LABEL[slot]}
-                                </span>
-                                <p className={`text-[9px] font-mono truncate ${item.perkType !== 'cosmetic' ? 'text-cyber-neon' : 'text-gray-400'}`}>
-                                  {item.name}
-                                </p>
-                              </div>
-                              <p className="text-[9px] text-gray-300 leading-snug">{getItemPerkDescription(item)}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )
-                    })()}
-                  </div>
-                </div>
-              </div>
+            {/* Character */}
+            <div className="px-2 pt-2">
+              <CharacterCard />
             </div>
 
-            <div className="mx-2 mt-1 border-t border-white/[0.06]" />
+            <div className="mx-2 mt-2 border-t border-white/[0.06]" />
 
             {slots.length === 0 ? (
               <div className="flex items-center justify-center py-6">
@@ -479,6 +366,7 @@ export function BackpackPanel({ open, onClose, backpackRef }: BackpackPanelProps
         goldDropped={openChestModal?.goldDropped}
         onClose={() => setOpenChestModal(null)}
       />
+
     </>
   )
 }

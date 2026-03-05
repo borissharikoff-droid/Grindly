@@ -1,5 +1,5 @@
 export type LootRarity = 'common' | 'rare' | 'epic' | 'legendary' | 'mythic'
-export type LootSlot = 'head' | 'body' | 'legs' | 'ring' | 'weapon' | 'consumable' | 'plant'
+export type LootSlot = 'head' | 'body' | 'legs' | 'ring' | 'weapon' | 'consumable' | 'plant' | 'material'
 export const LOOT_SLOTS: LootSlot[] = ['head', 'body', 'legs', 'ring', 'weapon']
 
 export const POTION_IDS = ['atk_potion', 'hp_potion', 'regen_potion'] as const
@@ -80,12 +80,12 @@ export function getItemPower(item: Pick<LootItemDef, 'rarity' | 'slot' | 'perkTy
   return Math.round((base + statPower) * slotMult)
 }
 
-/** Gold drop range per chest type (anti-inflation, small amounts) */
+/** Gold drop range per chest type */
 export const GOLD_BY_CHEST: Record<ChestType, { min: number; max: number }> = {
-  common_chest: { min: 1, max: 2 },
-  rare_chest: { min: 2, max: 5 },
-  epic_chest: { min: 5, max: 10 },
-  legendary_chest: { min: 10, max: 20 },
+  common_chest: { min: 15, max: 30 },
+  rare_chest: { min: 30, max: 75 },
+  epic_chest: { min: 75, max: 150 },
+  legendary_chest: { min: 150, max: 300 },
 }
 
 export function getChestGoldDrop(chestType: ChestType): number {
@@ -244,6 +244,8 @@ const INLINE_LOOT_IMAGES = {
   prism_aura: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAUklEQVR4nO3SwQkAMAgEweu/6cs3zyiCGnYacFElIMCP9F2Ak/YHuMjOABcjQJwgyjxhMU6gDHetf0zArWXoqAAA3zr8f1rsi8KuMQAAAABJRU5ErkJggg==',
 } as const
 
+import { CRAFT_LOOT_ITEMS, CRAFT_INTERMEDIATE_ITEMS } from './crafting'
+
 export const LOOT_ITEMS: LootItemDef[] = [
   // Potions (consumable)
   {
@@ -290,6 +292,32 @@ export const LOOT_ITEMS: LootItemDef[] = [
   { id: 'star_bloom',   name: 'Star Bloom',   slot: 'plant', rarity: 'legendary', icon: '🌟', description: 'A radiant bloom said to hold cosmic energy.',    perkType: 'harvested_plant', perkValue: 0, perkDescription: 'Farm harvest. Sell on the Marketplace.' },
   { id: 'crystal_root', name: 'Crystal Root', slot: 'plant', rarity: 'legendary', icon: '💎', description: 'A crystalline root pulsing with energy.',        perkType: 'harvested_plant', perkValue: 0, perkDescription: 'Farm harvest. Sell on the Marketplace.' },
   { id: 'void_blossom', name: 'Void Blossom', slot: 'plant', rarity: 'mythic',   icon: '🔮', description: 'A flower from beyond — grown from a Void Spore.', perkType: 'harvested_plant', perkValue: 0, perkDescription: 'Farm harvest. Sell on the Marketplace.' },
+
+  // Arena materials (dropped by dungeon mobs)
+  { id: 'slime_gel',    name: 'Slime Gel',    slot: 'plant', rarity: 'common',    icon: '🫧', description: 'Dropped by slimes. Sell on the Marketplace.',    perkType: 'harvested_plant', perkValue: 0, perkDescription: 'Dropped by slimes. Sell on the Marketplace.' },
+  { id: 'goblin_tooth', name: 'Goblin Tooth', slot: 'plant', rarity: 'common',    icon: '🦷', description: 'Dropped by goblins. Sell on the Marketplace.',  perkType: 'harvested_plant', perkValue: 0, perkDescription: 'Dropped by goblins. Sell on the Marketplace.' },
+  { id: 'wolf_fang',    name: 'Wolf Fang',    slot: 'plant', rarity: 'rare',      icon: '🐺', description: 'Dropped by wolves. Sell on the Marketplace.',   perkType: 'harvested_plant', perkValue: 0, perkDescription: 'Dropped by wolves. Sell on the Marketplace.' },
+  { id: 'orc_shard',    name: 'Orc Shard',    slot: 'plant', rarity: 'rare',      icon: '🪨', description: 'Dropped by orcs. Sell on the Marketplace.',     perkType: 'harvested_plant', perkValue: 0, perkDescription: 'Dropped by orcs. Sell on the Marketplace.' },
+  { id: 'troll_hide',   name: 'Troll Hide',   slot: 'plant', rarity: 'epic',      icon: '🧌', description: 'Dropped by trolls. Sell on the Marketplace.',   perkType: 'harvested_plant', perkValue: 0, perkDescription: 'Dropped by trolls. Sell on the Marketplace.' },
+  { id: 'dragon_scale', name: 'Dragon Scale', slot: 'plant', rarity: 'legendary', icon: '🐉', description: 'Dropped by dragons. Sell on the Marketplace.',  perkType: 'harvested_plant', perkValue: 0, perkDescription: 'Dropped by dragons. Sell on the Marketplace.' },
+
+  // Boss-exclusive materials (guaranteed drop from specific bosses)
+  { id: 'warlord_sigil', name: 'Warlord Sigil', slot: 'material', rarity: 'epic',      icon: '🔱', description: 'Torn from the Orc Warlord. Pulses with brutal energy.',   perkType: 'cosmetic', perkValue: 0, perkDescription: 'Boss material — Orc Warlord' },
+  { id: 'troll_heart',   name: 'Troll Heart',   slot: 'material', rarity: 'legendary', icon: '💜', description: 'A still-beating heart ripped from the Troll Overlord.',    perkType: 'cosmetic', perkValue: 0, perkDescription: 'Boss material — Troll Overlord' },
+  { id: 'dragon_heart',  name: 'Dragon Heart',  slot: 'material', rarity: 'legendary', icon: '❤️‍🔥', description: 'The blazing core of the Ancient Dragon. Immense power.', perkType: 'cosmetic', perkValue: 0, perkDescription: 'Boss material — Ancient Dragon' },
+
+  // Crafting materials — drop from chests/bosses, consumed by craft recipes
+  { id: 'ore_iron',      name: 'Iron Ore',      slot: 'material', rarity: 'common',    icon: '🪨', description: 'Raw iron ore. Used in basic smithing recipes.',           perkType: 'cosmetic', perkValue: 0, perkDescription: 'Crafting material' },
+  { id: 'monster_fang',  name: 'Monster Fang',  slot: 'material', rarity: 'common',    icon: '🦷', description: 'A sharp fang dropped by arena monsters.',                 perkType: 'cosmetic', perkValue: 0, perkDescription: 'Crafting material' },
+  { id: 'magic_essence', name: 'Magic Essence', slot: 'material', rarity: 'rare',      icon: '💧', description: 'Distilled magical residue from powerful creatures.',       perkType: 'cosmetic', perkValue: 0, perkDescription: 'Crafting material' },
+  { id: 'ancient_scale', name: 'Ancient Scale', slot: 'material', rarity: 'rare',      icon: '🐉', description: 'A scale shed by an ancient beast. Tough and magical.',    perkType: 'cosmetic', perkValue: 0, perkDescription: 'Crafting material' },
+  { id: 'void_crystal',  name: 'Void Crystal',  slot: 'material', rarity: 'epic',      icon: '🔮', description: 'A crystallised fragment of the void. Immense power.',     perkType: 'cosmetic', perkValue: 0, perkDescription: 'Crafting material' },
+
+  // Intermediate crafting materials (smelted/refined from raw drops, used in gear recipes)
+  ...CRAFT_INTERMEDIATE_ITEMS,
+
+  // Crafted gear items (defined in crafting.ts, registered here so all inventory/marketplace lookups work)
+  ...CRAFT_LOOT_ITEMS,
 ]
 export const CHEST_DEFS: Record<ChestType, ChestDef> = {
   common_chest: {
@@ -298,7 +326,10 @@ export const CHEST_DEFS: Record<ChestType, ChestDef> = {
     icon: '📦',
     image: 'loot/chest_t1_user.png',
     rarity: 'common',
-    itemWeights: [],
+    itemWeights: [
+      { itemId: 'ore_iron',     weight: 5 },
+      { itemId: 'monster_fang', weight: 4 },
+    ],
   },
   rare_chest: {
     id: 'rare_chest',
@@ -306,8 +337,10 @@ export const CHEST_DEFS: Record<ChestType, ChestDef> = {
     icon: '🎁',
     image: 'loot/chest_t2_user.png',
     rarity: 'rare',
-    // ~84% rare · ~14% epic · ~2% legendary · 0% common/mythic
     itemWeights: [
+      { itemId: 'ore_iron',      weight: 3 },
+      { itemId: 'monster_fang',  weight: 3 },
+      { itemId: 'magic_essence', weight: 3 },
     ],
   },
   epic_chest: {
@@ -316,11 +349,12 @@ export const CHEST_DEFS: Record<ChestType, ChestDef> = {
     icon: '🪙',
     image: 'loot/chest_bw_test.png',
     rarity: 'epic',
-    // ~84% epic · ~15% legendary · ~0.5% mythic potions · ~0.1% mythic gear
     itemWeights: [
-      { itemId: 'atk_potion', weight: 1 },
-      { itemId: 'hp_potion', weight: 1 },
-      { itemId: 'regen_potion', weight: 1 },
+      { itemId: 'magic_essence', weight: 3 },
+      { itemId: 'ancient_scale', weight: 3 },
+      { itemId: 'atk_potion',    weight: 1 },
+      { itemId: 'hp_potion',     weight: 1 },
+      { itemId: 'regen_potion',  weight: 1 },
     ],
   },
   legendary_chest: {
@@ -331,9 +365,11 @@ export const CHEST_DEFS: Record<ChestType, ChestDef> = {
     rarity: 'legendary',
     // ~93% legendary · ~4% mythic potions · ~2% mythic gear
     itemWeights: [
-      { itemId: 'atk_potion', weight: 3 },
-      { itemId: 'hp_potion', weight: 3 },
-      { itemId: 'regen_potion', weight: 3 },
+      { itemId: 'ancient_scale', weight: 2 },
+      { itemId: 'void_crystal',  weight: 2 },
+      { itemId: 'atk_potion',    weight: 3 },
+      { itemId: 'hp_potion',     weight: 3 },
+      { itemId: 'regen_potion',  weight: 3 },
     ],
   },
 }

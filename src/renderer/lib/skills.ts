@@ -50,6 +50,8 @@ export const SKILLS: SkillDef[] = [
   { id: 'learner', name: 'Learner', icon: '📚', color: '#00d4ff', category: 'learning' },
   { id: 'listener', name: 'Listener', icon: '🎵', color: '#1db954', category: 'music' },
   { id: 'farmer', name: 'Farmer', icon: '🌾', color: '#84cc16', category: 'farming' },
+  { id: 'warrior', name: 'Warrior', icon: '⚔️', color: '#EF4444', category: 'warrior' },
+  { id: 'crafter', name: 'Crafter', icon: '⚒️', color: '#f97316', category: 'crafting' },
 ]
 
 /** Max total skill level (all skills at 99). */
@@ -66,7 +68,9 @@ const CATEGORY_TO_SKILL: Record<string, string> = {
   learning: 'learner',
   music: 'listener',
   farming: 'farmer',
-  other: 'researcher',
+  warrior:  'warrior',
+  crafting: 'crafter',
+  other:    'researcher',
 }
 
 export function categoryToSkillId(category: string): string {

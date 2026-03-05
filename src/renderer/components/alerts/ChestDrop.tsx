@@ -43,7 +43,8 @@ export function ChestDrop() {
               type: 'progression',
               icon: liveChest.icon,
               title: `Missed bag: ${liveChest.name}`,
-              body: 'You can open it later from Backpack.',
+              body: 'Tap Open to claim it now.',
+              chestReward: { rewardId: liveTop.rewardId, chestType: liveTop.chestType },
             })
           }
           useChestDropStore.getState().shift()

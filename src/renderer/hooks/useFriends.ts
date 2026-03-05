@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import { checkSocialAchievements } from '../lib/xp'
 import { useAlertStore } from '../stores/alertStore'
-import { useFriendToastStore } from '../stores/friendToastStore'
+import { useToastStore } from '../stores/toastStore'
 import { useNavBadgeStore } from '../stores/navBadgeStore'
 import { routeNotification } from '../services/notificationRouter'
 import { grantAchievementCosmetics } from '../services/rewardGrant'
@@ -86,7 +86,7 @@ export function useFriends() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const pushAlert = useAlertStore((s) => s.push)
-  const pushFriendToast = useFriendToastStore((s) => s.push)
+  const pushToast = useToastStore((s) => s.push)
   const previousFriendsRef = useRef<FriendProfile[] | null>(null)
   const getFriendsCacheKey = useCallback(() => (user ? `grindly_friends_cache_${user.id}` : null), [user])
 
@@ -261,7 +261,7 @@ export function useFriends() {
         for (const friend of friendList) {
           const p = prev.find((x) => x.id === friend.id)
           if (!p?.is_online && friend.is_online) {
-            pushFriendToast({ type: 'online', friendName: name(friend) })
+            pushToast({ kind: 'friend_online', friendName: name(friend) })
           }
           const prevLevel = p?.total_skill_level ?? 0
           const newLevel = friend.total_skill_level ?? 0
@@ -387,7 +387,7 @@ export function useFriends() {
     } finally {
       setLoading(false)
     }
-  }, [user, pushAlert, pushFriendToast, getFriendsCacheKey])
+  }, [user, pushAlert, pushToast, getFriendsCacheKey])
 
   const acceptRequest = useCallback(async (friendshipId: string) => {
     if (!supabase) return

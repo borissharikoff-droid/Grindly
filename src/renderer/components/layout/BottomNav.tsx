@@ -21,6 +21,7 @@ const SECONDARY_TABS: { id: TabId; icon: string; label: string }[] = [
   { id: 'marketplace', icon: '🛒', label: 'Market'    },
   { id: 'arena',       icon: '⚔️', label: 'Arena'     },
   { id: 'farm',        icon: '🌱', label: 'Farm'      },
+  { id: 'craft',       icon: '⚒️', label: 'Craft'     },
   { id: 'profile',     icon: '👤', label: 'Profile'   },
   { id: 'settings',    icon: '⚙',  label: 'Settings'  },
 ]

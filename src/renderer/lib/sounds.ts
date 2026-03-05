@@ -237,6 +237,83 @@ export function playResumeSound() {
   setTimeout(() => playTone(554, 0.15, 'sine', cachedVolume), 80)
 }
 
+export function playChestOpeningSound(rarity: string) {
+  loadSettings()
+  if (cachedMuted) return
+  const ctx = getAudioCtx()
+  const key = String(rarity || '').toLowerCase()
+
+  // Deep bass thud helper
+  function playThud(freqHz: number, gainMul: number, delayMs: number) {
+    setTimeout(() => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(freqHz, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(freqHz * 0.6, ctx.currentTime + 0.18)
+      gain.gain.setValueAtTime(cachedVolume * gainMul, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22)
+      osc.connect(gain); gain.connect(ctx.destination)
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.22)
+    }, delayMs)
+  }
+
+  if (key === 'legendary' || key === 'mythic') {
+    // Deep bass rumble (80Hz sawtooth)
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sawtooth'
+    osc.frequency.setValueAtTime(80, ctx.currentTime)
+    gain.gain.setValueAtTime(cachedVolume * 0.38, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.1)
+    osc.connect(gain); gain.connect(ctx.destination)
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 1.15)
+    // Rising harmonic chord buildup
+    ;[220, 330, 440, 550, 660].forEach((freq, i) => {
+      setTimeout(() => playTone(freq, 0.22, 'triangle', cachedVolume * (0.28 + i * 0.04)), i * 200)
+    })
+    return
+  }
+
+  if (key === 'epic') {
+    // Double thud + whoosh sweep
+    playThud(120, 0.32, 0)
+    playThud(110, 0.28, 120)
+    setTimeout(() => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(150, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(350, ctx.currentTime + 0.38)
+      gain.gain.setValueAtTime(cachedVolume * 0.22, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.42)
+      osc.connect(gain); gain.connect(ctx.destination)
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.45)
+    }, 60)
+    return
+  }
+
+  if (key === 'rare') {
+    // Low thud + short rising sweep
+    playThud(120, 0.22, 0)
+    setTimeout(() => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(120, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.28)
+      gain.gain.setValueAtTime(cachedVolume * 0.16, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+      osc.connect(gain); gain.connect(ctx.destination)
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.32)
+    }, 40)
+    return
+  }
+
+  // common: single quiet low thud
+  playThud(120, 0.18, 0)
+}
+
 export function setSoundVolume(volume: number) {
   cachedVolume = Math.max(0, Math.min(1, volume))
   localStorage.setItem('grindly_sound_volume', String(cachedVolume))

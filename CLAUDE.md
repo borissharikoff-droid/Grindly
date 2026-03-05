@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Grindly is a Windows desktop productivity tracker built with Electron + React + TypeScript. It monitors active window usage, categorizes activities into skills, and provides gamification (XP, levels, streaks, achievements). Social features (friends, chat, leaderboard) are powered by Supabase. Optional AI session analysis via DeepSeek.
+Grindly is a Windows desktop productivity tracker built with Electron + React + TypeScript. It monitors active window usage, categorizes activities into skills, and provides gamification (XP, levels, streaks, achievements). Social features (friends, chat, leaderboard) are powered by Supabase. Optional AI session analysis via DeepSeek. There is also a web admin dashboard deployed on Railway. Always consider both client and dashboard when making changes.
 
 ## Commands
 
@@ -82,3 +82,24 @@ Copy `.env.example` to `.env`. Supabase keys are optional (social features disab
 - `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` — renderer Supabase client
 - `SUPABASE_URL` / `SUPABASE_ANON_KEY` — main process Supabase access
 - `DEEPSEEK_API_KEY` — optional AI analysis
+
+## UI/Design Guidelines
+
+- When creating UI components, prefer a clean, compact MMO/RPG style. Avoid flashy, over-engineered designs. Keep slots small and square, prioritize stats/data readability over decorative art.
+
+## Code Style
+
+- Always create shared/reusable components instead of duplicating code inline. If the same UI exists in multiple pages, extract it into a shared component.
+- When generating JavaScript strings in templates (e.g., for dashboard HTML), always escape quotes properly. Test that generated JS is syntactically valid.
+
+## Code Changes
+
+- When removing a function or feature, grep for all references across the entire codebase before deleting. Never remove an export without checking all import sites.
+
+## Zustand Selectors
+
+- Never return a new object/array reference directly from a selector. Use shallow comparison or select individual fields to avoid infinite re-render loops.
+
+## Deployment
+
+- For Railway deployments: ensure all runtime dependencies (e.g., dotenv) are in `dependencies` not `devDependencies`. After pushing, verify the build triggers. If auto-deploy doesn't fire, push a follow-up commit.
