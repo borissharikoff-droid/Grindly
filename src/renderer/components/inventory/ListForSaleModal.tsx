@@ -31,6 +31,7 @@ export function ListForSaleModal({ itemId, onClose, onListed, maxQty = 1, onDedu
   const farmItem = !lootItem ? getFarmItemDisplay(itemId) : null
   const displayName = lootItem?.name ?? farmItem?.name ?? itemId
   const isBlocked = MARKETPLACE_BLOCKED_ITEMS.includes(itemId)
+  const noStock = maxQty <= 0
   const priceNum = Math.max(1, Math.floor(Number(price) || 0))
   const commission = Math.max(1, Math.ceil(priceNum * qty * 0.05))
   const clampedMaxQty = Math.max(1, maxQty)
@@ -92,6 +93,9 @@ export function ListForSaleModal({ itemId, onClose, onListed, maxQty = 1, onDedu
         {isBlocked && (
           <p className="text-[11px] text-red-400 mb-2">This item cannot be listed on the marketplace.</p>
         )}
+        {noStock && (
+          <p className="text-[11px] text-red-400 mb-2">No sellable copies — your equipped item is reserved.</p>
+        )}
 
         {clampedMaxQty > 1 && (
           <div className="mb-3">
@@ -138,7 +142,7 @@ export function ListForSaleModal({ itemId, onClose, onListed, maxQty = 1, onDedu
           <button
             type="button"
             onClick={handleList}
-            disabled={loading || !price.trim() || priceNum < 1 || gold < commission || isBlocked}
+            disabled={loading || !price.trim() || priceNum < 1 || gold < commission || isBlocked || noStock}
             className="flex-1 py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-semibold hover:bg-amber-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Listing...' : `List${qty > 1 ? ` ×${qty}` : ''}`}

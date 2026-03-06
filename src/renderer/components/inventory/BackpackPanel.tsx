@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CHEST_DEFS, LOOT_ITEMS, LOOT_SOURCE_LABELS, getItemPerkDescription, type ChestType } from '../../lib/loot'
+import { CHEST_DEFS, LOOT_ITEMS, LOOT_SOURCE_LABELS, MARKETPLACE_BLOCKED_ITEMS, getItemPerkDescription, type ChestType } from '../../lib/loot'
 import { publishSocialFeedEvent } from '../../services/socialFeed'
+import { syncInventoryToSupabase } from '../../services/supabaseSync'
+import { ListForSaleModal } from './ListForSaleModal'
 import { SLOT_LABEL, LootVisual, RARITY_THEME, normalizeRarity } from '../loot/LootUI'
 import { CharacterCard } from '../character/CharacterCard'
 import { ensureInventoryHydrated, useInventoryStore } from '../../stores/inventoryStore'
@@ -34,6 +36,7 @@ export function BackpackPanel({ open, onClose, backpackRef }: BackpackPanelProps
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; slotId: string } | null>(null)
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<SlotEntry | null>(null)
+  const [listForSaleTarget, setListForSaleTarget] = useState<string | null>(null)
 
   type SlotEntry =
     | { id: string; kind: 'pending'; icon: string; image?: string; title: string; subtitle: string; quantity: number; rewardId: string; chestType: ChestType }
@@ -304,6 +307,11 @@ export function BackpackPanel({ open, onClose, backpackRef }: BackpackPanelProps
             <button type="button" onClick={() => { runPrimaryAction(slot); setContextMenu(null) }} className="block w-full text-left text-[11px] px-2 py-1 rounded text-cyber-neon hover:bg-cyber-neon/15 transition-colors">
               {slot.kind === 'pending' ? 'claim' : slot.kind === 'chest' ? 'open' : slot.equipped ? 'equip (refresh)' : 'equip'}
             </button>
+            {slot.kind === 'item' && !MARKETPLACE_BLOCKED_ITEMS.includes(slot.itemId) && (!slot.equipped || slot.quantity > 1) && (
+              <button type="button" onClick={() => { playClickSound(); setListForSaleTarget(slot.itemId); setContextMenu(null) }} className="block w-full text-left text-[11px] px-2 py-1 rounded text-amber-300 hover:bg-amber-500/15 transition-colors">
+                sell{slot.equipped ? ` (${slot.quantity - 1})` : ''}
+              </button>
+            )}
             <button type="button" onClick={() => { setDeleteConfirmTarget(slot); setContextMenu(null) }} className="block w-full text-left text-[11px] px-2 py-1 rounded text-red-300 hover:bg-red-400/10 transition-colors">
               delete
             </button>
@@ -360,6 +368,25 @@ export function BackpackPanel({ open, onClose, backpackRef }: BackpackPanelProps
           </AnimatePresence>,
           document.body,
         )}
+      {listForSaleTarget && (
+        <ListForSaleModal
+          itemId={listForSaleTarget}
+          maxQty={(() => {
+            const { items: inv, equippedBySlot: eq } = useInventoryStore.getState()
+            const total = inv[listForSaleTarget] ?? 0
+            const loot = LOOT_ITEMS.find((x) => x.id === listForSaleTarget)
+            const isEquipped = loot && eq[loot.slot] === listForSaleTarget
+            return isEquipped ? total - 1 : total
+          })()}
+          onClose={() => setListForSaleTarget(null)}
+          onListed={async () => {
+            const { items: inv, chests: ch } = useInventoryStore.getState()
+            const { seeds, seedZips } = useFarmStore.getState()
+            await syncInventoryToSupabase(inv, ch, { merge: false, seeds, seedZips }).catch(() => {})
+            setListForSaleTarget(null)
+          }}
+        />
+      )}
       <ChestOpenModal
         open={Boolean(openChestModal)}
         chestType={openChestModal?.chestType ?? null}

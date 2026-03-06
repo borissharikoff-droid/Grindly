@@ -883,13 +883,13 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
                           </button>
                         )
                       })()}
-                      {inspectSlot.kind === 'item' && !inspectSlot.equipped && !MARKETPLACE_BLOCKED_ITEMS.includes(inspectSlot.itemId) && (
+                      {inspectSlot.kind === 'item' && !MARKETPLACE_BLOCKED_ITEMS.includes(inspectSlot.itemId) && (!inspectSlot.equipped || inspectSlot.quantity > 1) && (
                         <button
                           type="button"
                           onClick={() => { playClickSound(); setListForSaleTarget(inspectSlot.itemId); setInspectSlotId(null) }}
                           className="flex-1 text-[10px] py-1.5 rounded-lg border border-amber-500/35 text-amber-300 hover:bg-amber-500/12 font-semibold transition-all active:scale-[0.97]"
                         >
-                          Sell
+                          Sell{inspectSlot.equipped ? ` (${inspectSlot.quantity - 1})` : ''}
                         </button>
                       )}
                       <button
@@ -966,7 +966,7 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
                       </button>
                     )
                   })()}
-                  {slot.kind === 'item' && !slot.equipped && !MARKETPLACE_BLOCKED_ITEMS.includes(slot.itemId) && (
+                  {slot.kind === 'item' && !MARKETPLACE_BLOCKED_ITEMS.includes(slot.itemId) && (!slot.equipped || slot.quantity > 1) && (
                     <button
                       type="button"
                       onClick={() => {
@@ -976,7 +976,7 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
                       }}
                       className="block w-full text-left text-[11px] px-2 py-1 rounded text-amber-300 hover:bg-amber-500/15"
                     >
-                      List for sale
+                      List for sale{slot.equipped ? ` (${slot.quantity - 1})` : ''}
                     </button>
                   )}
                   <button
@@ -1001,7 +1001,13 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
         {listForSaleTarget && (
           <ListForSaleModal
             itemId={listForSaleTarget}
-            maxQty={useInventoryStore.getState().items[listForSaleTarget] ?? 1}
+            maxQty={(() => {
+              const { items: inv, equippedBySlot: eq } = useInventoryStore.getState()
+              const total = inv[listForSaleTarget] ?? 0
+              const loot = LOOT_ITEMS.find((x) => x.id === listForSaleTarget)
+              const isEquipped = loot && eq[loot.slot] === listForSaleTarget
+              return isEquipped ? total - 1 : total
+            })()}
             onClose={() => setListForSaleTarget(null)}
             onListed={async () => {
               const { items, chests } = useInventoryStore.getState()
