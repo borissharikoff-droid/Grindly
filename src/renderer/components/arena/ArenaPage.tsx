@@ -191,7 +191,9 @@ function ZoneCard({
               <span className="text-[8px] text-gray-500 font-mono mx-0.5">›</span>
               <span className={`text-sm leading-none transition-all ${isBossFight ? '' : 'opacity-50'}`}
                 style={isBossFight ? { filter: 'drop-shadow(0 0 4px gold)' } : undefined}>
-                👑
+                {zone.boss.image
+                  ? <img src={zone.boss.image} alt="" className="w-4 h-4 object-contain inline" />
+                  : zone.boss.icon}
               </span>
               {!unlocked && reqTexts.length > 0 && (
                 <span className="ml-2 text-[9px] text-amber-400/80 font-mono">{reqTexts.join(' · ')}</span>
