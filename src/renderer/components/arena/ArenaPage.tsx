@@ -154,7 +154,9 @@ function ZoneCard({
               ? { borderColor: `${tc}40`, background: `${tc}18` }
               : { borderColor: 'rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.07)' }}
           >
-            {zone.icon}
+            {zone.image
+              ? <img src={zone.image} alt="" className="w-8 h-8 object-contain" />
+              : zone.icon}
           </div>
 
           {/* Zone info */}
@@ -180,7 +182,9 @@ function ZoneCard({
                   <span key={mob.id} className={`text-sm leading-none transition-all ${done ? 'opacity-40' : current ? '' : 'opacity-60'}`}
                     style={current ? { filter: `drop-shadow(0 0 4px ${tc})` } : undefined}
                   >
-                    {mob.icon}
+                    {mob.image
+                      ? <img src={mob.image} alt="" className="w-4 h-4 object-contain inline" />
+                      : mob.icon}
                   </span>
                 )
               })}
@@ -320,7 +324,9 @@ function ZoneCard({
                       filter: `drop-shadow(0 0 8px ${isBossFight ? 'rgba(251,191,36,0.5)' : `${tc}66`})`,
                     }}
                   >
-                    {currentEnemy.icon}
+                    {currentEnemy.image
+                      ? <img src={currentEnemy.image} alt="" className="w-12 h-12 object-contain" />
+                      : currentEnemy.icon}
                   </span>
                   <span
                     className="text-[8px] font-mono tabular-nums leading-none"

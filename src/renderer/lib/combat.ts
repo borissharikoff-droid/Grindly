@@ -32,6 +32,8 @@ export interface MobDef {
   id: string
   name: string
   icon: string
+  /** Optional uploaded image (base64 data URL). Shown when set, falls back to icon. */
+  image?: string
   hp: number
   atk: number
   xpReward: number
@@ -47,6 +49,8 @@ export interface ZoneDef {
   id: string
   name: string
   icon: string
+  /** Optional uploaded image (base64 data URL). Shown when set, falls back to icon. */
+  image?: string
   themeColor: string
   mobs: [MobDef, MobDef, MobDef]
   boss: BossDef

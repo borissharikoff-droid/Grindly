@@ -4,7 +4,7 @@
  */
 import { CHEST_DEFS, type LootItemDef, type LootItemPerk, type LootRarity, type LootSlot, type ChestType } from './loot'
 import { SEED_ZIP_LABELS, SEED_ZIP_ICONS, SEED_ZIP_IMAGES, type SeedZipTier } from './farming'
-import type { BossDef } from './combat'
+import type { BossDef, ZoneDef } from './combat'
 
 const STORAGE_KEY = 'grindly_admin_config'
 
@@ -59,6 +59,30 @@ export interface AdminConfig {
   chestWeightOverrides?: Record<string, ChestWeightEntry[]>
   chestOverrides?: Record<string, { icon?: string; image?: string }>
   seedZipOverrides?: Record<string, { name?: string; icon?: string; image?: string }>
+  zoneOverrides?: Record<string, {
+    name?: string
+    icon?: string
+    image?: string
+    mobs?: Record<string, {
+      name?: string
+      icon?: string
+      image?: string
+      hp?: number
+      atk?: number
+      xpReward?: number
+      goldMin?: number
+      goldMax?: number
+      materialDropId?: string
+      materialDropChance?: number
+      materialDropQty?: number
+    }>
+  }>
+  craftOverrides?: Record<string, {
+    levelRequired?: number
+    xpPerItem?: number
+    craftTimeSeconds?: number
+    ingredients?: Record<string, number>
+  }>
 }
 
 export function loadAdminConfig(): AdminConfig {
@@ -94,8 +118,8 @@ export async function syncAdminConfigFromSupabase(
   }
 }
 
-/** Apply overrides to LOOT_ITEMS and BOSSES arrays in-place. Call once at app startup. */
-export function applyAdminConfig(items: LootItemDef[], bosses: BossDef[]): void {
+/** Apply overrides to LOOT_ITEMS, BOSSES, ZONES, and CRAFT_RECIPES in-place. Call once at app startup. */
+export function applyAdminConfig(items: LootItemDef[], bosses: BossDef[], zones?: ZoneDef[], craftRecipes?: { id: string; levelRequired: number; xpPerItem: number; secPerItem: number; ingredients: { id: string; qty: number }[] }[]): void {
   const cfg = loadAdminConfig()
 
   // Patch existing items
@@ -166,6 +190,37 @@ export function applyAdminConfig(items: LootItemDef[], bosses: BossDef[]): void 
     if (chest) {
       if (ov.icon) chest.icon = ov.icon
       if (ov.image) chest.image = ov.image
+    }
+  }
+
+  // Apply zone & mob overrides
+  if (zones) {
+    for (const [zoneId, zOv] of Object.entries(cfg.zoneOverrides ?? {})) {
+      const zone = zones.find((z) => z.id === zoneId)
+      if (!zone) continue
+      if (zOv.name) zone.name = zOv.name
+      if (zOv.icon) zone.icon = zOv.icon
+      if (zOv.image) zone.image = zOv.image
+      for (const [mobId, mOv] of Object.entries(zOv.mobs ?? {})) {
+        const mob = zone.mobs.find((m) => m.id === mobId)
+        if (mob) Object.assign(mob, mOv)
+      }
+    }
+  }
+
+  // Apply craft recipe overrides
+  if (craftRecipes) {
+    for (const [recipeId, rOv] of Object.entries(cfg.craftOverrides ?? {})) {
+      const recipe = craftRecipes.find((r) => r.id === recipeId)
+      if (!recipe) continue
+      if (rOv.levelRequired !== undefined) recipe.levelRequired = rOv.levelRequired
+      if (rOv.xpPerItem !== undefined) recipe.xpPerItem = rOv.xpPerItem
+      if (rOv.craftTimeSeconds !== undefined) recipe.secPerItem = rOv.craftTimeSeconds
+      if (rOv.ingredients) {
+        for (const ing of recipe.ingredients) {
+          if (rOv.ingredients[ing.id] !== undefined) ing.qty = rOv.ingredients[ing.id]
+        }
+      }
     }
   }
 }

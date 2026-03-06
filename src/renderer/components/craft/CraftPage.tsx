@@ -18,6 +18,7 @@ import { MOTION } from '../../lib/motion'
 import { PageHeader } from '../shared/PageHeader'
 import { BackpackButton } from '../shared/BackpackButton'
 import { InventoryPage } from '../inventory/InventoryPage'
+import { LootVisual } from '../loot/LootUI'
 
 const CRAFT_COLOR = '#f97316'
 const QTY_PRESETS = [1, 10, 50, 100, 500]
@@ -62,7 +63,7 @@ function ActiveJob({ onCancel }: { onCancel: (id: string) => void }) {
       <div className="flex items-center gap-2.5">
         <div className="w-9 h-9 rounded-lg border flex items-center justify-center text-lg shrink-0"
           style={{ borderColor: theme.border, background: `${theme.glow}38` }}>
-          {output?.icon ?? '⚒️'}
+          {output ? <LootVisual icon={output.icon} image={output.image} className="w-6 h-6 object-contain" /> : '⚒️'}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[12px] font-semibold text-white">{output?.name}</p>
@@ -131,7 +132,7 @@ function RecipeCard({
         {/* Output icon */}
         <div className="w-10 h-10 rounded-lg border flex items-center justify-center text-xl shrink-0"
           style={{ borderColor: theme.border, background: `${theme.glow}30` }}>
-          {output.icon}
+          <LootVisual icon={output.icon} image={output.image} className="w-7 h-7 object-contain" />
         </div>
 
         {/* Info */}
@@ -184,7 +185,7 @@ function RecipeCard({
                       className="flex items-center gap-2 rounded-lg px-2 py-1.5"
                       style={{ background: ok ? 'rgba(132,204,22,0.10)' : 'rgba(255,255,255,0.05)' }}
                     >
-                      <span className="text-sm leading-none">{def?.icon ?? '?'}</span>
+                      {def ? <LootVisual icon={def.icon} image={def.image} className="w-4 h-4 object-contain" /> : <span className="text-sm leading-none">?</span>}
                       <span className="flex-1 text-[11px] text-gray-300 truncate">{def?.name ?? ing.id}</span>
                       <span className="text-[9px] font-mono shrink-0" style={{ color: ingTheme.color }}>
                         {def?.rarity}
@@ -292,13 +293,18 @@ export function CraftPage() {
   const crafterLevel = skillLevelFromXP(craftXp ?? 0)
 
   const handleStart = useCallback((recipe: CraftRecipe, qty: number) => {
+    // Cancel active job + queue so the new craft replaces them
+    const { activeJob: curJob, queue: curQueue } = useCraftingStore.getState()
+    if (curJob) cancelJob(curJob.id, (id, q) => addItem(id, q))
+    for (const q of curQueue) cancelJob(q.id, (id, q2) => addItem(id, q2))
+
     const result = startCraft(recipe.id, qty, items, (id, q) => deleteItem(id, q))
     if (result === 'ok') {
       setExpandedId(null)
       const output = CRAFT_ITEM_MAP[recipe.outputItemId]
       if (output) playLootRaritySound(output.rarity)
     }
-  }, [items, startCraft, deleteItem])
+  }, [items, startCraft, deleteItem, cancelJob, addItem])
 
   const handleCancel = useCallback((jobId: string) => {
     cancelJob(jobId, (id, q) => addItem(id, q))
@@ -403,7 +409,7 @@ export function CraftPage() {
           if (!output) return null
           return (
             <p className="text-center text-[10px] text-gray-500 pt-1">
-              Next unlock at Lvl {next.levelRequired}: {output.icon} {output.name}
+              Next unlock at Lvl {next.levelRequired}: <LootVisual icon={output.icon} image={output.image} className="w-3 h-3 object-contain inline" /> {output.name}
             </p>
           )
         })()}

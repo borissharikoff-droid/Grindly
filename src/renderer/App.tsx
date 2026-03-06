@@ -35,13 +35,14 @@ import { routeNotification } from './services/notificationRouter'
 import { MOTION } from './lib/motion'
 import { PageLoading } from './components/shared/PageLoading'
 import { LOOT_ITEMS } from './lib/loot'
-import { BOSSES } from './lib/combat'
+import { BOSSES, ZONES } from './lib/combat'
+import { CRAFT_RECIPES } from './lib/crafting'
 import { applyAdminConfig, syncAdminConfigFromSupabase } from './lib/itemConfig'
 import { useAdminConfigStore } from './stores/adminConfigStore'
 import { supabase } from './lib/supabase'
 
 // Apply cached admin overrides before first render (populated after first Supabase sync)
-applyAdminConfig(LOOT_ITEMS, BOSSES)
+applyAdminConfig(LOOT_ITEMS, BOSSES, ZONES, CRAFT_RECIPES)
 
 class PageErrorBoundary extends Component<
   { children: ReactNode; onReset: () => void },
@@ -296,7 +297,7 @@ export default function App() {
     const { bump } = useAdminConfigStore.getState()
     const sync = () =>
       syncAdminConfigFromSupabase(supabase)
-        .then(() => { applyAdminConfig(LOOT_ITEMS, BOSSES); bump() })
+        .then(() => { applyAdminConfig(LOOT_ITEMS, BOSSES, ZONES, CRAFT_RECIPES); bump() })
         .catch(() => {})
     sync()
     const id = setInterval(sync, 5 * 60 * 1000)
