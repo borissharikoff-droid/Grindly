@@ -3,7 +3,7 @@
  * Applied at app startup to patch LOOT_ITEMS and BOSSES in place.
  */
 import { CHEST_DEFS, type LootItemDef, type LootItemPerk, type LootRarity, type LootSlot, type ChestType } from './loot'
-import { SEED_ZIP_LABELS, SEED_ZIP_ICONS, SEED_ZIP_IMAGES, type SeedZipTier } from './farming'
+import { SEED_DEFS, SEED_ZIP_LABELS, SEED_ZIP_ICONS, SEED_ZIP_IMAGES, type SeedZipTier } from './farming'
 import type { BossDef, ZoneDef } from './combat'
 
 const STORAGE_KEY = 'grindly_admin_config'
@@ -59,6 +59,7 @@ export interface AdminConfig {
   chestWeightOverrides?: Record<string, ChestWeightEntry[]>
   chestOverrides?: Record<string, { icon?: string; image?: string }>
   seedZipOverrides?: Record<string, { name?: string; icon?: string; image?: string }>
+  seedOverrides?: Record<string, { name?: string; icon?: string; image?: string; rarity?: string; growTimeMinutes?: number; yieldPlantId?: string; yieldMin?: number; yieldMax?: number; xpOnPlant?: number; xpOnHarvest?: number }>
   zoneOverrides?: Record<string, {
     name?: string
     icon?: string
@@ -176,6 +177,21 @@ export function applyAdminConfig(items: LootItemDef[], bosses: BossDef[], zones?
     if (ov.name)  SEED_ZIP_LABELS[t] = ov.name
     if (ov.icon)  SEED_ZIP_ICONS[t]  = ov.icon
     if (ov.image) SEED_ZIP_IMAGES[t] = ov.image
+  }
+
+  // Apply seed overrides (name/icon/image per seed)
+  for (const [id, ov] of Object.entries(cfg.seedOverrides ?? {})) {
+    const seed = SEED_DEFS.find((s) => s.id === id)
+    if (!seed) continue
+    if (ov.name) seed.name = ov.name
+    if (ov.icon) seed.icon = ov.icon
+    if (ov.image) seed.image = ov.image
+    if (ov.growTimeMinutes) seed.growTimeSeconds = ov.growTimeMinutes * 60
+    if (ov.yieldMin !== undefined) seed.yieldMin = ov.yieldMin
+    if (ov.yieldMax !== undefined) seed.yieldMax = ov.yieldMax
+    if (ov.xpOnPlant !== undefined) seed.xpOnPlant = ov.xpOnPlant
+    if (ov.xpOnHarvest !== undefined) seed.xpOnHarvest = ov.xpOnHarvest
+    if (ov.rarity) seed.rarity = ov.rarity as LootRarity
   }
 
   // Apply chest weight overrides (custom item drop tables from dashboard)

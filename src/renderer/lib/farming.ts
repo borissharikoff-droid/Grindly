@@ -7,6 +7,7 @@ export interface SeedDef {
   name: string
   rarity: LootRarity
   icon: string
+  image?: string
   growTimeSeconds: number
   yieldPlantId: string
   yieldMin: number

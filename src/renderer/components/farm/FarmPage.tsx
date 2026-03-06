@@ -551,7 +551,9 @@ function SeedZipRevealModal({ tier, seedId, onClose }: { tier: SeedZipTier; seed
                   style={{ boxShadow: `inset 0 0 18px ${seedTheme.glow}` }}
                 />
                 <motion.div className="flex justify-center" animate={{ x: itemX, y: itemY }} transition={{ type: 'spring', stiffness: 220, damping: 22 }}>
-                  <p className="text-4xl">{seed.icon}</p>
+                  {seed.image
+                    ? <img src={seed.image} alt="" className="w-10 h-10 object-contain" draggable={false} />
+                    : <p className="text-4xl">{seed.icon}</p>}
                 </motion.div>
                 <motion.p className="text-sm text-white font-semibold mt-2 leading-tight" animate={{ x: tilt.x * 1.8, y: tilt.y * -1.2 }} transition={{ type: 'spring', stiffness: 220, damping: 22 }}>
                   {seed.name}
@@ -709,7 +711,9 @@ function SeedCabinetSection() {
                 className="rounded-lg border flex items-center gap-2.5 px-2.5 py-2"
                 style={{ borderColor: t.border, background: `linear-gradient(135deg, ${t.glow}0C 0%, rgba(10,10,20,0.85) 60%)` }}
               >
-                <span className="text-lg shrink-0">{seed.icon}</span>
+                {seed.image
+                  ? <img src={seed.image} alt="" className="w-5 h-5 object-contain shrink-0" />
+                  : <span className="text-lg shrink-0">{seed.icon}</span>}
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-medium text-white truncate">{seed.name}</p>
                   <p className="text-[8px] font-mono uppercase mt-0.5" style={{ color: t.color }}>
@@ -1358,7 +1362,9 @@ function FarmSlot({
             <div className="p-2.5 flex flex-col gap-2 h-full min-h-[116px]">
               {/* Seed info */}
               <div className="flex items-center gap-1.5">
-                <span className="text-base leading-none shrink-0">{seed?.icon ?? '🌱'}</span>
+                {seed?.image
+                  ? <img src={seed.image} alt="" className="w-4 h-4 object-contain shrink-0" />
+                  : <span className="text-base leading-none shrink-0">{seed?.icon ?? '🌱'}</span>}
                 <p className="text-[10px] font-medium text-white/80 truncate flex-1">{seed?.name}</p>
                 <span className="text-[8px] font-mono font-bold text-lime-400 shrink-0 tracking-wider">READY</span>
               </div>
@@ -1399,7 +1405,9 @@ function FarmSlot({
               <div className="px-3 py-2.5 flex flex-col gap-0 h-full min-h-[116px]">
                 {/* Seed info top */}
                 <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-sm leading-none shrink-0">{seed?.icon ?? '🌱'}</span>
+                  {seed?.image
+                    ? <img src={seed.image} alt="" className="w-3.5 h-3.5 object-contain shrink-0" />
+                    : <span className="text-sm leading-none shrink-0">{seed?.icon ?? '🌱'}</span>}
                   <p className="text-[10px] font-medium text-white truncate flex-1">{seed?.name}</p>
                   {theme && (
                     <span
@@ -1570,7 +1578,9 @@ function SeedPicker({ slotIndex, seeds, onClose }: { slotIndex: number; seeds: R
                   className="w-full rounded-xl border p-3 flex items-center gap-3 text-left transition-opacity hover:opacity-90"
                   style={{ borderColor: t.border, background: `linear-gradient(135deg, ${t.glow}18 0%, rgba(10,10,20,0.95) 60%)` }}
                 >
-                  <span className="text-2xl shrink-0">{seed.icon}</span>
+                  {seed.image
+                    ? <img src={seed.image} alt="" className="w-7 h-7 object-contain shrink-0" />
+                    : <span className="text-2xl shrink-0">{seed.icon}</span>}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-sm font-semibold text-white">{seed.name}</p>
