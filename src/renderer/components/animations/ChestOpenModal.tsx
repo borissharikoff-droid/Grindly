@@ -536,6 +536,7 @@ export function ChestOpenModal({
                         >
                           {item.rarity}
                         </motion.p>
+                        {item.description && <p className="text-[9px] text-gray-500 italic mt-1 leading-snug">{item.description}</p>}
                         <p className="text-[10px] text-gray-400 mt-1 leading-snug">{getItemPerkDescription(item)}</p>
                       </motion.div>
 
