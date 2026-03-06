@@ -167,7 +167,7 @@ export function ChestOpenModal({
   }, [])
 
   const scrollBy = useCallback((dir: 'left' | 'right') => {
-    scrollRef.current?.scrollBy({ left: dir === 'right' ? 160 : -160, behavior: 'smooth' })
+    scrollRef.current?.scrollBy({ left: dir === 'right' ? 140 : -140, behavior: 'smooth' })
   }, [])
 
   const shakeFrames = SHAKE_FRAMES[chestRarity] ?? SHAKE_FRAMES.common
@@ -410,7 +410,7 @@ export function ChestOpenModal({
 
                 {/* Drop count */}
                 {isRevealed && (() => {
-                  const count = 1 + (goldDropped > 0 ? 1 : 0) + (seedZipTier ? 1 : 0) + (bonusMaterials.length > 0 ? 1 : 0)
+                  const count = 1 + (goldDropped > 0 ? 1 : 0) + (seedZipTier ? 1 : 0) + bonusMaterials.length
                   if (count < 2) return null
                   return (
                     <motion.p
@@ -464,7 +464,7 @@ export function ChestOpenModal({
                     <div
                       ref={scrollRef}
                       onScroll={updateScrollPos}
-                      className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory"
+                      className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory scroll-smooth"
                       style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
                     >
                       {/* Main item card */}
@@ -556,32 +556,27 @@ export function ChestOpenModal({
                         </motion.div>
                       )}
 
-                      {/* Bonus materials card */}
-                      {bonusMaterials.length > 0 && (
-                        <motion.div
-                          className="flex-none w-[130px] snap-start rounded-xl border border-emerald-500/25 flex flex-col items-center justify-center gap-1.5 py-3 px-2 relative overflow-hidden"
-                          style={{ background: 'linear-gradient(160deg, rgba(16,185,129,0.10) 0%, rgba(8,8,16,0.95) 65%)' }}
-                          initial={{ opacity: 0, x: 20, scale: 0.88 }}
-                          animate={{ opacity: isRevealed ? 1 : 0, x: isRevealed ? 0 : 20, scale: isRevealed ? 1 : 0.88 }}
-                          transition={{ type: 'spring', stiffness: 280, damping: 24, delay: 0.1 }}
-                        >
-                          <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at 50% 35%, rgba(16,185,129,0.18) 0%, transparent 65%)' }} />
-                          <span className="text-[9px] font-mono text-emerald-500/60 uppercase tracking-widest relative">Materials</span>
-                          {bonusMaterials.map((mat) => {
-                            const matDef = LOOT_ITEMS.find((x) => x.id === mat.itemId)
-                            if (!matDef) return null
-                            const matTheme = getRarityTheme(matDef.rarity)
-                            return (
-                              <div key={mat.itemId} className="flex items-center gap-1.5 relative">
-                                <span className="text-base">{matDef.icon}</span>
-                                <span className="text-[11px] font-medium" style={{ color: matTheme.color }}>
-                                  {mat.qty}x {matDef.name}
-                                </span>
-                              </div>
-                            )
-                          })}
-                        </motion.div>
-                      )}
+                      {/* Bonus material cards (one per material) */}
+                      {bonusMaterials.map((mat, i) => {
+                        const matDef = LOOT_ITEMS.find((x) => x.id === mat.itemId)
+                        if (!matDef) return null
+                        const matTheme = getRarityTheme(matDef.rarity)
+                        return (
+                          <motion.div
+                            key={mat.itemId}
+                            className="flex-none w-[130px] snap-start rounded-xl border flex flex-col items-center justify-center gap-2 py-4 relative overflow-hidden"
+                            style={{ borderColor: `${matTheme.color}40`, background: `linear-gradient(160deg, ${matTheme.glow}18 0%, rgba(8,8,16,0.95) 65%)` }}
+                            initial={{ opacity: 0, x: 20, scale: 0.88 }}
+                            animate={{ opacity: isRevealed ? 1 : 0, x: isRevealed ? 0 : 20, scale: isRevealed ? 1 : 0.88 }}
+                            transition={{ type: 'spring', stiffness: 280, damping: 24, delay: 0.1 + i * 0.04 }}
+                          >
+                            <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle at 50% 35%, ${matTheme.glow}28 0%, transparent 65%)` }} />
+                            <span className="text-2xl relative">{matDef.image ? <img src={matDef.image} className="w-8 h-8 object-contain" /> : matDef.icon}</span>
+                            <span className="text-xl font-bold tabular-nums relative" style={{ color: matTheme.color }}>×{mat.qty}</span>
+                            <span className="text-[10px] font-medium text-center leading-tight px-2 relative" style={{ color: `${matTheme.color}cc` }}>{matDef.name}</span>
+                          </motion.div>
+                        )
+                      })}
 
                       {/* Seed Zip bonus card */}
                       {seedZipTier && (() => {

@@ -1,3 +1,32 @@
+## What's new in v3.0.0
+
+### New
+- Craft system with character panel and toast notifications
+- 5 tiered armor sets replacing old bag-drop gear
+- Inventory search bar and filter improvements
+- Sell items from backpack panel
+- Harvest claim-all chest animation
+- Item description shown in chest open modal
+- Seed overrides from dashboard (image, name, stats)
+- Universal image/skin upload for all entities
+- Full game balance pass — items, bosses, mobs
+- Stat-aware item power formula (slot + perks + rarity)
+- DevTools shortcut (Ctrl+Shift+I) in dev mode
+- Arena victory modal shows material drops, dungeon gold, warrior XP
+
+### Fixed
+- Chest opening now falls back to default loot when admin config has stale items
+- Boss image shown instead of hardcoded crown emoji in arena
+- Custom skins display in claim-all banner and harvest results
+- Seed images shown in inventory
+- Chest image filenames corrected
+- Seed zip and custom item overrides propagate everywhere
+- ChestWeightOverrides applied to CHEST_DEFS properly
+- Removed direct seed-sell-to-system mechanic
+
+---
+Released: 2026-03-06
+
 ## What's new in v2.2.0
 
 **New:**
@@ -15,7 +44,7 @@ Released: 2026-03-04
 
 **Inventory — Character panel redesign:**
 - Gear slots now full-width RPG character sheet rows: colored left bar shows rarity, icon, slot name, item name, and perk value inline
-- Stats shown as 4 clean chips — ATK ⚔️ / HP ❤️ / Regen 💧 / IP ✨ — with glow color, large readable number
+- Stats shown as 4 clean chips — ATK / HP / Regen / IP — with glow color, large readable number
 - Maxed stats turn gold to indicate cap reached
 - Removed redundant "Buffs" list (perk now shows directly in each slot row)
 
@@ -30,9 +59,9 @@ Released: 2026-03-03
 - Icon size increased, perk chip more prominent in rarity color
 
 **Marketplace:**
-- Identical My Listings (same item + same price/unit) are now merged into one card showing total quantity and order count — "Remove ×N" cancels all at once
+- Identical My Listings (same item + same price/unit) are now merged into one card showing total quantity and order count — "Remove xN" cancels all at once
 - My Listings cards no longer blend together — proper spacing between each card
-- Filters redesigned: main categories always visible, secondary filters (rarity + price range) hidden behind a ▼ expand button
+- Filters redesigned: main categories always visible, secondary filters (rarity + price range) hidden behind a expand button
 
 ---
 Released: 2026-03-03
@@ -40,7 +69,7 @@ Released: 2026-03-03
 ## What's new in v2.1.2
 
 **New:**
-- Weapon slot added — equip swords for bonus ATK (Iron Sword → Steel Blade → Void Edge → Nexus Sword → Omega Blade, common→mythic)
+- Weapon slot added — equip swords for bonus ATK (Iron Sword, Steel Blade, Void Edge, Nexus Sword, Omega Blade, common to mythic)
 - Weapons drop from all chest tiers and appear in the new Weapons filter in Inventory
 
 **Improved:**

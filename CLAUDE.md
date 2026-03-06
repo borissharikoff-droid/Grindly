@@ -103,3 +103,57 @@ Copy `.env.example` to `.env`. Supabase keys are optional (social features disab
 ## Deployment
 
 - For Railway deployments: ensure all runtime dependencies (e.g., dotenv) are in `dependencies` not `devDependencies`. After pushing, verify the build triggers. If auto-deploy doesn't fire, push a follow-up commit.
+
+## Cross-Project Sync: Wiki & Dashboard
+
+**MANDATORY**: When you change ANY game data in the source files listed below, you MUST propagate those changes to the wiki (and dashboard if applicable) in the same session. Do NOT leave them out of sync.
+
+### Source of Truth (Game Data Files)
+
+These files define all game data. Any change here triggers sync obligations:
+
+| File | Contains | Wiki pages affected |
+|------|----------|-------------------|
+| `src/renderer/lib/loot.ts` | All items (gear, potions, plants, materials), chest definitions, rarity tiers, IP formula, drop rates | `wiki/item.html` (ITEMS array, CHESTS object), `wiki/equipment.html`, `wiki/loot.html`, `wiki/materials.html`, `wiki/index.html` (search index, rarity table) |
+| `src/renderer/lib/combat.ts` | Arena zones, mobs (HP/ATK/XP/gold/materials), bosses, warrior XP, boss requirements, gate items | `wiki/arena.html`, `wiki/item.html` (mob material sources), `wiki/materials.html` |
+| `src/renderer/lib/crafting.ts` | All recipes, intermediate items, crafted gear, crafter perks | `wiki/crafting.html`, `wiki/item.html` (RECIPES array, crafted items in ITEMS), `wiki/equipment.html` (crafted gear table) |
+| `src/renderer/lib/farming.ts` | Seed definitions, grow times, yields, XP, plant buffs, seed zips, farm slot costs | `wiki/farming.html`, `wiki/item.html` (plant items) |
+| `src/renderer/lib/skills.ts` | Skill definitions (names, colors, icons, categories) | `wiki/skills.html`, `wiki/index.html` (search index, hero stats) |
+| `src/renderer/lib/xp.ts` | XP formula, level curve | `wiki/skills.html` (XP formula section), `wiki/index.html` (quick reference) |
+
+### Wiki Sync Checklist
+
+When modifying game data, follow this checklist:
+
+1. **Adding a new item** — Add to `wiki/item.html` ITEMS array. Add to relevant category page table (equipment/materials). Add to `wiki/index.html` search index. If craftable, add recipe to RECIPES array and `wiki/crafting.html`.
+
+2. **Changing item stats/perks** — Update `wiki/item.html` ITEMS array (perks, values, descriptions). Update the category page table row (equipment.html, materials.html). If IP-related values change (rarity weights, perk formulas), update `wiki/index.html` rarity table.
+
+3. **Adding/changing arena zones or mobs** — Update `wiki/arena.html` (zone card, mob rows, boss stats, requirements, warrior XP, drops). Update `wiki/index.html` search index (zone names). If new materials added, update `wiki/materials.html`.
+
+4. **Adding/changing recipes** — Update `wiki/item.html` RECIPES array. Update `wiki/crafting.html` recipe tables. If new output item, add to ITEMS array and `wiki/equipment.html`.
+
+5. **Adding/changing seeds or farming** — Update `wiki/farming.html` (seed table, buffs, slots). Update plant items in `wiki/item.html` ITEMS array.
+
+6. **Changing skills** — Update `wiki/skills.html` (skill cards: name, color, icon, category). Update `wiki/index.html` search index and hero stats count.
+
+7. **Changing chest/loot mechanics** — Update `wiki/item.html` CHESTS object. Update `wiki/loot.html` (tiers, pity, drop modifiers, bonus materials).
+
+### Wiki Data Integrity Rules
+
+- **Item IDs must match exactly** between source `.ts` files, `wiki/item.html` ITEMS/RECIPES arrays, category page `item.html?id=X` links, and `wiki/index.html` search index.
+- **Rarity colors** must match `RARITY_THEME` in `src/renderer/components/loot/LootUI.tsx` and `RARITY_COLORS` in `wiki/item.html`.
+- **IP values** (ITEM_POWER_BY_RARITY) must match between `loot.ts` and `wiki/index.html` quick reference table: common=100, rare=150, epic=220, legendary=320, mythic=450.
+- **Never show fake/simulated data** in the wiki. If marketplace data doesn't exist, show "N/A". `HAS_MARKET_DATA = false` in `wiki/item.html`.
+- After all wiki changes, `cd wiki && git add -A && git commit && git push` to the Grindly-Wiki repo (separate from main repo).
+
+### Dashboard Sync
+
+The web admin dashboard is deployed on Railway. When game data changes affect dashboard displays (skills list, item definitions, achievement definitions), update the dashboard HTML/JS to reflect the new data. The dashboard reads from Supabase, so schema changes also require `supabase/schema.sql` updates.
+
+### Verification
+
+After syncing, verify by grepping the wiki for the old values to ensure nothing was missed:
+```bash
+cd wiki && grep -r "OLD_VALUE" *.html
+```

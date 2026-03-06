@@ -92,6 +92,15 @@ function createWindow() {
   mainWindow.setMenuBarVisibility(false)
   Menu.setApplicationMenu(null)
 
+  // Allow Ctrl+Shift+I to open DevTools in dev mode
+  if (isDev) {
+    mainWindow.webContents.on('before-input-event', (_e, input) => {
+      if (input.control && input.shift && input.key.toLowerCase() === 'i') {
+        mainWindow?.webContents.toggleDevTools()
+      }
+    })
+  }
+
   const devServerUrl = 'http://localhost:5173'
   if (isDev) {
     mainWindow.loadURL(devServerUrl).catch(() => {})

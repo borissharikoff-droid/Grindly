@@ -484,6 +484,9 @@ export default function App() {
             chest={arenaResultModal?.chest}
             lostItemName={arenaResultModal?.lostItemName}
             lostItemIcon={arenaResultModal?.lostItemIcon}
+            materialDrop={arenaResultModal?.materialDrop}
+            dungeonGold={arenaResultModal?.dungeonGold}
+            warriorXP={arenaResultModal?.warriorXP}
             onClose={() => setArenaResultModal(null)}
           />
           <MessageBanner onNavigateToChat={handleNavigateToChat} />

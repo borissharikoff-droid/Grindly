@@ -579,10 +579,46 @@ export function rollBonusMaterials(chestType: ChestType): BonusMaterial[] {
   return Object.entries(result).map(([itemId, qty]) => ({ itemId, qty }))
 }
 
+// Hardcoded fallback weights per chest rarity — used when admin overrides reference stale/deleted items
+const FALLBACK_WEIGHTS: Record<ChestType, { itemId: string; weight: number }[]> = {
+  common_chest: [
+    { itemId: 'wooden_helm', weight: 3 }, { itemId: 'wooden_plate', weight: 3 },
+    { itemId: 'wooden_sword', weight: 3 }, { itemId: 'wooden_legs', weight: 3 }, { itemId: 'wooden_ring', weight: 3 },
+  ],
+  rare_chest: [
+    { itemId: 'wooden_helm', weight: 2 }, { itemId: 'wooden_plate', weight: 2 }, { itemId: 'wooden_sword', weight: 2 },
+    { itemId: 'wooden_legs', weight: 2 }, { itemId: 'wooden_ring', weight: 2 },
+    { itemId: 'copper_helm', weight: 3 }, { itemId: 'copper_plate', weight: 3 }, { itemId: 'copper_sword', weight: 3 },
+    { itemId: 'copper_legs', weight: 3 }, { itemId: 'copper_ring', weight: 3 },
+  ],
+  epic_chest: [
+    { itemId: 'copper_helm', weight: 2 }, { itemId: 'copper_plate', weight: 2 }, { itemId: 'copper_sword', weight: 2 },
+    { itemId: 'copper_legs', weight: 2 }, { itemId: 'copper_ring', weight: 2 },
+    { itemId: 'shadow_helm', weight: 3 }, { itemId: 'shadow_plate', weight: 3 }, { itemId: 'shadow_sword', weight: 3 },
+    { itemId: 'shadow_legs', weight: 3 }, { itemId: 'shadow_ring', weight: 3 },
+    { itemId: 'atk_potion', weight: 1 }, { itemId: 'hp_potion', weight: 1 }, { itemId: 'regen_potion', weight: 1 },
+  ],
+  legendary_chest: [
+    { itemId: 'shadow_helm', weight: 2 }, { itemId: 'shadow_plate', weight: 2 }, { itemId: 'shadow_sword', weight: 2 },
+    { itemId: 'shadow_legs', weight: 2 }, { itemId: 'shadow_ring', weight: 2 },
+    { itemId: 'golden_helm', weight: 3 }, { itemId: 'golden_plate', weight: 3 }, { itemId: 'golden_sword', weight: 3 },
+    { itemId: 'golden_legs', weight: 3 }, { itemId: 'golden_ring', weight: 3 },
+    { itemId: 'void_helm', weight: 1 }, { itemId: 'void_plate', weight: 1 }, { itemId: 'void_sword', weight: 1 },
+    { itemId: 'void_legs', weight: 1 }, { itemId: 'void_ring', weight: 1 },
+    { itemId: 'atk_potion', weight: 2 }, { itemId: 'hp_potion', weight: 2 }, { itemId: 'regen_potion', weight: 2 },
+  ],
+}
+
 export function openChest(chestType: ChestType, context: LootDropContext): ChestOpenResult | null {
   const chest = CHEST_DEFS[chestType]
-  const itemId = randomPickByWeight(chest.itemWeights.map((entry) => ({ value: entry.itemId, weight: entry.weight })))
-  const item = LOOT_ITEMS.find((x) => x.id === itemId)
+  // Filter to only items that actually exist in LOOT_ITEMS (admin overrides may reference stale IDs)
+  let validWeights = chest.itemWeights.filter((entry) => LOOT_ITEMS.some((x) => x.id === entry.itemId))
+  if (validWeights.length === 0) {
+    console.warn('[openChest] admin weights have no valid items for', chestType, '— falling back to defaults')
+    validWeights = FALLBACK_WEIGHTS[chestType]
+  }
+  const itemId = randomPickByWeight(validWeights.map((entry) => ({ value: entry.itemId, weight: entry.weight })))
+  const item = itemId ? LOOT_ITEMS.find((x) => x.id === itemId) : null
   if (!item) return null
   return {
     item,

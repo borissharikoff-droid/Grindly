@@ -85,8 +85,6 @@ function ZoneCard({
   const tc = zone.themeColor
 
   // Material drop for current mob
-  const mobDef = isActive && !isBossFight ? zone.mobs[mobIndex] : null
-  const matDef = mobDef?.materialDropId ? LOOT_ITEMS.find((x) => x.id === mobDef.materialDropId) : null
 
   // ── Floating damage numbers ──────────────────────────────────────────────
   const [dmgNumbers, setDmgNumbers] = useState<Array<{ id: string; value: number; target: 'player' | 'boss' }>>([])
@@ -102,7 +100,8 @@ function ZoneCard({
     const pp = prevPlayerHpZoneRef.current
     const pb = prevBossHpZoneRef.current
     if (pp !== null && battleState.playerHp < pp) {
-      const dmg = Math.round(pp - battleState.playerHp)
+      const rawDmg = pp - battleState.playerHp
+      const dmg = rawDmg >= 1 ? Math.round(rawDmg) : Math.round(rawDmg * 10) / 10
       if (dmg > 0) {
         const id = crypto.randomUUID()
         setDmgNumbers((ns) => [...ns.slice(-5), { id, value: dmg, target: 'player' }])
@@ -110,7 +109,8 @@ function ZoneCard({
       }
     }
     if (pb !== null && battleState.bossHp < pb) {
-      const dmg = Math.round(pb - battleState.bossHp)
+      const rawDmg = pb - battleState.bossHp
+      const dmg = rawDmg >= 1 ? Math.round(rawDmg) : Math.round(rawDmg * 10) / 10
       if (dmg > 0) {
         const id = crypto.randomUUID()
         setDmgNumbers((ns) => [...ns.slice(-5), { id, value: dmg, target: 'boss' }])
@@ -284,9 +284,9 @@ function ZoneCard({
                   playClickSound()
                   const victory = battleState?.victory ?? false
                   const enemyName = currentEnemy?.name ?? 'Enemy'
-                  const { goldLost, chest, lostItem } = endBattle()
+                  const { goldLost, chest, lostItem, materialDrop, dungeonGold, warriorXP } = endBattle()
                   if (!activeBattle.isMob) {
-                    setResultModal({ victory, gold: 0, goldAlreadyAdded: true, bossName: enemyName, goldLost, chest, lostItemName: lostItem?.name, lostItemIcon: lostItem?.icon })
+                    setResultModal({ victory, gold: 0, goldAlreadyAdded: true, bossName: enemyName, goldLost, chest, lostItemName: lostItem?.name, lostItemIcon: lostItem?.icon, materialDrop, dungeonGold, warriorXP })
                   }
                 }}
                 className="w-full px-4 py-5 flex items-center justify-center gap-2.5 hover:bg-white/[0.03] active:bg-white/[0.06] transition-colors"
@@ -469,22 +469,13 @@ function ZoneCard({
                   </div>
                 </div>
 
-                {/* Loot + footer row */}
+                {/* Combat stats + footer row */}
                 <div className="flex items-center justify-between gap-2">
-                  {/* Loot preview */}
-                  {matDef ? (
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.07]">
-                      <span className="text-sm leading-none">{matDef.icon}</span>
-                      <span className="text-[9px] text-gray-400 font-mono">{matDef.name}</span>
-                      <span className="text-[8px] text-gray-400 font-mono ml-0.5">{Math.round((mobDef?.materialDropChance ?? 0) * 100)}%</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2.5 text-[9px] text-gray-400 font-mono">
-                      <span style={{ color: '#4ade80bb' }}>⚔ {activeBattle.playerSnapshot.atk}/s</span>
-                      <span className="text-gray-600">vs</span>
-                      <span style={{ color: '#f87171bb' }}>♥ −{Math.max(0, activeBattle.bossSnapshot.atk - activeBattle.playerSnapshot.hpRegen).toFixed(1)}/s</span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2.5 text-[9px] text-gray-400 font-mono">
+                    <span style={{ color: '#4ade80bb' }}>⚔ {activeBattle.playerSnapshot.atk}/s</span>
+                    <span className="text-gray-600">vs</span>
+                    <span style={{ color: '#f87171bb' }}>♥ −{Math.max(0, activeBattle.bossSnapshot.atk - activeBattle.playerSnapshot.hpRegen).toFixed(1)}/s</span>
+                  </div>
 
                   {/* Forfeit */}
                   {confirmForfeit ? (
@@ -582,7 +573,7 @@ export function ArenaPage() {
     }
     const tick = () => setBattleState(getBattleState())
     tick()
-    const interval = setInterval(tick, 1000)
+    const interval = setInterval(tick, 500)
     return () => clearInterval(interval)
   }, [activeBattle, getBattleState])
 

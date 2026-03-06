@@ -24,6 +24,9 @@ interface VictoryResultModalProps {
   chest?: { type: string; name: string; icon: string; image?: string } | null
   lostItemName?: string
   lostItemIcon?: string
+  materialDrop?: { id: string; name: string; icon: string; qty: number } | null
+  dungeonGold?: number
+  warriorXP?: number
   onClose: () => void
 }
 
@@ -37,6 +40,9 @@ export function VictoryResultModal({
   chest,
   lostItemName,
   lostItemIcon,
+  materialDrop,
+  dungeonGold = 0,
+  warriorXP = 0,
   onClose,
 }: VictoryResultModalProps) {
   const [progress, setProgress] = useState(100)
@@ -157,7 +163,7 @@ export function VictoryResultModal({
 
               {/* Primary result */}
               <p className="text-white font-bold text-2xl">
-                {victory ? (gold > 0 ? `+${formatShort(gold)} 🪙` : 'Boss Slain!') : 'You Fell'}
+                {victory ? 'Boss Slain!' : 'You Fell'}
               </p>
 
               {!victory && goldLost > 0 && (
@@ -173,33 +179,47 @@ export function VictoryResultModal({
                 </div>
               )}
 
+              {/* ── Victory loot summary ── */}
+              {victory && (dungeonGold > 0 || materialDrop || chest || warriorXP > 0) && (
+                <div className="mt-3 space-y-1.5">
+                  {dungeonGold > 0 && (
+                    <div className="flex items-center justify-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-1.5">
+                      <span className="text-base">🪙</span>
+                      <p className="text-[12px] text-amber-300 font-semibold">+{formatShort(dungeonGold)} Gold</p>
+                    </div>
+                  )}
+                  {materialDrop && (
+                    <div className="flex items-center justify-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5">
+                      <span className="text-base">{materialDrop.icon}</span>
+                      <p className="text-[12px] text-emerald-300 font-semibold">×{materialDrop.qty} {materialDrop.name}</p>
+                    </div>
+                  )}
+                  {chest && (
+                    <div className="flex items-center justify-center gap-2 rounded-lg bg-purple-500/10 border border-purple-500/20 px-3 py-1.5">
+                      {chest.image
+                        ? <img src={chest.image} alt={chest.name} className="w-6 h-6 object-contain" style={{ imageRendering: 'pixelated' }} />
+                        : <span className="text-base">{chest.icon}</span>}
+                      <p className="text-[12px] text-purple-300 font-semibold">{chest.name}</p>
+                    </div>
+                  )}
+                  {warriorXP > 0 && (
+                    <div className="flex items-center justify-center gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-1.5">
+                      <span className="text-base">⚔️</span>
+                      <p className="text-[12px] text-red-300 font-semibold">+{formatShort(warriorXP)} Warrior XP</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <p className="text-[11px] text-gray-500 mt-1.5">
                 {victory
-                  ? gold > 0
-                    ? 'Gold added to your wallet.'
-                    : 'The boss has been defeated.'
+                  ? 'Loot added to your inventory.'
                   : lostItemName
                     ? 'Item lost. Craft or buy gear and try again.'
                     : goldLost > 0
                       ? 'Gold lost. Gear up and try again.'
                       : 'Gear up and try again.'}
               </p>
-
-              {victory && chest && (() => {
-                return (
-                  <div className="mt-3 rounded-xl bg-purple-500/10 border border-purple-500/25 p-3">
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                      {chest.image
-                        ? <img src={chest.image} alt={chest.name} className="w-8 h-8 object-contain" style={{ imageRendering: 'pixelated' }} />
-                        : <span className="text-2xl">{chest.icon}</span>}
-                      <div className="text-left">
-                        <p className="text-[12px] text-purple-300 font-semibold">{chest.name} dropped!</p>
-                        <p className="text-[10px] text-gray-500">Open from Inventory tab</p>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })()}
 
               {/* CTA */}
               <button

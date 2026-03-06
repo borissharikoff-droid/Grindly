@@ -42,15 +42,15 @@ interface ArenaState {
   clearedZones: string[]
   killCounts: Record<string, number>
   dailyBossClaimedDate: string | null
-  resultModal: { victory: boolean; gold: number; goldAlreadyAdded?: boolean; bossName?: string; goldLost?: number; isDaily?: boolean; chest?: ArenaChestDrop | null; lostItemName?: string; lostItemIcon?: string } | null
-  setResultModal: (v: { victory: boolean; gold: number; goldAlreadyAdded?: boolean; bossName?: string; goldLost?: number; isDaily?: boolean; chest?: ArenaChestDrop | null; lostItemName?: string; lostItemIcon?: string } | null) => void
+  resultModal: { victory: boolean; gold: number; goldAlreadyAdded?: boolean; bossName?: string; goldLost?: number; isDaily?: boolean; chest?: ArenaChestDrop | null; lostItemName?: string; lostItemIcon?: string; materialDrop?: { id: string; name: string; icon: string; qty: number } | null; dungeonGold?: number; warriorXP?: number } | null
+  setResultModal: (v: { victory: boolean; gold: number; goldAlreadyAdded?: boolean; bossName?: string; goldLost?: number; isDaily?: boolean; chest?: ArenaChestDrop | null; lostItemName?: string; lostItemIcon?: string; materialDrop?: { id: string; name: string; icon: string; qty: number } | null; dungeonGold?: number; warriorXP?: number } | null) => void
   recordKill: (id: string) => void
   startBattle: (bossId: string) => boolean
   startDungeon: (zoneId: string, consumablePlantId?: string | null) => boolean
   advanceDungeon: () => void
   forfeitDungeon: () => void
-  /** Resolves the battle (grants victory gold, applies death penalty). Returns goldLost, optional chest drop, and optional lost item. */
-  endBattle: () => { goldLost: number; chest: ArenaChestDrop | null; lostItem: { name: string; icon: string } | null }
+  /** Resolves the battle (grants victory gold, applies death penalty). Returns goldLost, optional chest drop, material drop, dungeon gold, and optional lost item. */
+  endBattle: () => { goldLost: number; chest: ArenaChestDrop | null; lostItem: { name: string; icon: string } | null; materialDrop: { id: string; name: string; icon: string; qty: number } | null; dungeonGold: number; warriorXP: number }
   /** Same as endBattle but victory gold is claimed later via notification. Returns goldLost, optional chest drop, and optional lost item. */
   endBattleWithoutGold: () => { goldLost: number; chest: ArenaChestDrop | null; lostItem: { name: string; icon: string } | null }
   getBattleState: () => ReturnType<typeof computeBattleStateAtTime> | null
@@ -272,7 +272,7 @@ export const useArenaStore = create<ArenaState>()(
 
       endBattle() {
         const { activeBattle, activeDungeon } = get()
-        if (!activeBattle) return { goldLost: 0, chest: null, lostItem: null }
+        if (!activeBattle) return { goldLost: 0, chest: null, lostItem: null, materialDrop: null, dungeonGold: 0, warriorXP: 0 }
 
         const fightElapsed = (Date.now() - activeBattle.startTime) / 1000
         const state = computeBattleStateAtTime(
@@ -283,6 +283,9 @@ export const useArenaStore = create<ArenaState>()(
         let goldLost = 0
         let droppedChest: ArenaChestDrop | null = null
         let lostItem: { name: string; icon: string } | null = null
+        let matDrop: { id: string; name: string; icon: string; qty: number } | null = null
+        let dungeonGold = 0
+        let warriorXP = 0
 
         if (activeBattle.isMob && activeBattle.mobDef) {
           // Mob battle
@@ -342,21 +345,26 @@ export const useArenaStore = create<ArenaState>()(
             }
             // Grant warrior XP for boss kill
             const bossWarriorXP = BOSS_WARRIOR_XP[activeBattle.bossSnapshot.id] ?? 0
-            if (bossWarriorXP > 0) void grantWarriorXP(bossWarriorXP)
+            if (bossWarriorXP > 0) {
+              void grantWarriorXP(bossWarriorXP)
+              warriorXP = bossWarriorXP
+            }
 
             // Grant boss-exclusive material drop
             if (bossForChest.materialDropId) {
               const qty = bossForChest.materialDropQty ?? 1
               useInventoryStore.getState().addItem(bossForChest.materialDropId, qty)
+              const matItem = LOOT_ITEMS.find((i) => i.id === bossForChest.materialDropId)
+              matDrop = { id: bossForChest.materialDropId, name: matItem?.name ?? bossForChest.materialDropId, icon: matItem?.icon ?? '📦', qty }
             }
 
             // If this was the dungeon boss, mark zone cleared and grant accumulated gold
             if (activeBattle.dungeonZoneId) {
               const { activeDungeon: dungeonSnap } = get()
               if (dungeonSnap) {
-                const totalGold = dungeonSnap.goldEarned
-                if (totalGold > 0) {
-                  useGoldStore.getState().addGold(totalGold)
+                dungeonGold = dungeonSnap.goldEarned
+                if (dungeonGold > 0) {
+                  useGoldStore.getState().addGold(dungeonGold)
                   const user = useAuthStore.getState().user
                   if (user) useGoldStore.getState().syncToSupabase(user.id)
                 }
@@ -387,7 +395,7 @@ export const useArenaStore = create<ArenaState>()(
           }
         }
 
-        return { goldLost, chest: droppedChest, lostItem }
+        return { goldLost, chest: droppedChest, lostItem, materialDrop: matDrop, dungeonGold, warriorXP }
       },
 
       endBattleWithoutGold() {
