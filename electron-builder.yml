@@ -25,4 +25,7 @@ nsis:
   allowToChangeInstallationDirectory: false
   artifactName: "Grindly-Setup-${version}.exe"
 forceCodeSigning: false
-# publish handled by GitHub Actions (gh release create + upload)
+publish:
+  provider: github
+  owner: borissharikoff-droid
+  repo: Idly
