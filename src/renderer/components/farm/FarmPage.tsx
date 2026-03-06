@@ -66,11 +66,11 @@ function HarvestAllBanner({ results, onDone }: { results: HarvestResult[]; onDon
   const zipCount = results.filter((r) => r.seedZipTier).length
 
   // Aggregate by plant
-  const byPlant: Record<string, { icon: string; qty: number }> = {}
+  const byPlant: Record<string, { icon: string; image?: string; qty: number }> = {}
   for (const r of results) {
     const item = LOOT_ITEMS.find((x) => x.id === r.yieldPlantId)
     if (!item) continue
-    if (!byPlant[r.yieldPlantId]) byPlant[r.yieldPlantId] = { icon: item.icon, qty: 0 }
+    if (!byPlant[r.yieldPlantId]) byPlant[r.yieldPlantId] = { icon: item.icon, image: item.image, qty: 0 }
     byPlant[r.yieldPlantId].qty += r.qty
   }
 
@@ -100,7 +100,7 @@ function HarvestAllBanner({ results, onDone }: { results: HarvestResult[]; onDon
             transition={{ delay: i * MOTION.stagger.normal, duration: MOTION.duration.fast, ease: MOTION.easing }}
             className="text-[12px] font-mono text-white/90"
           >
-            {p.icon} <span className="text-lime-400 font-bold">×{p.qty}</span>
+            {p.image ? <img src={p.image} className="w-4 h-4 object-contain inline" /> : p.icon} <span className="text-lime-400 font-bold">×{p.qty}</span>
           </motion.span>
         ))}
         {zipCount > 0 && (() => {
@@ -561,7 +561,7 @@ function SeedZipRevealModal({ tier, seedId, onClose }: { tier: SeedZipTier; seed
                 <p className="text-[10px] font-mono uppercase tracking-wider mt-0.5" style={{ color: seedTheme.color }}>{seed.rarity}</p>
                 <p className="text-[10px] text-gray-400 mt-1 leading-snug">
                   ⏱ {formatGrowTime(seed.growTimeSeconds)}
-                  {plant && <span className="ml-2">· yields {plant.icon} ×{seed.yieldMin}–{seed.yieldMax}</span>}
+                  {plant && <span className="ml-2">· yields {plant.image ? <img src={plant.image} className="w-3 h-3 object-contain inline" /> : plant.icon} ×{seed.yieldMin}–{seed.yieldMax}</span>}
                 </p>
               </motion.div>
             </motion.div>
@@ -1029,7 +1029,9 @@ function HarvestClaimModal({ results, onClose }: { results: HarvestResult[]; onC
                         className="absolute inset-0 pointer-events-none"
                         style={{ background: `radial-gradient(circle at 50% 30%, ${pt.glow}22 0%, transparent 65%)` }}
                       />
-                      <span className="text-3xl relative">{plant?.icon ?? '🌱'}</span>
+                      {plant?.image
+                        ? <img src={plant.image} alt="" className="w-8 h-8 object-contain relative" />
+                        : <span className="text-3xl relative">{plant?.icon ?? '🌱'}</span>}
                       <p className="text-[11px] text-white font-semibold relative leading-tight">{plant?.name ?? r.yieldPlantId}</p>
                       <p className="text-xl font-bold relative" style={{ color: pt.color }}>×{r.qty}</p>
                       <p className="text-[9px] font-mono text-lime-400 relative">+{r.xpGained} XP</p>
@@ -1159,7 +1161,9 @@ function HarvestRevealModal({ result, onClose }: { result: HarvestResult; onClos
           className="mx-auto w-20 h-20 rounded-2xl bg-discord-darker border flex items-center justify-center text-4xl"
           style={{ borderColor: t.border }}
         >
-          {plant?.icon ?? '🌱'}
+          {plant?.image
+            ? <img src={plant.image} alt="" className="w-12 h-12 object-contain" />
+            : (plant?.icon ?? '🌱')}
         </motion.div>
 
         <p className="text-[11px] font-mono uppercase tracking-wider" style={{ color: t.color }}>
@@ -1571,7 +1575,7 @@ function SeedPicker({ slotIndex, seeds, onClose }: { slotIndex: number; seeds: R
                     </div>
                     <p className="text-[10px] text-gray-400">
                       ⏱ {formatGrowTime(seed.growTimeSeconds)}
-                      {plant && <span className="ml-2">· yields {plant.icon} ×{seed.yieldMin}–{seed.yieldMax}</span>}
+                      {plant && <span className="ml-2">· yields {plant.image ? <img src={plant.image} className="w-3 h-3 object-contain inline" /> : plant.icon} ×{seed.yieldMin}–{seed.yieldMax}</span>}
                     </p>
                     <p className="text-[9px] text-gray-600 font-mono mt-0.5">+{seed.xpOnHarvest} Farmer XP on harvest</p>
                   </div>
