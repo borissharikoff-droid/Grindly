@@ -107,7 +107,7 @@ export const ZONES: ZoneDef[] = [
       materialDropId: 'goblin_tooth', materialDropQty: 3,
     },
   },
-  // ── Zone 3 — Wild Forest (target: Shadow set → 34 ATK, 205 HP, 5 Regen) ────
+  // ── Zone 3 — Wild Forest (target: Copper set → 18 ATK, 155 HP, 2 Regen) ────
   {
     id: 'zone3',
     name: 'Wild Forest',
@@ -118,14 +118,14 @@ export const ZONES: ZoneDef[] = [
     gateItems: ['craft_slime_shield'],
     entryCost: [{ itemId: 'slime_gel', quantity: 3 }, { itemId: 'apples', quantity: 2 }],
     mobs: [
-      { id: 'wolf_young', name: 'Young Wolf',  icon: '🐺', hp: 500,   atk: 4.5, xpReward: 200,   goldMin: 25,  goldMax: 50,   materialDropId: 'wolf_fang', materialDropChance: 0.3 },
-      { id: 'wolf_pack',  name: 'Pack Wolf',   icon: '🐺', hp: 800,   atk: 6,   xpReward: 350,   goldMin: 40,  goldMax: 70,   materialDropId: 'wolf_fang', materialDropChance: 0.4 },
-      { id: 'wolf_alpha', name: 'Alpha Wolf',  icon: '🐺', hp: 1200,  atk: 7,   xpReward: 500,   goldMin: 50,  goldMax: 90,   materialDropId: 'wolf_fang', materialDropChance: 0.5 },
+      { id: 'wolf_young', name: 'Young Wolf',  icon: '🐺', hp: 200,   atk: 3,   xpReward: 150,   goldMin: 20,  goldMax: 40,   materialDropId: 'wolf_fang', materialDropChance: 0.3 },
+      { id: 'wolf_pack',  name: 'Pack Wolf',   icon: '🐺', hp: 320,   atk: 3.5, xpReward: 250,   goldMin: 30,  goldMax: 55,   materialDropId: 'wolf_fang', materialDropChance: 0.4 },
+      { id: 'wolf_alpha', name: 'Alpha Wolf',  icon: '🐺', hp: 450,   atk: 4,   xpReward: 400,   goldMin: 45,  goldMax: 80,   materialDropId: 'wolf_fang', materialDropChance: 0.5 },
     ],
     boss: {
-      id: 'wolf', name: 'Forest Wolf', icon: '🐺', hp: 2000, atk: 8,
+      id: 'wolf', name: 'Forest Wolf', icon: '🐺', hp: 700, atk: 5,
       rewards: { chestTier: 'rare_chest' },
-      requirements: { minAtk: 15, minHp: 140 },
+      requirements: { minAtk: 12, minHp: 120 },
       materialDropId: 'wolf_fang', materialDropQty: 2,
     },
   },

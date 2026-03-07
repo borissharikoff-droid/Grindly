@@ -43,14 +43,14 @@ interface ArenaState {
   clearedZones: string[]
   killCounts: Record<string, number>
   dailyBossClaimedDate: string | null
-  resultModal: { victory: boolean; gold: number; goldAlreadyAdded?: boolean; bossName?: string; goldLost?: number; isDaily?: boolean; chest?: ArenaChestDrop | null; lostItemName?: string; lostItemIcon?: string; materialDrop?: { id: string; name: string; icon: string; qty: number } | null; dungeonGold?: number; warriorXP?: number } | null
-  setResultModal: (v: { victory: boolean; gold: number; goldAlreadyAdded?: boolean; bossName?: string; goldLost?: number; isDaily?: boolean; chest?: ArenaChestDrop | null; lostItemName?: string; lostItemIcon?: string; materialDrop?: { id: string; name: string; icon: string; qty: number } | null; dungeonGold?: number; warriorXP?: number } | null) => void
+  resultModal: { victory: boolean; gold: number; goldAlreadyAdded?: boolean; bossName?: string; goldLost?: number; isDaily?: boolean; chest?: ArenaChestDrop | null; lostItemName?: string; lostItemIcon?: string; materialDrop?: { id: string; name: string; icon: string; qty: number } | null; warriorXP?: number } | null
+  setResultModal: (v: { victory: boolean; gold: number; goldAlreadyAdded?: boolean; bossName?: string; goldLost?: number; isDaily?: boolean; chest?: ArenaChestDrop | null; lostItemName?: string; lostItemIcon?: string; materialDrop?: { id: string; name: string; icon: string; qty: number } | null; warriorXP?: number } | null) => void
   recordKill: (id: string) => void
   startBattle: (bossId: string) => boolean
   startDungeon: (zoneId: string, consumablePlantId?: string | null) => boolean
   advanceDungeon: () => void
   forfeitDungeon: () => void
-  /** Resolves the battle (grants victory gold, applies death penalty). Returns goldLost, optional chest drop, material drop, dungeon gold, and optional lost item. */
+  /** Resolves the battle (grants victory gold, applies death penalty). Returns goldLost, optional chest drop, material drop, and optional lost item. */
   endBattle: () => { goldLost: number; chest: ArenaChestDrop | null; lostItem: { name: string; icon: string } | null; materialDrop: { id: string; name: string; icon: string; qty: number } | null; dungeonGold: number; warriorXP: number }
   /** Same as endBattle but victory gold is claimed later via notification. Returns goldLost, optional chest drop, and optional lost item. */
   endBattleWithoutGold: () => { goldLost: number; chest: ArenaChestDrop | null; lostItem: { name: string; icon: string } | null }
@@ -117,7 +117,9 @@ function loseRandomEquippedItem(): { name: string; icon: string } | null {
   const itemId = inv.equippedBySlot[slot]
   if (!itemId) return null
   const itemDef = LOOT_ITEMS.find((x) => x.id === itemId)
-  inv.deleteItem(itemId) // auto-unequips
+  inv.unequipSlot(slot as LootSlot) // force-unequip first
+  const qty = inv.items[itemId] ?? 1
+  inv.deleteItem(itemId, qty)        // delete ALL copies — item is destroyed
   return itemDef ? { name: itemDef.name, icon: itemDef.icon } : { name: itemId, icon: '📦' }
 }
 

@@ -640,15 +640,14 @@ export function ArenaPage() {
             setArenaChestModal({
               chestType: chest.type as ChestType,
               itemId: opened.itemId,
-              goldDropped: opened.goldDropped,
+              goldDropped: opened.goldDropped + dungeonGold,
               bonusMaterials: opened.bonusMaterials,
-              dungeonGold,
               warriorXP,
             })
           }
         } else if (victory) {
           // Victory but no chest dropped (15% chance) — show victory modal with gold/XP only
-          setResultModal({ victory: true, gold: 0, goldAlreadyAdded: true, bossName: enemyName, dungeonGold, warriorXP })
+          setResultModal({ victory: true, gold: dungeonGold, goldAlreadyAdded: true, bossName: enemyName, warriorXP })
         } else {
           // Defeat — show result modal
           setResultModal({ victory: false, gold: 0, goldAlreadyAdded: true, bossName: enemyName, goldLost, lostItemName: lostItem?.name, lostItemIcon: lostItem?.icon })
@@ -674,7 +673,6 @@ export function ArenaPage() {
     itemId: string | null
     goldDropped: number
     bonusMaterials: BonusMaterial[]
-    dungeonGold: number
     warriorXP: number
   } | null>(null)
 
@@ -752,7 +750,6 @@ export function ArenaPage() {
       item={arenaChestModal?.itemId ? (LOOT_ITEMS.find((x) => x.id === arenaChestModal.itemId) ?? null) : null}
       goldDropped={arenaChestModal?.goldDropped}
       bonusMaterials={arenaChestModal?.bonusMaterials}
-      dungeonGold={arenaChestModal?.dungeonGold}
       warriorXP={arenaChestModal?.warriorXP}
       onClose={() => setArenaChestModal(null)}
     />

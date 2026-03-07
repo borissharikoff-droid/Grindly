@@ -119,8 +119,6 @@ interface ChestOpenModalProps {
   goldDropped?: number
   bonusMaterials?: BonusMaterial[]
   seedZipTier?: SeedZipTier | null
-  /** Gold earned from dungeon mob kills (shown as separate bonus card) */
-  dungeonGold?: number
   /** Warrior XP earned from boss kill (shown as separate bonus card) */
   warriorXP?: number
   onClose: () => void
@@ -137,7 +135,6 @@ export function ChestOpenModal({
   goldDropped = 0,
   bonusMaterials = [],
   seedZipTier,
-  dungeonGold = 0,
   warriorXP = 0,
   onClose,
   nextAvailable = false,
@@ -418,7 +415,7 @@ export function ChestOpenModal({
 
                 {/* Drop count */}
                 {isRevealed && (() => {
-                  const count = (item ? 1 : 0) + (goldDropped > 0 ? 1 : 0) + (dungeonGold > 0 ? 1 : 0) + (warriorXP > 0 ? 1 : 0) + (seedZipTier ? 1 : 0) + bonusMaterials.length
+                  const count = (item ? 1 : 0) + (goldDropped > 0 ? 1 : 0) + (warriorXP > 0 ? 1 : 0) + (seedZipTier ? 1 : 0) + bonusMaterials.length
                   if (count < 2) return null
                   return (
                     <motion.p
@@ -449,7 +446,7 @@ export function ChestOpenModal({
                   style={{ pointerEvents: isRevealed ? 'auto' : 'none' }}
                 >
                   <div className="relative">
-                    {(goldDropped > 0 || dungeonGold > 0 || warriorXP > 0 || seedZipTier || bonusMaterials.length > 0) && scrollPos !== 'start' && (
+                    {(goldDropped > 0 || warriorXP > 0 || seedZipTier || bonusMaterials.length > 0) && scrollPos !== 'start' && (
                       <button
                         type="button"
                         onClick={() => scrollBy('left')}
@@ -459,7 +456,7 @@ export function ChestOpenModal({
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 2L4 6l3.5 4" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                       </button>
                     )}
-                    {(goldDropped > 0 || dungeonGold > 0 || warriorXP > 0 || seedZipTier || bonusMaterials.length > 0) && scrollPos !== 'end' && (
+                    {(goldDropped > 0 || warriorXP > 0 || seedZipTier || bonusMaterials.length > 0) && scrollPos !== 'end' && (
                       <button
                         type="button"
                         onClick={() => scrollBy('right')}
@@ -484,7 +481,7 @@ export function ChestOpenModal({
                         onMouseLeave={() => { setHovering(false); setTilt({ x: 0, y: 0 }) }}
                         className="rounded-xl border p-3.5 relative overflow-hidden cursor-default snap-start flex-none"
                         style={{
-                          width: (goldDropped > 0 || dungeonGold > 0 || warriorXP > 0 || seedZipTier || bonusMaterials.length > 0) ? '220px' : '100%',
+                          width: (goldDropped > 0 || warriorXP > 0 || seedZipTier || bonusMaterials.length > 0) ? '220px' : '100%',
                           borderColor: rarityTheme.border,
                           background: `linear-gradient(135deg, ${rarityTheme.glow}18 0%, rgba(8,8,16,0.95) 60%)`,
                           transform: hovering
@@ -588,22 +585,6 @@ export function ChestOpenModal({
                         )
                       })}
 
-                      {/* Dungeon gold card */}
-                      {dungeonGold > 0 && (
-                        <motion.div
-                          className="flex-none w-[130px] snap-start rounded-xl border border-amber-500/25 flex flex-col items-center justify-center gap-2 py-4 relative overflow-hidden"
-                          style={{ background: 'linear-gradient(160deg, rgba(245,158,11,0.10) 0%, rgba(8,8,16,0.95) 65%)' }}
-                          initial={{ opacity: 0, x: 20, scale: 0.88 }}
-                          animate={{ opacity: isRevealed ? 1 : 0, x: isRevealed ? 0 : 20, scale: isRevealed ? 1 : 0.88 }}
-                          transition={{ type: 'spring', stiffness: 280, damping: 24, delay: 0.1 }}
-                        >
-                          <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at 50% 35%, rgba(245,158,11,0.18) 0%, transparent 65%)' }} />
-                          <span className="text-3xl relative">⚔️</span>
-                          <span className="text-xl font-bold text-amber-400 tabular-nums relative">+{dungeonGold}</span>
-                          <span className="text-[9px] font-mono text-amber-500/60 uppercase tracking-widest relative">Dungeon Gold</span>
-                        </motion.div>
-                      )}
-
                       {/* Warrior XP card */}
                       {warriorXP > 0 && (
                         <motion.div
@@ -642,7 +623,7 @@ export function ChestOpenModal({
                         )
                       })()}
 
-                      {(goldDropped > 0 || dungeonGold > 0 || warriorXP > 0 || seedZipTier || bonusMaterials.length > 0) && <div className="flex-none w-5" aria-hidden />}
+                      {(goldDropped > 0 || warriorXP > 0 || seedZipTier || bonusMaterials.length > 0) && <div className="flex-none w-5" aria-hidden />}
                     </div>
                   </div>
                 </motion.div>
