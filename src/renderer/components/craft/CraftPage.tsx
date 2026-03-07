@@ -19,6 +19,10 @@ import { PageHeader } from '../shared/PageHeader'
 import { BackpackButton } from '../shared/BackpackButton'
 import { InventoryPage } from '../inventory/InventoryPage'
 import { LootVisual } from '../loot/LootUI'
+import { syncInventoryToSupabase } from '../../services/supabaseSync'
+import { useAuthStore } from '../../stores/authStore'
+import { useFarmStore } from '../../stores/farmStore'
+import { supabase } from '../../lib/supabase'
 
 const CRAFT_COLOR = '#f97316'
 const QTY_PRESETS = [1, 10, 50, 100, 500]
@@ -46,8 +50,11 @@ function ActiveJob({ onCancel }: { onCancel: (id: string) => void }) {
   const output = CRAFT_ITEM_MAP[activeJob.outputItemId]
   const theme = getRarityTheme(output?.rarity ?? 'common')
   const done = computeActiveDone(now)
-  const secsInCurrentItem = ((now - activeJob.startedAt) / 1000) % activeJob.secPerItem
-  const subProgress = done < activeJob.totalQty ? secsInCurrentItem / activeJob.secPerItem : 0
+  // Elapsed since the anchor; done items already counted via doneQty
+  const elapsedSinceAnchor = (now - activeJob.startedAt) / 1000
+  const completedSinceAnchor = done - activeJob.doneQty
+  const secsInCurrentItem = Math.max(0, elapsedSinceAnchor - completedSinceAnchor * activeJob.secPerItem)
+  const subProgress = done < activeJob.totalQty ? Math.min(1, secsInCurrentItem / activeJob.secPerItem) : 0
   const pct = ((done + subProgress) / activeJob.totalQty) * 100
   const remaining = Math.max(0, (activeJob.totalQty - done) * activeJob.secPerItem - secsInCurrentItem)
   const totalXp = done * activeJob.xpPerItem
@@ -303,11 +310,25 @@ export function CraftPage() {
       setExpandedId(null)
       const output = CRAFT_ITEM_MAP[recipe.outputItemId]
       if (output) playLootRaritySound(output.rarity)
+      // Immediately sync consumed ingredients to Supabase so periodic merge doesn't restore them
+      const user = useAuthStore.getState().user
+      if (supabase && user) {
+        const { items: curItems, chests } = useInventoryStore.getState()
+        const { seeds, seedZips } = useFarmStore.getState()
+        syncInventoryToSupabase(curItems, chests, { merge: false, seeds, seedZips }).catch(() => {})
+      }
     }
   }, [items, startCraft, deleteItem, cancelJob, addItem])
 
   const handleCancel = useCallback((jobId: string) => {
     cancelJob(jobId, (id, q) => addItem(id, q))
+    // Sync refunded items to Supabase
+    const user = useAuthStore.getState().user
+    if (supabase && user) {
+      const { items: curItems, chests } = useInventoryStore.getState()
+      const { seeds, seedZips } = useFarmStore.getState()
+      syncInventoryToSupabase(curItems, chests, { merge: false, seeds, seedZips }).catch(() => {})
+    }
   }, [cancelJob, addItem])
 
   const filteredRecipes = CRAFT_RECIPES.filter((r) => {

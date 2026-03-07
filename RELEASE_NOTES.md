@@ -1,3 +1,14 @@
+## What's new in v3.1.1
+
+### Fixed
+- Crafting resources no longer restored by cloud sync after being consumed
+- Seed zip Open button no longer allows infinite rapid clicks
+- Seed count in picker no longer double-counts inventory + cabinet seeds
+- Craft progress bar no longer jitters when items complete
+
+---
+Released: 2026-03-07
+
 ## What's new in v3.1.0
 
 ### New

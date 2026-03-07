@@ -59,70 +59,6 @@ function useCountdown(plantedAt: number, growTimeSeconds: number) {
   return remaining
 }
 
-// ─── Harvest-all summary banner ──────────────────────────────────────────────
-
-function HarvestAllBanner({ results, onDone }: { results: HarvestResult[]; onDone: () => void }) {
-  const totalXP = results.reduce((s, r) => s + r.xpGained, 0)
-  const zipCount = results.filter((r) => r.seedZipTier).length
-
-  // Aggregate by plant
-  const byPlant: Record<string, { icon: string; image?: string; qty: number }> = {}
-  for (const r of results) {
-    const item = LOOT_ITEMS.find((x) => x.id === r.yieldPlantId)
-    if (!item) continue
-    if (!byPlant[r.yieldPlantId]) byPlant[r.yieldPlantId] = { icon: item.icon, image: item.image, qty: 0 }
-    byPlant[r.yieldPlantId].qty += r.qty
-  }
-
-  useEffect(() => {
-    const id = setTimeout(onDone, 3500)
-    return () => clearTimeout(id)
-  }, [onDone])
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -8, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -6, scale: 0.97 }}
-      transition={{ duration: 0.2, ease: MOTION.easing }}
-      className="rounded-xl border border-lime-400/30 bg-lime-400/[0.06] px-3 py-2.5"
-    >
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[10px] font-bold text-lime-400 uppercase tracking-wider">Harvested!</span>
-        <span className="text-[10px] font-mono text-lime-400/80">+{totalXP} Farmer XP</span>
-      </div>
-      <div className="flex items-center gap-2 flex-wrap">
-        {Object.values(byPlant).map((p, i) => (
-          <motion.span
-            key={i}
-            initial={{ opacity: 0, y: 6, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ delay: i * MOTION.stagger.normal, duration: MOTION.duration.fast, ease: MOTION.easing }}
-            className="text-[12px] font-mono text-white/90"
-          >
-            {p.image ? <img src={p.image} className="w-4 h-4 object-contain inline" /> : p.icon} <span className="text-lime-400 font-bold">×{p.qty}</span>
-          </motion.span>
-        ))}
-        {zipCount > 0 && (() => {
-          const firstTier = results.find((r) => r.seedZipTier)?.seedZipTier
-          const d = firstTier ? getSeedZipDisplay(firstTier) : null
-          const plantCount = Object.values(byPlant).length
-          return (
-            <motion.span
-              initial={{ opacity: 0, y: 6, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: plantCount * MOTION.stagger.normal, duration: MOTION.duration.fast, ease: MOTION.easing }}
-              className="text-[11px] text-gray-300 font-mono flex items-center gap-1"
-            >
-              {d?.image ? <img src={d.image} className="w-4 h-4 object-contain inline" /> : (d?.icon ?? '🎒')} ×{zipCount} Seed Zip
-            </motion.span>
-          )
-        })()}
-      </div>
-    </motion.div>
-  )
-}
-
 // ─── Plot unlock celebration overlay ─────────────────────────────────────────
 
 const PLOT_UNLOCK_SLAM_MS  = 480
@@ -734,12 +670,13 @@ function SeedZipSection() {
   const totalZips = ZIP_TIER_ORDER.reduce((acc, t) => acc + (seedZips[t] ?? 0), 0)
 
   const handleOpen = useCallback((tier: SeedZipTier) => {
+    if (lastOpened) return // prevent rapid double-open
     playClickSound()
     const seedId = openSeedZip(tier)
     if (seedId) {
       setLastOpened({ tier, seedId })
     }
-  }, [openSeedZip])
+  }, [openSeedZip, lastOpened])
 
   if (totalZips === 0) return null
 
@@ -773,9 +710,10 @@ function SeedZipSection() {
               </motion.button>
               <motion.button
                 type="button"
-                whileTap={{ scale: 0.93 }}
+                whileTap={lastOpened ? undefined : { scale: 0.93 }}
+                disabled={!!lastOpened}
                 onClick={() => handleOpen(tier)}
-                className="shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors"
+                className="shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ color: t.color, backgroundColor: `${t.color}22`, border: `1px solid ${t.border}` }}
               >
                 Open
@@ -1262,17 +1200,22 @@ function LockedSlot({ slotIndex, onUnlock }: { slotIndex: number; onUnlock: () =
 
 function SeedPicker({ slotIndex, seeds, onClose }: { slotIndex: number; seeds: Record<string, number>; onClose: () => void }) {
   const plantSeed = useFarmStore((s) => s.plantSeed)
+  const seedCabinetUnlocked = useFarmStore((s) => s.seedCabinetUnlocked)
   const inventoryItems = useInventoryStore((s) => s.items)
 
   // Merge cabinet seeds + inventory seeds so all are visible
+  // When cabinet is unlocked, seeds auto-transfer from inventory → cabinet via useEffect,
+  // so only count inventory seeds when cabinet is NOT unlocked to avoid double-counting
   const mergedSeeds = useMemo(() => {
     const m: Record<string, number> = { ...seeds }
-    for (const def of SEED_DEFS) {
-      const invQty = inventoryItems[def.id] ?? 0
-      if (invQty > 0) m[def.id] = (m[def.id] ?? 0) + invQty
+    if (!seedCabinetUnlocked) {
+      for (const def of SEED_DEFS) {
+        const invQty = inventoryItems[def.id] ?? 0
+        if (invQty > 0) m[def.id] = (m[def.id] ?? 0) + invQty
+      }
     }
     return m
-  }, [seeds, inventoryItems])
+  }, [seeds, inventoryItems, seedCabinetUnlocked])
 
   const available = SEED_DEFS.filter((s) => (mergedSeeds[s.id] ?? 0) > 0)
 

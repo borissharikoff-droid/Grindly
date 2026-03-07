@@ -5,6 +5,10 @@ import { useToastStore } from '../stores/toastStore'
 import { LOOT_ITEMS } from '../lib/loot'
 import { playCraftCompleteSound } from '../lib/sounds'
 import { grantCrafterXP } from '../lib/farming'
+import { syncInventoryToSupabase } from '../services/supabaseSync'
+import { useAuthStore } from '../stores/authStore'
+import { useFarmStore } from '../stores/farmStore'
+import { supabase } from '../lib/supabase'
 
 /**
  * Drives the crafting job queue from App-level (runs on all tabs).
@@ -53,6 +57,13 @@ export function useCraftTick() {
           })
         }
         batchRef.current = null
+        // Sync crafted items to Supabase so periodic merge doesn't lose them
+        const user = useAuthStore.getState().user
+        if (supabase && user) {
+          const { items, chests } = useInventoryStore.getState()
+          const { seeds, seedZips } = useFarmStore.getState()
+          syncInventoryToSupabase(items, chests, { merge: false, seeds, seedZips }).catch(() => {})
+        }
       }
     }
     // Fast-forward any progress that accrued while the app was closed
