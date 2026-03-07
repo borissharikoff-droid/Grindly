@@ -57,6 +57,15 @@ export const CRAFT_INTERMEDIATE_ITEMS: LootItemDef[] = [
     description: 'Refined void crystal shard. Used in void-forged weapons.',
     perkType: 'cosmetic', perkValue: 0, perkDescription: 'Intermediate crafting material',
   },
+  {
+    id: 'dungeon_pass',
+    name: 'Dungeon Pass',
+    slot: 'material',
+    rarity: 'rare',
+    icon: '🎫',
+    description: 'Instantly completes one dungeon run. Consume on auto-farm.',
+    perkType: 'cosmetic', perkValue: 0, perkDescription: 'Consumable — auto-runs one dungeon',
+  },
 ]
 
 // ── Craftable output items ────────────────────────────────────────────────────
@@ -304,6 +313,16 @@ export const CRAFT_RECIPES: CraftRecipe[] = [
     levelRequired: 0,
     xpPerItem: 30,
     secPerItem: 6,
+  },
+  {
+    id: 'recipe_dungeon_pass',
+    outputItemId: 'dungeon_pass',
+    outputQty: 1,
+    isIntermediate: true,
+    ingredients: [{ id: 'wheat', qty: 5 }, { id: 'herbs', qty: 3 }],
+    levelRequired: 5,
+    xpPerItem: 40,
+    secPerItem: 15,
   },
   // ── Tier 1 — Refine raw materials into intermediate components ─────────────
   {

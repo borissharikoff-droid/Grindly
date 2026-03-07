@@ -6,6 +6,7 @@ import { ensureInventoryHydrated, useInventoryStore } from '../../stores/invento
 import { useArenaStore } from '../../stores/arenaStore'
 import { useAdminConfigStore } from '../../stores/adminConfigStore'
 import { ChestOpenModal } from '../animations/ChestOpenModal'
+import { BulkChestOpenModal, type BulkOpenResult } from '../animations/BulkChestOpenModal'
 import { ListForSaleModal } from './ListForSaleModal'
 import { PageHeader } from '../shared/PageHeader'
 import { playClickSound, playPotionSound } from '../../lib/sounds'
@@ -108,6 +109,7 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
   const [openChestModal, setOpenChestModal] = useState<{ chestType: ChestType; itemId: string | null; seedZipTier: import('../../lib/farming').SeedZipTier | null; goldDropped: number; bonusMaterials: import('../../lib/loot').BonusMaterial[] } | null>(null)
   const [chestModalAnimSeed, setChestModalAnimSeed] = useState(0)
   const [chestChainMessage, setChestChainMessage] = useState<string | null>(null)
+  const [bulkOpenModal, setBulkOpenModal] = useState<{ chestType: ChestType; result: BulkOpenResult } | null>(null)
 
   const slots = useMemo<SlotEntry[]>(() => {
     const out: SlotEntry[] = []
@@ -372,6 +374,59 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
     setChestModalAnimSeed((v) => v + 1)
     setOpenChestModal({ chestType, itemId: result.itemId, seedZipTier: seedZipTier ?? null, goldDropped: result.goldDropped, bonusMaterials: result.bonusMaterials })
     return true
+  }
+
+  const openAllChests = (chestType: ChestType) => {
+    // Count total available: pending rewards + chest count
+    const pendingCount = pendingRewards.filter((r) => !r.claimed && r.chestType === chestType).length
+    const chestCount = chests[chestType] ?? 0
+    const total = pendingCount + chestCount
+    if (total <= 0) return
+
+    const itemMap = new Map<string, number>()
+    const matMap = new Map<string, number>()
+    const seedZipMap = new Map<string, number>()
+    let totalGold = 0
+
+    for (let i = 0; i < total; i++) {
+      // Claim pending reward first if available
+      const pending = useInventoryStore.getState().pendingRewards.find((r) => !r.claimed && r.chestType === chestType)
+      if (pending) claimPendingReward(pending.id)
+      else if ((useInventoryStore.getState().chests[chestType] ?? 0) <= 0) break
+
+      const result = openChestAndGrantItem(chestType, { source: 'session_complete' })
+      if (!result) break
+
+      if (result.itemId) itemMap.set(result.itemId, (itemMap.get(result.itemId) ?? 0) + 1)
+      totalGold += result.goldDropped
+      for (const mat of result.bonusMaterials) {
+        matMap.set(mat.itemId, (matMap.get(mat.itemId) ?? 0) + mat.qty)
+      }
+      const seedZipTier = useFarmStore.getState().rollSeedDrop(chestType)
+      if (seedZipTier) seedZipMap.set(seedZipTier, (seedZipMap.get(seedZipTier) ?? 0) + 1)
+    }
+
+    const items = Array.from(itemMap.entries()).map(([id, qty]) => ({
+      def: LOOT_ITEMS.find((x) => x.id === id)!,
+      qty,
+    })).filter((x) => x.def)
+
+    const materials = Array.from(matMap.entries()).map(([id, qty]) => ({
+      def: LOOT_ITEMS.find((x) => x.id === id)!,
+      qty,
+    })).filter((x) => x.def)
+
+    const seedZips = Array.from(seedZipMap.entries()).map(([tier, qty]) => ({
+      tier: tier as import('../../lib/farming').SeedZipTier,
+      qty,
+    }))
+
+    setInspectSlotId(null)
+    setContextMenu(null)
+    setBulkOpenModal({
+      chestType,
+      result: { items, totalGold, materials, seedZips, totalOpened: total },
+    })
   }
 
   return (
@@ -948,6 +1003,25 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
                       </button>
                     )
                   })()}
+                  {(slot.kind === 'chest' || slot.kind === 'pending') && (() => {
+                    const pCount = pendingRewards.filter((r) => !r.claimed && r.chestType === slot.chestType).length
+                    const cCount = chests[slot.chestType] ?? 0
+                    const total = pCount + cCount
+                    if (total < 2) return null
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playClickSound()
+                          setContextMenu(null)
+                          openAllChests(slot.chestType)
+                        }}
+                        className="block w-full text-left text-[11px] px-2 py-1 rounded text-purple-300 hover:bg-purple-400/15"
+                      >
+                        Open All ({total})
+                      </button>
+                    )
+                  })()}
                   {slot.kind === 'item' && !MARKETPLACE_BLOCKED_ITEMS.includes(slot.itemId) && (!slot.equipped || slot.quantity > 1) && (
                     <button
                       type="button"
@@ -1022,6 +1096,13 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
             setChestChainMessage('Oops, your bags are over')
           }
         }}
+      />
+
+      <BulkChestOpenModal
+        open={Boolean(bulkOpenModal)}
+        chestType={bulkOpenModal?.chestType ?? null}
+        result={bulkOpenModal?.result ?? null}
+        onClose={() => setBulkOpenModal(null)}
       />
     </motion.div>
   )

@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import {
   BOSSES, ZONES, BOSS_WARRIOR_XP,
-  computeBattleStateAtTime, computePlayerStats, computeWarriorBonuses,
+  computeBattleStateAtTime, computeBattleOutcome, computePlayerStats, computeWarriorBonuses,
   getDailyBossId, canAffordEntry,
   type BossDef, type MobDef,
 } from '../lib/combat'
@@ -48,7 +48,7 @@ interface ArenaState {
   recordKill: (id: string) => void
   startBattle: (bossId: string) => boolean
   startDungeon: (zoneId: string, consumablePlantId?: string | null) => boolean
-  advanceDungeon: () => void
+  advanceDungeon: (startTimeOverride?: number) => void
   forfeitDungeon: () => void
   /** Resolves the battle (grants victory gold, applies death penalty). Returns goldLost, optional chest drop, material drop, and optional lost item. */
   endBattle: () => { goldLost: number; chest: ArenaChestDrop | null; lostItem: { name: string; icon: string } | null; materialDrop: { id: string; name: string; icon: string; qty: number } | null; dungeonGold: number; warriorXP: number }
@@ -56,6 +56,7 @@ interface ArenaState {
   endBattleWithoutGold: () => { goldLost: number; chest: ArenaChestDrop | null; lostItem: { name: string; icon: string } | null }
   getBattleState: () => ReturnType<typeof computeBattleStateAtTime> | null
   forfeitBattle: () => void
+  autoRunDungeon: (zoneId: string, passCount: number) => AutoRunResult
 }
 
 /** Fraction of current gold lost on death */
@@ -73,7 +74,7 @@ function getWarriorLevel(): number {
   }
 }
 
-/** On startup, clear any stale completed battle left in persisted state. */
+/** On startup, clear any truly invalid battles left in persisted state. */
 function clearStaleActiveBattle() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -81,14 +82,9 @@ function clearStaleActiveBattle() {
     const parsed = JSON.parse(raw)
     const ab = parsed?.state?.activeBattle
     if (!ab) return
+    // Only clear truly invalid battles (bad timestamps) — completed battles are
+    // kept so useArenaBattleTick can resolve them and grant rewards on next open
     if (!ab.startTime || ab.startTime <= 0 || ab.startTime > Date.now()) {
-      parsed.state.activeBattle = null
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed))
-      return
-    }
-    const elapsed = (Date.now() - ab.startTime) / 1000
-    const state = computeBattleStateAtTime(ab.playerSnapshot, ab.bossSnapshot, elapsed)
-    if (state.isComplete) {
       parsed.state.activeBattle = null
       localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed))
     }
@@ -121,6 +117,17 @@ function loseRandomEquippedItem(): { name: string; icon: string } | null {
   const qty = inv.items[itemId] ?? 1
   inv.deleteItem(itemId, qty)        // delete ALL copies — item is destroyed
   return itemDef ? { name: itemDef.name, icon: itemDef.icon } : { name: itemId, icon: '📦' }
+}
+
+export interface AutoRunResult {
+  runsCompleted: number
+  totalGold: number
+  totalWarriorXP: number
+  materials: { id: string; name: string; icon: string; qty: number }[]
+  chests: ChestType[]
+  failed: boolean
+  failedAt?: string
+  passesUsed: number
 }
 
 export const useArenaStore = create<ArenaState>()(
@@ -232,7 +239,7 @@ export const useArenaStore = create<ArenaState>()(
         return true
       },
 
-      advanceDungeon() {
+      advanceDungeon(startTimeOverride?: number) {
         const { activeDungeon } = get()
         if (!activeDungeon) return
 
@@ -252,7 +259,7 @@ export const useArenaStore = create<ArenaState>()(
             activeDungeon: { ...activeDungeon, mobIndex: nextIndex },
             activeBattle: {
               bossId: mob.id,
-              startTime: Date.now(),
+              startTime: startTimeOverride ?? Date.now(),
               playerSnapshot,
               bossSnapshot: mob as unknown as BossDef,
               isDaily: false,
@@ -268,7 +275,7 @@ export const useArenaStore = create<ArenaState>()(
             activeDungeon: { ...activeDungeon, mobIndex: 3 },
             activeBattle: {
               bossId: boss.id,
-              startTime: Date.now(),
+              startTime: startTimeOverride ?? Date.now(),
               playerSnapshot,
               bossSnapshot: boss,
               isDaily: false,
@@ -474,6 +481,134 @@ export const useArenaStore = create<ArenaState>()(
 
       forfeitBattle() {
         set({ activeBattle: null, activeDungeon: null })
+      },
+
+      autoRunDungeon(zoneId: string, passCount: number): AutoRunResult {
+        const zone = ZONES.find((z) => z.id === zoneId)
+        if (!zone) return { runsCompleted: 0, totalGold: 0, totalWarriorXP: 0, materials: [], chests: [], failed: false, passesUsed: 0 }
+
+        const inv = useInventoryStore.getState()
+        const passes = inv.items['dungeon_pass'] ?? 0
+        const actualRuns = Math.min(passCount, passes)
+        if (actualRuns <= 0) return { runsCompleted: 0, totalGold: 0, totalWarriorXP: 0, materials: [], chests: [], failed: false, passesUsed: 0 }
+
+        let totalGold = 0
+        let totalWarriorXP = 0
+        const materialMap: Record<string, { name: string; icon: string; qty: number }> = {}
+        const chests: ChestType[] = []
+        let runsCompleted = 0
+        let failed = false
+        let failedAt: string | undefined
+        let passesUsed = 0
+
+        for (let i = 0; i < actualRuns && !failed; i++) {
+          const freshInv = useInventoryStore.getState()
+          // Check entry cost
+          if (!canAffordEntry(zone, freshInv.items)) break
+
+          // Consume entry cost
+          for (const c of zone.entryCost ?? []) {
+            useInventoryStore.getState().deleteItem(c.itemId, c.quantity)
+          }
+
+          // Consume 1 pass
+          useInventoryStore.getState().deleteItem('dungeon_pass', 1)
+          passesUsed++
+
+          // Compute player stats
+          const { equippedBySlot, permanentStats } = useInventoryStore.getState()
+          const warriorLevel = getWarriorLevel()
+          const warriorBonuses = computeWarriorBonuses(warriorLevel)
+          const playerSnapshot = computePlayerStats(equippedBySlot, permanentStats, warriorBonuses)
+
+          // Fight 3 mobs
+          for (let m = 0; m < 3 && !failed; m++) {
+            const mob = zone.mobs[m]
+            const outcome = computeBattleOutcome(playerSnapshot, mob as unknown as BossDef)
+            if (outcome.willWin) {
+              const gold = randomGold(mob.goldMin, mob.goldMax)
+              totalGold += gold
+              void grantWarriorXP(mob.xpReward)
+              const drop = rollMaterial(mob)
+              if (drop) {
+                useInventoryStore.getState().addItem(drop.id, drop.qty)
+                const matItem = LOOT_ITEMS.find((x) => x.id === drop.id)
+                if (materialMap[drop.id]) {
+                  materialMap[drop.id].qty += drop.qty
+                } else {
+                  materialMap[drop.id] = { name: matItem?.name ?? drop.id, icon: matItem?.icon ?? '📦', qty: drop.qty }
+                }
+              }
+            } else {
+              failed = true
+              failedAt = mob.name
+              // Death penalty
+              const currentGold = useGoldStore.getState().gold
+              const goldLost = Math.floor(currentGold * DEATH_GOLD_PENALTY)
+              if (goldLost > 0) useGoldStore.getState().addGold(-goldLost)
+              totalGold -= goldLost
+              loseRandomEquippedItem()
+            }
+          }
+
+          if (failed) break
+
+          // Fight boss
+          const bossOutcome = computeBattleOutcome(playerSnapshot, zone.boss)
+          if (bossOutcome.willWin) {
+            get().recordKill(zone.boss.id)
+            const rolledTier = rollBossChestTier(zone.boss.rewards.chestTier)
+            if (rolledTier) {
+              useInventoryStore.getState().addChest(rolledTier, 'session_complete', 100)
+              chests.push(rolledTier)
+            }
+            const bossWarriorXP = BOSS_WARRIOR_XP[zone.boss.id] ?? 0
+            if (bossWarriorXP > 0) {
+              void grantWarriorXP(bossWarriorXP)
+              totalWarriorXP += bossWarriorXP
+            }
+            if (zone.boss.materialDropId) {
+              const qty = zone.boss.materialDropQty ?? 1
+              useInventoryStore.getState().addItem(zone.boss.materialDropId, qty)
+              const matItem = LOOT_ITEMS.find((x) => x.id === zone.boss.materialDropId)
+              if (materialMap[zone.boss.materialDropId]) {
+                materialMap[zone.boss.materialDropId].qty += qty
+              } else {
+                materialMap[zone.boss.materialDropId] = { name: matItem?.name ?? zone.boss.materialDropId, icon: matItem?.icon ?? '📦', qty }
+              }
+            }
+            set((s) => ({
+              clearedZones: s.clearedZones.includes(zoneId) ? s.clearedZones : [...s.clearedZones, zoneId],
+            }))
+            runsCompleted++
+          } else {
+            failed = true
+            failedAt = zone.boss.name
+            const currentGold = useGoldStore.getState().gold
+            const goldLost = Math.floor(currentGold * DEATH_GOLD_PENALTY)
+            if (goldLost > 0) useGoldStore.getState().addGold(-goldLost)
+            totalGold -= goldLost
+            loseRandomEquippedItem()
+          }
+        }
+
+        // Add accumulated gold
+        if (totalGold > 0) {
+          useGoldStore.getState().addGold(totalGold)
+          const user = useAuthStore.getState().user
+          if (user) useGoldStore.getState().syncToSupabase(user.id)
+        }
+
+        return {
+          runsCompleted,
+          totalGold: Math.max(0, totalGold),
+          totalWarriorXP,
+          materials: Object.entries(materialMap).map(([id, m]) => ({ id, ...m })),
+          chests,
+          failed,
+          failedAt,
+          passesUsed,
+        }
       },
     }),
     {

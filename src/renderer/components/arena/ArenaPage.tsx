@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ZONES,
@@ -7,7 +7,7 @@ import {
 import { LOOT_ITEMS, type ChestType, type BonusMaterial } from '../../lib/loot'
 import { useInventoryStore } from '../../stores/inventoryStore'
 import { ChestOpenModal } from '../animations/ChestOpenModal'
-import { useArenaStore } from '../../stores/arenaStore'
+import { useArenaStore, type AutoRunResult } from '../../stores/arenaStore'
 import { useAdminConfigStore } from '../../stores/adminConfigStore'
 import { SKILLS, skillLevelFromXP } from '../../lib/skills'
 import { CharacterCard } from '../character/CharacterCard'
@@ -42,6 +42,8 @@ function ZoneCard({
   confirmForfeit,
   setConfirmForfeit,
   onEnter,
+  onAutoFarm,
+  passCount,
 }: {
   zone: ZoneDef
   skillLevels: Record<string, number>
@@ -56,6 +58,8 @@ function ZoneCard({
   confirmForfeit: boolean
   setConfirmForfeit: (v: boolean) => void
   onEnter: (zoneId: string) => void
+  onAutoFarm: (zoneId: string) => void
+  passCount: number
 }) {
   const unlocked = isZoneUnlocked(zone, skillLevels, clearedZones, ownedItems)
   const cleared = clearedZones.includes(zone.id)
@@ -253,17 +257,32 @@ function ZoneCard({
 
           {/* Enter / locked button */}
           {!isActive && (
-            <button
-              type="button"
-              disabled={!unlocked || !!activeBattle || !affordable}
-              onClick={() => { playClickSound(); onEnter(zone.id) }}
-              className="shrink-0 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
-              style={unlocked && !activeBattle && affordable
-                ? { color: tc, borderColor: `${tc}60`, border: `1px solid ${tc}60`, background: `${tc}20` }
-                : { color: 'rgba(156,163,175,0.6)', border: '1px solid rgba(255,255,255,0.10)', background: 'transparent', cursor: 'not-allowed' }}
-            >
-              {!unlocked ? '🔒 Locked' : activeBattle ? 'Busy' : !affordable ? '📦 Need items' : 'Enter →'}
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                disabled={!unlocked || !!activeBattle || !affordable}
+                onClick={() => { playClickSound(); onEnter(zone.id) }}
+                className="shrink-0 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                style={unlocked && !activeBattle && affordable
+                  ? { color: tc, borderColor: `${tc}60`, border: `1px solid ${tc}60`, background: `${tc}20` }
+                  : { color: 'rgba(156,163,175,0.6)', border: '1px solid rgba(255,255,255,0.10)', background: 'transparent', cursor: 'not-allowed' }}
+              >
+                {!unlocked ? '🔒 Locked' : activeBattle ? 'Busy' : !affordable ? '📦 Need items' : 'Enter →'}
+              </button>
+              {cleared && passCount > 0 && !activeBattle && (
+                <button
+                  type="button"
+                  disabled={!affordable}
+                  onClick={() => { playClickSound(); onAutoFarm(zone.id) }}
+                  className="shrink-0 px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                  style={affordable
+                    ? { color: '#fbbf24', borderColor: 'rgba(251,191,36,0.4)', border: '1px solid rgba(251,191,36,0.4)', background: 'rgba(251,191,36,0.12)' }
+                    : { color: 'rgba(156,163,175,0.6)', border: '1px solid rgba(255,255,255,0.10)', background: 'transparent', cursor: 'not-allowed' }}
+                >
+                  🎫 Auto ×{passCount}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </motion.div>
@@ -521,6 +540,9 @@ export function ArenaPage() {
   const endBattle = useArenaStore((s) => s.endBattle)
   const setResultModal = useArenaStore((s) => s.setResultModal)
   const startDungeon = useArenaStore((s) => s.startDungeon)
+  const autoRunDungeon = useArenaStore((s) => s.autoRunDungeon)
+  const passCount = useInventoryStore((s) => s.items['dungeon_pass'] ?? 0)
+  const [autoRunResult, setAutoRunResult] = useState<AutoRunResult | null>(null)
   const [battleState, setBattleState] = useState<ReturnType<typeof getBattleState>>(null)
   const [skillLevels, setSkillLevels] = useState<Record<string, number>>({})
   const [confirmForfeit, setConfirmForfeit] = useState(false)
@@ -531,6 +553,11 @@ export function ArenaPage() {
   const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
   const dailyBossId = getDailyBossId()
+
+  const handleAutoFarm = useCallback((zoneId: string) => {
+    const result = autoRunDungeon(zoneId, passCount)
+    setAutoRunResult(result)
+  }, [autoRunDungeon, passCount])
 
   useEffect(() => {
     const buildLevels = (rows: { skill_id: string; total_xp: number }[]): Record<string, number> => {
@@ -631,7 +658,7 @@ export function ArenaPage() {
           setResultModal({ victory: false, gold: 0, goldAlreadyAdded: true, goldLost, lostItemName: lostItem.name, lostItemIcon: lostItem.icon })
         }
       } else {
-        const { goldLost, chest, lostItem, dungeonGold, warriorXP } = endBattle()
+        const { goldLost, chest, lostItem, materialDrop, dungeonGold, warriorXP } = endBattle()
         if (victory && chest) {
           // Open the chest immediately and show ChestOpenModal
           const inv = useInventoryStore.getState()
@@ -646,8 +673,8 @@ export function ArenaPage() {
             })
           }
         } else if (victory) {
-          // Victory but no chest dropped (15% chance) — show victory modal with gold/XP only
-          setResultModal({ victory: true, gold: dungeonGold, goldAlreadyAdded: true, bossName: enemyName, warriorXP })
+          // Victory but no chest dropped (15% chance) — show victory modal with gold/XP/material
+          setResultModal({ victory: true, gold: dungeonGold, goldAlreadyAdded: true, bossName: enemyName, materialDrop, warriorXP })
         } else {
           // Defeat — show result modal
           setResultModal({ victory: false, gold: 0, goldAlreadyAdded: true, bossName: enemyName, goldLost, lostItemName: lostItem?.name, lostItemIcon: lostItem?.icon })
@@ -732,6 +759,8 @@ export function ArenaPage() {
             confirmForfeit={confirmForfeit}
             setConfirmForfeit={setConfirmForfeit}
             onEnter={(zoneId) => { startDungeon(zoneId) }}
+            onAutoFarm={handleAutoFarm}
+            passCount={passCount}
           />
         ))}
       </div>
@@ -753,6 +782,79 @@ export function ArenaPage() {
       warriorXP={arenaChestModal?.warriorXP}
       onClose={() => setArenaChestModal(null)}
     />
+
+    {/* Auto-Farm Result Modal */}
+    <AnimatePresence>
+      {autoRunResult && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[115] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setAutoRunResult(null)}
+        >
+          <motion.div
+            initial={{ scale: 0.86, y: 16, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            exit={{ scale: 0.92, y: 10, opacity: 0 }}
+            transition={{ type: 'spring', duration: 0.35, bounce: 0.15 }}
+            className="w-[300px] rounded-2xl border border-amber-500/30 bg-discord-card overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 text-center">
+              <div className="w-14 h-14 mx-auto rounded-2xl border border-amber-500/30 bg-amber-500/10 flex items-center justify-center mb-3">
+                <span className="text-2xl">🎫</span>
+              </div>
+              <p className="text-[10px] font-mono uppercase tracking-widest text-amber-400 mb-1">Auto-Farm Complete</p>
+              <p className="text-white font-bold text-xl mb-3">
+                {autoRunResult.runsCompleted} / {autoRunResult.passesUsed} runs
+              </p>
+
+              <div className="space-y-1.5 text-left">
+                {autoRunResult.totalGold > 0 && (
+                  <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-1.5">
+                    <span>🪙</span>
+                    <span className="text-[12px] text-amber-300 font-semibold">+{formatShort(autoRunResult.totalGold)} Gold</span>
+                  </div>
+                )}
+                {autoRunResult.materials.map((m) => (
+                  <div key={m.id} className="flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5">
+                    <span>{m.icon}</span>
+                    <span className="text-[12px] text-emerald-300 font-semibold">×{m.qty} {m.name}</span>
+                  </div>
+                ))}
+                {autoRunResult.chests.length > 0 && (
+                  <div className="flex items-center gap-2 rounded-lg bg-purple-500/10 border border-purple-500/20 px-3 py-1.5">
+                    <span>📦</span>
+                    <span className="text-[12px] text-purple-300 font-semibold">{autoRunResult.chests.length} chest{autoRunResult.chests.length > 1 ? 's' : ''}</span>
+                  </div>
+                )}
+                {autoRunResult.totalWarriorXP > 0 && (
+                  <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-1.5">
+                    <span>⚔️</span>
+                    <span className="text-[12px] text-red-300 font-semibold">+{formatShort(autoRunResult.totalWarriorXP)} Warrior XP</span>
+                  </div>
+                )}
+                {autoRunResult.failed && autoRunResult.failedAt && (
+                  <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/25 px-3 py-1.5">
+                    <span>💀</span>
+                    <span className="text-[12px] text-red-300 font-semibold">Died vs {autoRunResult.failedAt}</span>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setAutoRunResult(null)}
+                className="mt-4 w-full py-2.5 rounded-xl border border-amber-500/35 bg-amber-500/15 text-amber-300 text-sm font-semibold hover:bg-amber-500/25 transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
     </>
   )
 }

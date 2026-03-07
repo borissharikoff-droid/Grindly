@@ -33,6 +33,21 @@ function formatXP(xp: number): string {
   return `${xp}`
 }
 
+const SKILL_VERB: Record<string, string> = {
+  coding: 'coded',
+  design: 'designed',
+  games: 'played',
+  social: 'chatted',
+  browsing: 'browsed',
+  creative: 'created',
+  learning: 'studied',
+  music: 'listened',
+}
+
+function skillVerb(category: string): string {
+  return SKILL_VERB[category] ?? 'tracked'
+}
+
 export function SkillsPage() {
   const [skillData, setSkillData] = useState<SkillRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -244,7 +259,7 @@ export function SkillsPage() {
                     </div>
                     <div className="flex items-center justify-between mt-1">
                       <span className="text-[10px] text-gray-500 font-mono">{formatXP(current)} / {formatXP(needed)} XP</span>
-                      <span className="text-[10px] text-gray-600 font-mono">{skill.category === 'farming' ? `${formatXP(xp)} XP` : `${timeStr} played`}</span>
+                      <span className="text-[10px] text-gray-600 font-mono">{skill.category === 'farming' ? `${formatXP(xp)} XP` : `${timeStr} ${skillVerb(skill.category)}`}</span>
                     </div>
                   </div>
                   <div className="shrink-0 text-center ml-1">
@@ -421,7 +436,7 @@ export function SkillsPage() {
                     </div>
                     <div className="flex items-center justify-between mt-1">
                       <span className="text-[10px] text-gray-500 font-mono">{formatXP(current)} / {formatXP(needed)} XP</span>
-                      <span className="text-[10px] text-gray-600 font-mono">{skill.category === 'farming' ? `${formatXP(xp)} XP` : `${timeStr} played`}</span>
+                      <span className="text-[10px] text-gray-600 font-mono">{skill.category === 'farming' ? `${formatXP(xp)} XP` : `${timeStr} ${skillVerb(skill.category)}`}</span>
                     </div>
                   </div>
 

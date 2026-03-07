@@ -17,69 +17,75 @@ type CachedListing = { item_id: string; quantity: number; price_gold: number }
 export function useMarketplaceSaleNotifier() {
   const { user } = useAuthStore()
   const myListingsRef = useRef(new Map<string, CachedListing>())
+  const initializedRef = useRef(false)
 
-  // Populate the ref whenever the user logs in
-  useEffect(() => {
-    if (!supabase || !user?.id) { myListingsRef.current.clear(); return }
-    supabase
+  const fetchActiveListings = useCallback(async () => {
+    if (!supabase || !user?.id) return null
+    const { data } = await supabase
       .from('marketplace_listings')
       .select('id, item_id, quantity, price_gold')
       .eq('seller_id', user.id)
       .eq('status', 'active')
-      .then(
-        ({ data }) => {
-          if (!data) return
-          const map = new Map<string, CachedListing>()
-          for (const l of data as unknown as (CachedListing & { id: string })[]) {
-            map.set(l.id, { item_id: l.item_id, quantity: l.quantity, price_gold: l.price_gold })
-          }
-          myListingsRef.current = map
-        },
-        () => {},
-      )
+    if (!data) return null
+    const map = new Map<string, CachedListing>()
+    for (const l of data as unknown as (CachedListing & { id: string })[]) {
+      map.set(l.id, { item_id: l.item_id, quantity: l.quantity, price_gold: l.price_gold })
+    }
+    return map
   }, [user?.id])
+
+  // Populate the ref on login
+  useEffect(() => {
+    if (!supabase || !user?.id) { myListingsRef.current.clear(); initializedRef.current = false; return }
+    fetchActiveListings().then((map) => {
+      if (map) {
+        myListingsRef.current = map
+        initializedRef.current = true
+      }
+    }).catch(() => {})
+  }, [user?.id, fetchActiveListings])
+
+  const notifySale = useCallback((prev: CachedListing, qtySold: number) => {
+    const item = LOOT_ITEMS.find((x) => x.id === prev.item_id)
+    const farmDisplay = !item ? getFarmItemDisplay(prev.item_id) : null
+    const name = item?.name ?? farmDisplay?.name ?? prev.item_id
+    const perUnit = prev.quantity > 0 ? Math.round(prev.price_gold / prev.quantity) : prev.price_gold
+    const totalGold = perUnit * qtySold
+    useNotificationStore.getState().push({
+      type: 'marketplace_sale',
+      icon: '🛒',
+      title: 'Item sold!',
+      body: `${name}${qtySold > 1 ? ` ×${qtySold}` : ''} — ${totalGold} 🪙`,
+    })
+    useNavBadgeStore.getState().addMarketplaceSale()
+  }, [])
 
   // Shared detection logic — compares prevMap vs freshly fetched active listings
   const detectSales = useCallback(async () => {
     if (!supabase || !user?.id) return
+    if (!initializedRef.current) return
+
     const prevMap = new Map(myListingsRef.current)
-    if (prevMap.size === 0) return
-
-    const result = await supabase
-      .from('marketplace_listings')
-      .select('id, item_id, quantity, price_gold')
-      .eq('seller_id', user.id)
-      .eq('status', 'active')
-      .then((r) => r, () => ({ data: null }))
-
-    const data = result.data
-    if (!data) return
-
-    const newMap = new Map<string, CachedListing>()
-    for (const l of data as unknown as (CachedListing & { id: string })[]) {
-      newMap.set(l.id, { item_id: l.item_id, quantity: l.quantity, price_gold: l.price_gold })
-    }
+    const newMap = await fetchActiveListings()
+    if (!newMap) return
     myListingsRef.current = newMap
-    const newIds = new Set(newMap.keys())
 
+    // Detect fully sold listings (disappeared) and partial sales (qty decreased)
     for (const [prevId, prev] of prevMap) {
-      if (newIds.has(prevId)) continue
       if (recentlyCancelledListingIds.has(prevId)) {
         recentlyCancelledListingIds.delete(prevId)
         continue
       }
-      const item = LOOT_ITEMS.find((x) => x.id === prev.item_id)
-      const farmDisplay = !item ? getFarmItemDisplay(prev.item_id) : null
-      const name = item?.name ?? farmDisplay?.name ?? prev.item_id
-      useNotificationStore.getState().push({
-        type: 'marketplace_sale',
-        icon: '🛒',
-        title: 'Item sold!',
-        body: `${name}${prev.quantity > 1 ? ` ×${prev.quantity}` : ''} — ${prev.price_gold} 🪙`,
-      })
-      useNavBadgeStore.getState().addMarketplaceSale()
+      const current = newMap.get(prevId)
+      if (!current) {
+        // Listing fully sold or removed
+        notifySale(prev, prev.quantity)
+      } else if (current.quantity < prev.quantity) {
+        // Partial buy — quantity decreased
+        notifySale(prev, prev.quantity - current.quantity)
+      }
     }
-  }, [user?.id])
+  }, [user?.id, fetchActiveListings, notifySale])
 
   // Realtime channel — instant notification when Supabase replication is enabled
   useEffect(() => {
@@ -94,10 +100,10 @@ export function useMarketplaceSaleNotifier() {
     return () => { supabase!.removeChannel(channel).catch(() => {}) }
   }, [user?.id, detectSales])
 
-  // Polling fallback — every 30s, in case Supabase Realtime isn't configured for this table
+  // Polling fallback — every 15s, in case Supabase Realtime isn't configured for this table
   useEffect(() => {
     if (!supabase || !user?.id) return
-    const id = setInterval(() => { detectSales().catch(() => {}) }, 30_000)
+    const id = setInterval(() => { detectSales().catch(() => {}) }, 15_000)
     return () => clearInterval(id)
   }, [user?.id, detectSales])
 }

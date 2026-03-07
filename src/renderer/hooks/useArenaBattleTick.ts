@@ -38,12 +38,45 @@ export function useArenaBattleTick(activeTab: TabId) {
       if (!state?.isComplete || completedRef.current) return
       // When on Arena tab, ArenaPage handles all battles (mobs + bosses) inline
       if (activeTabRef.current === 'arena') return
-      // Mob battles in dungeons are always handled by ArenaPage
-      if (activeBattle.isMob) return
+
+      const bossName = activeBattle.bossSnapshot.name
+
+      if (activeBattle.isMob) {
+        completedRef.current = true
+        const victory = state.victory ?? false
+        timeoutRef.current = setTimeout(() => {
+          const { goldLost, lostItem } = useArenaStore.getState().endBattle()
+          if (!victory) {
+            // Mob defeat — show notification
+            const notifId = pushNotification({
+              type: 'arena_result',
+              icon: '💀',
+              title: `Died in dungeon vs ${bossName}`,
+              body: goldLost > 0 ? `-${formatShort(goldLost)} 🪙 lost` : 'Dungeon failed',
+              arenaResult: { victory: false, gold: 0, bossName },
+            })
+            if (notifId) {
+              pushToast({ kind: 'arena_boss', victory: false, bossName, gold: 0, notificationId: notifId })
+            }
+          } else {
+            // Mob victory — advance dungeon with chained start time
+            const bs = activeBattle.bossSnapshot
+            const ps = activeBattle.playerSnapshot
+            const tWin = bs.hp / ps.atk
+            const minDmgFraction = 0.20
+            const eDPS = Math.max(bs.atk * minDmgFraction, bs.atk - ps.hpRegen)
+            const tLose = eDPS > 0 ? ps.hp / eDPS : Infinity
+            const fightDuration = Math.min(tWin, tLose)
+            const fightEndTime = activeBattle.startTime + fightDuration * 1000
+            completedRef.current = false // reset so next fight can be detected
+            useArenaStore.getState().advanceDungeon(fightEndTime)
+          }
+        }, 300) // shorter delay for mob cascade
+        return
+      }
 
       completedRef.current = true
       const victory = state.victory ?? false
-      const bossName = activeBattle.bossSnapshot.name
 
       timeoutRef.current = setTimeout(() => {
         const { goldLost, chest } = endBattleWithoutGold()

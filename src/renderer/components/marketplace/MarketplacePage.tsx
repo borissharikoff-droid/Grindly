@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { LOOT_ITEMS, getRarityTheme, getItemPower, MARKETPLACE_BLOCKED_ITEMS, estimateLootDropRate, getItemPerkDescription, type LootRarity } from '../../lib/loot'
 import { getFarmItemDisplay, isSeedId, isSeedZipId } from '../../lib/farming'
 import { SKILLS } from '../../lib/skills'
-import { fetchActiveListings, partialBuyListing, cancelListing, expireOldListings, type ListingWithSeller } from '../../services/marketplaceService'
+import { fetchActiveListings, partialBuyListing, cancelListing, expireOldListings, type ListingWithSeller, type CancelListingResult } from '../../services/marketplaceService'
 import { useGoldStore } from '../../stores/goldStore'
 import { useAuthStore } from '../../stores/authStore'
 import { useInventoryStore } from '../../stores/inventoryStore'
@@ -314,12 +314,20 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
       if (res.ok) {
         playClickSound()
         syncFromSupabase(user.id).catch(() => {})
+        // Add purchased item to local inventory
+        if (res.item_id && res.quantity) {
+          if (isSeedId(res.item_id)) {
+            useFarmStore.getState().addSeed(res.item_id, res.quantity)
+          } else {
+            useInventoryStore.getState().addItem(res.item_id, res.quantity)
+          }
+        }
         try {
           const { items, chests } = useInventoryStore.getState()
           const { seeds, seedZips } = useFarmStore.getState()
           await syncInventoryToSupabase(items, chests, { merge: false, seeds, seedZips })
         } catch {
-          // Sync failure is non-fatal — local state already updated by Supabase RPC
+          // Sync failure is non-fatal — local state already updated above
         }
         if (!exitingRef.current) loadListings().catch(() => {})
       }
@@ -341,6 +349,14 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
       const res = await cancelListing(listing.id)
       if (exitingRef.current) return
       if (res.ok) {
+        // Return item to local inventory
+        if (res.item_id && res.quantity) {
+          if (isSeedId(res.item_id)) {
+            useFarmStore.getState().addSeed(res.item_id, res.quantity)
+          } else {
+            useInventoryStore.getState().addItem(res.item_id, res.quantity)
+          }
+        }
         playClickSound()
         setCancelConfirmTarget(null)
         try {
@@ -368,8 +384,18 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
     for (const id of ids) cancelledListingIdsRef.current.add(id)
     setCancellingId(ids[0] ?? null)
     setCancelGroupTarget(null)
-    await Promise.all(ids.map((id) => cancelListing(id).catch(() => {})))
+    const results = await Promise.all(ids.map((id) => cancelListing(id).catch(() => ({ ok: false } as CancelListingResult))))
     if (exitingRef.current) return
+    // Return items to local inventory
+    for (const res of results) {
+      if (res.ok && res.item_id && res.quantity) {
+        if (isSeedId(res.item_id)) {
+          useFarmStore.getState().addSeed(res.item_id, res.quantity)
+        } else {
+          useInventoryStore.getState().addItem(res.item_id, res.quantity)
+        }
+      }
+    }
     setCancellingId(null)
     playClickSound()
     try {

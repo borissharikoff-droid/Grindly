@@ -479,7 +479,7 @@ export default function App() {
             lostItemName={arenaResultModal?.lostItemName}
             lostItemIcon={arenaResultModal?.lostItemIcon}
             materialDrop={arenaResultModal?.materialDrop ?? null}
-            dungeonGold={arenaResultModal?.dungeonGold ?? 0}
+            dungeonGold={arenaResultModal?.gold ?? 0}
             warriorXP={arenaResultModal?.warriorXP ?? 0}
             onClose={() => setArenaResultModal(null)}
           />
