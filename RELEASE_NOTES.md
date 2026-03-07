@@ -1,17 +1,9 @@
-## What's new in v3.3.0
-
-### New
-- Background arena battles — start a fight and close the app, results resolve on next open
-- Dungeon Pass crafting — wheat x5 + herbs x3, auto-farm cleared dungeons
-- Open All chests — bulk open bags of the same type with combined loot summary
-- Skill tab verbs — context-specific verbs per skill (coded, designed, listened, etc.)
+## What's new in v3.3.1
 
 ### Fixed
-- Arena boss victory modal now shows material drops and gold when no chest drops
-- Marketplace purchases now correctly add items to buyer's local inventory
-- Marketplace cancel properly returns items to seller's inventory
-- Sale notifications rewritten — detects partial buys, 15s polling fallback
-- Fixed dungeonGold display in victory modal (was referencing wrong field)
+- Marketplace purchases of Seed Zips now correctly add them to buyer's farm
+- Marketplace cancel of Seed Zips now returns them to seller's farm
+- Same fix applied to bulk cancel (Cancel All)
 
 ---
 Released: 2026-03-08

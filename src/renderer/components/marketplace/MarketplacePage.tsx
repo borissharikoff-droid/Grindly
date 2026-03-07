@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { LOOT_ITEMS, getRarityTheme, getItemPower, MARKETPLACE_BLOCKED_ITEMS, estimateLootDropRate, getItemPerkDescription, type LootRarity } from '../../lib/loot'
-import { getFarmItemDisplay, isSeedId, isSeedZipId } from '../../lib/farming'
+import { getFarmItemDisplay, isSeedId, isSeedZipId, seedZipTierFromItemId } from '../../lib/farming'
 import { SKILLS } from '../../lib/skills'
 import { fetchActiveListings, partialBuyListing, cancelListing, expireOldListings, type ListingWithSeller, type CancelListingResult } from '../../services/marketplaceService'
 import { useGoldStore } from '../../stores/goldStore'
@@ -318,6 +318,9 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
         if (res.item_id && res.quantity) {
           if (isSeedId(res.item_id)) {
             useFarmStore.getState().addSeed(res.item_id, res.quantity)
+          } else if (isSeedZipId(res.item_id)) {
+            const tier = seedZipTierFromItemId(res.item_id)
+            if (tier) useFarmStore.getState().addSeedZip(tier, res.quantity)
           } else {
             useInventoryStore.getState().addItem(res.item_id, res.quantity)
           }
@@ -353,6 +356,9 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
         if (res.item_id && res.quantity) {
           if (isSeedId(res.item_id)) {
             useFarmStore.getState().addSeed(res.item_id, res.quantity)
+          } else if (isSeedZipId(res.item_id)) {
+            const tier = seedZipTierFromItemId(res.item_id)
+            if (tier) useFarmStore.getState().addSeedZip(tier, res.quantity)
           } else {
             useInventoryStore.getState().addItem(res.item_id, res.quantity)
           }
@@ -391,6 +397,9 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
       if (res.ok && res.item_id && res.quantity) {
         if (isSeedId(res.item_id)) {
           useFarmStore.getState().addSeed(res.item_id, res.quantity)
+        } else if (isSeedZipId(res.item_id)) {
+          const tier = seedZipTierFromItemId(res.item_id)
+          if (tier) useFarmStore.getState().addSeedZip(tier, res.quantity)
         } else {
           useInventoryStore.getState().addItem(res.item_id, res.quantity)
         }
