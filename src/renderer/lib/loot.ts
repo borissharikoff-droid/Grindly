@@ -133,6 +133,19 @@ export function getRarityTheme(rarity: LootRarity | string) {
 
 /** Item IDs that cannot be listed or shown on the marketplace */
 export const MARKETPLACE_BLOCKED_ITEMS: string[] = ['health_potion', 'atk_potion', 'hp_potion', 'regen_potion']
+
+let _validIdCache: Set<string> | null = null
+/** Returns true if the item ID corresponds to a real in-game item (gear, seed, chest, material, etc.) */
+export function isValidItemId(itemId: string): boolean {
+  if (!_validIdCache) {
+    _validIdCache = new Set(LOOT_ITEMS.map((i) => i.id))
+    for (const id of ['wheat_seed', 'herb_seed', 'apple_seed', 'blossom_seed', 'clover_seed', 'orchid_seed', 'starbloom_seed', 'crystal_seed', 'void_spore']) _validIdCache.add(id)
+    for (const id of ['seed_zip_common', 'seed_zip_rare', 'seed_zip_epic', 'seed_zip_legendary']) _validIdCache.add(id)
+    for (const id of ['common_chest', 'rare_chest', 'epic_chest', 'legendary_chest']) _validIdCache.add(id)
+  }
+  return _validIdCache.has(itemId)
+}
+
 export type LootPerkType =
   | 'cosmetic'
   | 'xp_skill_boost'

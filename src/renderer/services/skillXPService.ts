@@ -2,7 +2,7 @@
  * SkillXPService — computes skill XP from activity segments and persists to DB / localStorage.
  */
 
-import { computeSessionSkillXP, skillLevelFromXP } from '../lib/skills'
+import { computeSessionSkillXP, skillLevelFromXP, getGrindlyLevel, computeGrindlyBonuses } from '../lib/skills'
 import type { SkillXPGain } from '../stores/sessionStore'
 import { getEquippedPerkRuntime } from '../lib/loot'
 import { ensureInventoryHydrated, useInventoryStore } from '../stores/inventoryStore'
@@ -26,9 +26,10 @@ export async function computeAndSaveSkillXPElectron(
 
   if (!api.db.addSkillXP || !api.db.getSkillXP) return skillXPGains
 
+  const grindlyXpMult = computeGrindlyBonuses(getGrindlyLevel()).xpMultiplier
   for (const [skillId, xp] of Object.entries(gainsMap)) {
     if (xp <= 0) continue
-    const multiplier = (perk.skillXpMultiplierBySkill[skillId] ?? 1) * (perk.globalXpMultiplier ?? 1)
+    const multiplier = (perk.skillXpMultiplierBySkill[skillId] ?? 1) * (perk.globalXpMultiplier ?? 1) * grindlyXpMult
     const adjustedXp = Math.max(1, Math.floor(xp * multiplier))
     const before = await api.db.getSkillXP(skillId)
     const levelBefore = skillLevelFromXP(before)
@@ -58,9 +59,10 @@ export function computeAndSaveSkillXPBrowser(
   const stored = JSON.parse(localStorage.getItem('grindly_skill_xp') || '{}') as Record<string, number>
   const gains: SkillXPGain[] = []
 
+  const grindlyXpMult = computeGrindlyBonuses(getGrindlyLevel()).xpMultiplier
   for (const [skillId, xp] of Object.entries(gainsMap)) {
     if (xp <= 0) continue
-    const multiplier = (perk.skillXpMultiplierBySkill[skillId] ?? 1) * (perk.globalXpMultiplier ?? 1)
+    const multiplier = (perk.skillXpMultiplierBySkill[skillId] ?? 1) * (perk.globalXpMultiplier ?? 1) * grindlyXpMult
     const adjustedXp = Math.max(1, Math.floor(xp * multiplier))
     const before = stored[skillId] ?? 0
     const levelBefore = skillLevelFromXP(before)

@@ -33,6 +33,14 @@ export interface HarvestResult {
   seedZipTier: SeedZipTier | null
   composted?: boolean
   compostDrop?: boolean
+  /** Aggregated: number of compost drops (when merging multiple plots) */
+  compostDropCount?: number
+  /** Aggregated: number of composted plots */
+  compostedCount?: number
+  /** Aggregated: all seed zip drops (when merging multiple plots) */
+  seedZipDrops?: { tier: SeedZipTier; count: number }[]
+  /** Aggregated: total plots merged into this result */
+  plotCount?: number
 }
 
 /** Chance to drop 1 compost on any harvest. */

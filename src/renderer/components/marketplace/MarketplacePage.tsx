@@ -1,176 +1,594 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { LOOT_ITEMS, getRarityTheme, getItemPower, MARKETPLACE_BLOCKED_ITEMS, estimateLootDropRate, getItemPerkDescription, type LootRarity } from '../../lib/loot'
+import { motion, AnimatePresence } from 'framer-motion'
+import { LOOT_ITEMS, getRarityTheme, getItemPower, MARKETPLACE_BLOCKED_ITEMS, getItemPerkDescription, isValidItemId, type LootRarity } from '../../lib/loot'
 import { getFarmItemDisplay, isSeedId, isSeedZipId, seedZipTierFromItemId } from '../../lib/farming'
 import { SKILLS } from '../../lib/skills'
-import { fetchActiveListings, partialBuyListing, cancelListing, expireOldListings, type ListingWithSeller, type CancelListingResult } from '../../services/marketplaceService'
+import { fetchActiveListings, partialBuyListing, cancelListing, expireOldListings, fetchTradeHistory, type ListingWithSeller, type CancelListingResult, type TradeHistoryEntry } from '../../services/marketplaceService'
 import { useGoldStore } from '../../stores/goldStore'
 import { useAuthStore } from '../../stores/authStore'
 import { useInventoryStore } from '../../stores/inventoryStore'
 import { useNavBadgeStore } from '../../stores/navBadgeStore'
-
 import { syncInventoryToSupabase } from '../../services/supabaseSync'
 import { useFarmStore } from '../../stores/farmStore'
 import { PageHeader } from '../shared/PageHeader'
 import { BackpackButton } from '../shared/BackpackButton'
 import { InventoryPage } from '../inventory/InventoryPage'
+import { ListForSaleModal } from '../inventory/ListForSaleModal'
 import { GoldDisplay } from './GoldDisplay'
 import { SkeletonBlock } from '../shared/PageLoading'
 import { playClickSound } from '../../lib/sounds'
-import { RARITY_THEME, SLOT_LABEL, LootVisual as LootVisualShared, normalizeRarity } from '../loot/LootUI'
+import { RARITY_THEME, LootVisual as LootVisualShared, normalizeRarity } from '../loot/LootUI'
 
 const RARITY_ORDER: LootRarity[] = ['common', 'rare', 'epic', 'legendary', 'mythic']
+type TabId = 'listings' | 'sell' | 'my_listings' | 'history'
 
-function ListingCard({
-  listing,
-  user,
-  gold,
-  buyingId,
-  cancellingId,
-  onBuy,
-  onCancelClick,
-}: {
-  listing: ListingWithSeller
-  user: { id: string } | null
-  gold: number | null
-  buyingId: string | null
-  cancellingId: string | null
-  onBuy: (l: ListingWithSeller) => void
-  onCancelClick: (l: ListingWithSeller) => void
-}) {
-  const item = LOOT_ITEMS.find((x) => x.id === listing.item_id)
-  const farmDisplay = !item ? getFarmItemDisplay(listing.item_id) : null
-  const displayRarity = item?.rarity ?? farmDisplay?.rarity ?? 'common'
-  const theme = getRarityTheme(displayRarity)
-  const isOwn = user?.id === listing.seller_id
-  const canAfford = (gold ?? 0) >= listing.price_gold
+const MODAL_OVERLAY = { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.15 } }
+const MODAL_CARD = { initial: { opacity: 0, scale: 0.95, y: 8 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.95, y: 8 }, transition: { duration: 0.18, ease: [0.16, 1, 0.3, 1] } }
+const LIST_ITEM = { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -4 } }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getItemName(itemId: string) {
+  const item = LOOT_ITEMS.find((x) => x.id === itemId)
+  return item?.name ?? getFarmItemDisplay(itemId)?.name ?? itemId
+}
+
+function getItemMeta(itemId: string) {
+  const item = LOOT_ITEMS.find((x) => x.id === itemId)
+  const farm = !item ? getFarmItemDisplay(itemId) : null
+  return {
+    item, farm,
+    name: item?.name ?? farm?.name ?? itemId,
+    rarity: item?.rarity ?? farm?.rarity ?? 'common' as LootRarity,
+    icon: item?.icon ?? farm?.icon ?? '📦',
+    image: item?.image ?? farm?.image,
+    scale: item?.renderScale ?? 1,
+  }
+}
+
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
+/** Get sellable quantity, subtracting 1 if item is currently equipped */
+function getSellableQty(itemId: string, rawQty: number): number {
+  const loot = LOOT_ITEMS.find((x) => x.id === itemId)
+  if (!loot) return rawQty
+  const { equippedBySlot } = useInventoryStore.getState()
+  const isEquipped = equippedBySlot[loot.slot] === itemId
+  return isEquipped ? Math.max(0, rawQty - 1) : rawQty
+}
+
+// ─── Order-book row: stacked listings for same item+price ─────────────────────
+
+interface OrderBookRow {
+  itemId: string
+  pricePerUnit: number
+  totalQty: number
+  listings: ListingWithSeller[]
+  sellers: string[]
+}
+
+function buildOrderBook(listings: ListingWithSeller[]): OrderBookRow[] {
+  const map = new Map<string, OrderBookRow>()
+  for (const l of listings) {
+    const key = `${l.item_id}::${l.price_gold}`
+    const existing = map.get(key)
+    if (existing) {
+      existing.totalQty += l.quantity
+      existing.listings.push(l)
+      if (!existing.sellers.includes(l.seller_username ?? 'Anon'))
+        existing.sellers.push(l.seller_username ?? 'Anon')
+    } else {
+      map.set(key, {
+        itemId: l.item_id,
+        pricePerUnit: l.price_gold,
+        totalQty: l.quantity,
+        listings: [l],
+        sellers: [l.seller_username ?? 'Anon'],
+      })
+    }
+  }
+  return Array.from(map.values())
+}
+
+// ─── Compact listing tile ────────────────────────────────────────────────────
+
+function OrderBookTile({ row, onBuy, index }: { row: OrderBookRow; onBuy: (row: OrderBookRow) => void; index: number }) {
+  const meta = getItemMeta(row.itemId)
+  const theme = getRarityTheme(meta.rarity)
   return (
-    <div
-      className="group rounded-2xl border p-4 flex items-center gap-4 transition-all duration-200 hover:border-white/15 hover:shadow-lg"
+    <motion.button
+      {...LIST_ITEM}
+      transition={{ duration: 0.2, delay: Math.min(index * 0.03, 0.3) }}
+      layout
+      type="button"
+      onClick={() => onBuy(row)}
+      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-colors hover:border-white/20 text-left group"
+      style={{ borderColor: theme.border, backgroundColor: `${theme.color}06` }}
+    >
+      {/* icon */}
+      <div
+        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 relative transition-transform group-hover:scale-105"
+        style={{ borderColor: theme.border, borderWidth: 1, backgroundColor: `${theme.color}15` }}
+      >
+        <LootVisualShared icon={meta.icon} image={meta.image} className="w-6 h-6 object-contain" scale={meta.scale} />
+        {row.totalQty > 1 && (
+          <span
+            className="absolute -top-1.5 -right-1.5 text-[8px] font-bold px-1 py-px rounded-full border leading-none"
+            style={{ color: theme.color, backgroundColor: '#11111b', borderColor: theme.border }}
+          >
+            ×{row.totalQty}
+          </span>
+        )}
+      </div>
+      {/* name + info */}
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] font-semibold text-white truncate">{meta.name}</p>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span
+            className="text-[8px] font-medium px-1.5 py-px rounded capitalize"
+            style={{ color: theme.color, backgroundColor: `${theme.color}18` }}
+          >
+            {meta.rarity}
+          </span>
+          {meta.item && !['consumable', 'plant', 'material'].includes(meta.item.slot) && (
+            <span className="text-[9px] text-gray-500">IP {getItemPower(meta.item)}</span>
+          )}
+          <span className="text-[9px] text-gray-600 truncate">
+            {row.sellers.length === 1 ? row.sellers[0] : `${row.sellers.length} sellers`}
+          </span>
+        </div>
+      </div>
+      {/* price */}
+      <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 shrink-0 group-hover:bg-amber-500/15 transition-colors">
+        <span className="text-amber-400 text-[10px]">🪙</span>
+        <span className="text-amber-400 font-bold text-[11px] tabular-nums">{row.pricePerUnit}</span>
+      </div>
+    </motion.button>
+  )
+}
+
+// ─── My listing row ──────────────────────────────────────────────────────────
+
+interface MergedMyListing {
+  rep: ListingWithSeller
+  ids: string[]
+  totalQty: number
+  pricePerUnit: number
+}
+
+function MyListingRow({ group, cancellingId, onCancel, index }: {
+  group: MergedMyListing
+  cancellingId: string | null
+  onCancel: (group: MergedMyListing) => void
+  index: number
+}) {
+  const meta = getItemMeta(group.rep.item_id)
+  const theme = getRarityTheme(meta.rarity)
+  const isCancelling = group.ids.some((id) => cancellingId === id)
+  return (
+    <motion.div
+      {...LIST_ITEM}
+      transition={{ duration: 0.2, delay: Math.min(index * 0.03, 0.3) }}
+      layout
+      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all"
       style={{ borderColor: theme.border, backgroundColor: `${theme.color}08` }}
     >
       <div
-        className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 relative"
+        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 relative"
         style={{ borderColor: theme.border, borderWidth: 1, backgroundColor: `${theme.color}15` }}
       >
-        <LootVisualShared
-          icon={item?.icon ?? farmDisplay?.icon ?? '📦'}
-          image={item?.image ?? farmDisplay?.image}
-          className="w-9 h-9 object-contain"
-          scale={item?.renderScale ?? 1}
-        />
-        {listing.quantity > 1 && (
+        <LootVisualShared icon={meta.icon} image={meta.image} className="w-6 h-6 object-contain" scale={meta.scale} />
+        {group.totalQty > 1 && (
           <span
-            className="absolute -top-1.5 -right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full border"
+            className="absolute -top-1.5 -right-1.5 text-[8px] font-bold px-1 py-px rounded-full border leading-none"
             style={{ color: theme.color, backgroundColor: '#11111b', borderColor: theme.border }}
           >
-            ×{listing.quantity}
+            ×{group.totalQty}
           </span>
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white truncate">{item?.name ?? farmDisplay?.name ?? listing.item_id}</p>
-        <p className="text-[11px] text-gray-400 truncate mt-0.5">{item ? getItemPerkDescription(item) : ''}</p>
-        <div className="flex items-center gap-2 mt-2 flex-wrap">
-          <span
-            className="text-[10px] font-medium px-2 py-0.5 rounded-md capitalize"
-            style={{ color: theme.color, backgroundColor: `${theme.color}18` }}
-          >
-            {displayRarity}
-          </span>
-          {item && !['consumable', 'plant', 'material'].includes(item.slot) && <span className="text-[10px] text-gray-500">IP {getItemPower(item)}</span>}
-          <span className="text-[10px] text-gray-500 truncate">
-            by {listing.seller_username ?? 'Anonymous'}
-          </span>
-        </div>
+        <p className="text-[11px] font-semibold text-white truncate">{meta.name}</p>
+        <p className="text-[9px] text-gray-500 mt-0.5">
+          {group.ids.length > 1 ? `${group.ids.length} orders · ` : ''}{group.pricePerUnit}🪙{group.totalQty > 1 ? '/ea' : ''}
+        </p>
       </div>
-      <div className="shrink-0 flex flex-col items-end gap-2">
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/12 border border-amber-500/25">
-          <span className="text-amber-400" aria-hidden>🪙</span>
-          <span className="text-amber-400 font-bold tabular-nums text-sm">{listing.price_gold}</span>
-          {listing.quantity > 1 && <span className="text-amber-400/60 text-[10px] font-medium">/ea</span>}
-        </div>
-        {isOwn ? (
-          <button
-            type="button"
-            onClick={() => onCancelClick(listing)}
-            disabled={cancellingId === listing.id}
-            className="px-4 py-2 rounded-xl text-xs font-semibold bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            {cancellingId === listing.id ? '...' : 'Remove'}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => onBuy(listing)}
-            disabled={buyingId === listing.id}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-              canAfford
-                ? 'bg-cyber-neon/20 border-cyber-neon/40 text-cyber-neon hover:bg-cyber-neon/30'
-                : 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20'
-            }`}
-          >
-            {buyingId === listing.id ? '...' : 'Buy'}
-          </button>
-        )}
+      <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 shrink-0">
+        <span className="text-amber-400 text-[10px]">🪙</span>
+        <span className="text-amber-400 font-bold text-[11px] tabular-nums">{group.pricePerUnit * group.totalQty}</span>
       </div>
-    </div>
+      <button
+        type="button"
+        disabled={isCancelling}
+        onClick={() => { playClickSound(); onCancel(group) }}
+        className="px-2.5 py-1.5 rounded-lg text-[10px] font-semibold bg-red-500/12 border border-red-500/25 text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-all whitespace-nowrap shrink-0"
+      >
+        {isCancelling ? '...' : group.ids.length > 1 ? `Cancel ×${group.ids.length}` : 'Cancel'}
+      </button>
+    </motion.div>
   )
 }
+
+// ─── History row ─────────────────────────────────────────────────────────────
+
+function HistoryRow({ entry, userId, index }: { entry: TradeHistoryEntry; userId: string; index: number }) {
+  const meta = getItemMeta(entry.item_id)
+  const theme = getRarityTheme(meta.rarity)
+  const isSeller = entry.seller_id === userId
+  const isBuyer = entry.buyer_id === userId
+  const totalGold = entry.price_gold * entry.quantity
+
+  let statusLabel: string
+  let statusColor: string
+  if (entry.status === 'sold' && isSeller) {
+    statusLabel = 'Sold'
+    statusColor = '#22c55e'
+  } else if (entry.status === 'sold' && isBuyer) {
+    statusLabel = 'Bought'
+    statusColor = '#3b82f6'
+  } else if (entry.status === 'cancelled') {
+    statusLabel = 'Cancelled'
+    statusColor = '#6b7280'
+  } else if (entry.status === 'expired') {
+    statusLabel = 'Expired'
+    statusColor = '#f59e0b'
+  } else {
+    statusLabel = entry.status
+    statusColor = '#6b7280'
+  }
+
+  const otherUser = isSeller
+    ? (entry.buyer_username ?? (entry.status === 'sold' ? 'Someone' : '—'))
+    : (entry.seller_username ?? 'Unknown')
+
+  return (
+    <motion.div
+      {...LIST_ITEM}
+      transition={{ duration: 0.2, delay: Math.min(index * 0.025, 0.3) }}
+      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border"
+      style={{ borderColor: `${theme.border}40`, backgroundColor: `${theme.color}04` }}
+    >
+      <div
+        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+        style={{ borderColor: theme.border, borderWidth: 1, backgroundColor: `${theme.color}12` }}
+      >
+        <LootVisualShared icon={meta.icon} image={meta.image} className="w-5 h-5 object-contain" scale={meta.scale} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] font-semibold text-white truncate">
+          {meta.name}{entry.quantity > 1 ? ` ×${entry.quantity}` : ''}
+        </p>
+        <p className="text-[9px] text-gray-500 truncate mt-0.5">
+          {isSeller ? `→ ${otherUser}` : `← ${otherUser}`} · {timeAgo(entry.created_at)}
+        </p>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {entry.status === 'sold' && (
+          <span className="text-[10px] tabular-nums font-semibold" style={{ color: isSeller ? '#22c55e' : '#3b82f6' }}>
+            {isSeller ? '+' : '−'}{totalGold}🪙
+          </span>
+        )}
+        <span
+          className="text-[9px] font-medium px-1.5 py-0.5 rounded-md border"
+          style={{ color: statusColor, borderColor: `${statusColor}30`, backgroundColor: `${statusColor}12` }}
+        >
+          {statusLabel}
+        </span>
+      </div>
+    </motion.div>
+  )
+}
+
+// ─── Sell tab (inline inventory picker) ───────────────────────────────────────
+
+function SellTab({ onListed }: { onListed: () => void }) {
+  const items = useInventoryStore((s) => s.items)
+  const seeds = useFarmStore((s) => s.seeds)
+  const seedZips = useFarmStore((s) => s.seedZips)
+  const [selectedItem, setSelectedItem] = useState<string | null>(null)
+  const [sellSearch, setSellSearch] = useState('')
+
+  const sellable = useMemo(() => {
+    const result: { id: string; qty: number }[] = []
+    for (const [id, rawQty] of Object.entries(items)) {
+      if (rawQty <= 0 || MARKETPLACE_BLOCKED_ITEMS.includes(id) || !isValidItemId(id)) continue
+      const qty = getSellableQty(id, rawQty)
+      if (qty > 0) result.push({ id, qty })
+    }
+    for (const [id, qty] of Object.entries(seeds)) {
+      if (qty > 0 && !MARKETPLACE_BLOCKED_ITEMS.includes(id)) {
+        result.push({ id, qty })
+      }
+    }
+    const zipMap: Record<string, string> = {
+      common: 'seed_zip_common', rare: 'seed_zip_rare',
+      epic: 'seed_zip_epic', legendary: 'seed_zip_legendary',
+    }
+    for (const [tier, qty] of Object.entries(seedZips)) {
+      if (qty > 0) result.push({ id: zipMap[tier] ?? `seed_zip_${tier}`, qty })
+    }
+    return result
+  }, [items, seeds, seedZips])
+
+  const filtered = useMemo(() => {
+    if (!sellSearch.trim()) return sellable
+    const q = sellSearch.toLowerCase()
+    return sellable.filter(({ id }) => {
+      const meta = getItemMeta(id)
+      return meta.name.toLowerCase().includes(q) || meta.rarity.toLowerCase().includes(q) || id.toLowerCase().includes(q)
+    })
+  }, [sellable, sellSearch])
+
+  if (selectedItem) {
+    const sellEntry = sellable.find((s) => s.id === selectedItem)
+    const isSeed = isSeedId(selectedItem)
+    const isSeedZip = isSeedZipId(selectedItem)
+    return (
+      <ListForSaleModal
+        itemId={selectedItem}
+        maxQty={sellEntry?.qty ?? 1}
+        onClose={() => setSelectedItem(null)}
+        onListed={() => { setSelectedItem(null); onListed() }}
+        onDeductItem={isSeed ? (qty) => useFarmStore.getState().removeSeed(selectedItem, qty)
+          : isSeedZip ? (qty) => {
+            const tier = seedZipTierFromItemId(selectedItem)
+            if (tier) useFarmStore.getState().removeSeedZip(tier, qty)
+          } : undefined}
+        onRollbackDeduct={isSeed ? (qty) => useFarmStore.getState().addSeed(selectedItem, qty)
+          : isSeedZip ? (qty) => {
+            const tier = seedZipTierFromItemId(selectedItem)
+            if (tier) useFarmStore.getState().addSeedZip(tier, qty)
+          } : undefined}
+      />
+    )
+  }
+
+  return (
+    <motion.div
+      key="tab-sell"
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 12 }}
+      transition={{ duration: 0.2 }}
+    >
+      {/* Search */}
+      <div className="mb-2.5">
+        <input
+          type="text"
+          value={sellSearch}
+          onChange={(e) => setSellSearch(e.target.value)}
+          placeholder={`Search ${sellable.length} item${sellable.length !== 1 ? 's' : ''} in inventory...`}
+          className="w-full px-3 py-1.5 rounded-lg bg-[#11111b] border border-white/[0.08] text-white text-xs placeholder-gray-500 focus:border-amber-500/40 outline-none transition-all"
+        />
+      </div>
+
+      {/* Items grid */}
+      {filtered.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="py-14 text-center rounded-2xl border border-white/[0.06] bg-[#1e1e2e]/40"
+        >
+          <span className="text-4xl mb-3 block opacity-40">📦</span>
+          <p className="text-xs text-gray-400 font-medium">
+            {sellable.length === 0 ? 'No sellable items in inventory' : 'No items match your search'}
+          </p>
+        </motion.div>
+      ) : (
+        <div className="space-y-1">
+          {filtered.map(({ id, qty }, i) => {
+            const meta = getItemMeta(id)
+            const theme = getRarityTheme(meta.rarity)
+            return (
+              <motion.button
+                key={id}
+                {...LIST_ITEM}
+                transition={{ duration: 0.15, delay: Math.min(i * 0.02, 0.25) }}
+                type="button"
+                onClick={() => { playClickSound(); setSelectedItem(id) }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border hover:border-white/20 transition-all text-left group"
+                style={{ borderColor: `${theme.border}60`, backgroundColor: `${theme.color}06` }}
+              >
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-105"
+                  style={{ backgroundColor: `${theme.color}15`, border: `1px solid ${theme.border}` }}
+                >
+                  <LootVisualShared icon={meta.icon} image={meta.image} className="w-6 h-6 object-contain" scale={meta.scale} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-medium text-white truncate">{meta.name}</p>
+                  <p className="text-[9px] capitalize" style={{ color: theme.color }}>{meta.rarity}</p>
+                </div>
+                <span className="text-xs text-gray-400 font-mono shrink-0">×{qty}</span>
+                <span className="text-[10px] text-amber-400/70 font-medium shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">Sell</span>
+              </motion.button>
+            )
+          })}
+        </div>
+      )}
+    </motion.div>
+  )
+}
+
+// ─── No gold toast ───────────────────────────────────────────────────────────
+
+function NoGoldToast({ alert, gold, onClose }: { alert: ListingWithSeller; gold: number; onClose: () => void }) {
+  const meta = getItemMeta(alert.item_id)
+  const theme = RARITY_THEME[normalizeRarity(meta.rarity)] ?? RARITY_THEME.common
+  const deficit = alert.price_gold - gold
+  return (
+    <motion.div
+      key="no-gold"
+      initial={{ opacity: 0, x: 40 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 40 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className="fixed top-16 right-4 z-[200] w-[250px] rounded-xl border overflow-hidden shadow-2xl"
+      style={{ borderColor: theme.border, background: theme.panel, boxShadow: `0 0 30px ${theme.glow}` }}
+    >
+      <div className="p-3 flex items-center gap-2.5">
+        <div
+          className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+          style={{ backgroundColor: `${theme.color}18`, border: `1px solid ${theme.border}` }}
+        >
+          <LootVisualShared icon={meta.icon} image={meta.image} className="w-6 h-6 object-contain" scale={meta.scale} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-semibold text-white truncate">{meta.name}</p>
+          <p className="text-[10px] text-red-400">Need {deficit} more 🪙</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-5 h-5 rounded flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/10 transition-colors text-[10px] shrink-0"
+        >✕</button>
+      </div>
+    </motion.div>
+  )
+}
+
+// ─── Buy status toast ────────────────────────────────────────────────────────
+
+function BuyToast({ message, type }: { message: string; type: 'success' | 'error' }) {
+  return (
+    <motion.div
+      key="toast"
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.2 }}
+      className={`fixed top-4 left-1/2 -translate-x-1/2 z-[300] px-4 py-2 rounded-xl border text-xs font-medium shadow-2xl backdrop-blur-sm ${
+        type === 'success'
+          ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+          : 'bg-red-500/15 border-red-500/30 text-red-400'
+      }`}
+    >
+      {message}
+    </motion.div>
+  )
+}
+
+// ─── Main page ───────────────────────────────────────────────────────────────
 
 interface MarketplacePageProps {
   onBack?: () => void
 }
 
-
 export function MarketplacePage({ onBack }: MarketplacePageProps) {
   const [listings, setListings] = useState<ListingWithSeller[]>([])
+  const [history, setHistory] = useState<TradeHistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [buyingId, setBuyingId] = useState<string | null>(null)
-  const [buyConfirmTarget, setBuyConfirmTarget] = useState<ListingWithSeller | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<TabId>('listings')
+  const [buyTarget, setBuyTarget] = useState<OrderBookRow | null>(null)
   const [buyQty, setBuyQty] = useState(1)
+  const [buying, setBuying] = useState(false)
   const [noGoldAlert, setNoGoldAlert] = useState<ListingWithSeller | null>(null)
   const noGoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
-  const [cancelConfirmTarget, setCancelConfirmTarget] = useState<ListingWithSeller | null>(null)
+  const [cancelTarget, setCancelTarget] = useState<MergedMyListing | null>(null)
   const [cancelError, setCancelError] = useState<string | null>(null)
-  const [showInfo, setShowInfo] = useState(false)
-  const infoRef = useRef<HTMLDivElement>(null)
+  const [showBackpack, setShowBackpack] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Filters
   const [search, setSearch] = useState('')
   const [perkFilter, setPerkFilter] = useState<'' | 'combat' | 'xp' | 'drops' | 'cosmetic' | 'seeds'>('')
-  const [skillFilter, setSkillFilter] = useState<string>('')
-  const [rarityFilter, setRarityFilter] = useState<string>('')
+  const [skillFilter, setSkillFilter] = useState('')
+  const [rarityFilter, setRarityFilter] = useState('')
   const [priceMin, setPriceMin] = useState('')
   const [priceMax, setPriceMax] = useState('')
-  const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'newest'>('newest')
-  const [myListingsOpen, setMyListingsOpen] = useState(true)
+  const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'newest'>('price_asc')
   const [filtersExpanded, setFiltersExpanded] = useState(false)
-  const [cancelGroupTarget, setCancelGroupTarget] = useState<{ ids: string[]; name: string; totalQty: number } | null>(null)
-  const [showBackpack, setShowBackpack] = useState(false)
+  const [showInfo, setShowInfo] = useState(false)
+  const infoRef = useRef<HTMLDivElement>(null)
+
   const gold = useGoldStore((s) => s.gold)
   const syncFromSupabase = useGoldStore((s) => s.syncFromSupabase)
   const user = useAuthStore((s) => s.user)
-  // Track my active listing IDs to detect sales via realtime
-  const listingsRef = useRef<ListingWithSeller[]>([])
-  const cancelledListingIdsRef = useRef<Set<string>>(new Set())
 
-  // Guard: block async state updates after unmount to prevent React warnings
-  // and stale setState calls. Set on unmount (after exit animation completes).
   const exitingRef = useRef(false)
-  useEffect(() => {
-    return () => { exitingRef.current = true }
+
+  useEffect(() => { return () => { exitingRef.current = true } }, [])
+  useEffect(() => { setBuyQty(1) }, [buyTarget])
+  useEffect(() => { useNavBadgeStore.getState().clearMarketplaceSale() }, [])
+
+  const showToast = useCallback((message: string, type: 'success' | 'error') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    setToast({ message, type })
+    toastTimerRef.current = setTimeout(() => setToast(null), 2500)
   }, [])
 
+  const loadListings = useCallback(async (withExpiry = false) => {
+    if (exitingRef.current) return
+    setLoading(true)
+    try {
+      if (withExpiry) await expireOldListings()
+      const data = await fetchActiveListings()
+      if (!exitingRef.current) setListings(data)
+    } catch { /* ignore */ } finally {
+      if (!exitingRef.current) setLoading(false)
+    }
+  }, [])
+
+  const loadHistory = useCallback(async () => {
+    if (!user || exitingRef.current) return
+    setHistoryLoading(true)
+    try {
+      const data = await fetchTradeHistory(user.id)
+      if (!exitingRef.current) setHistory(data)
+    } catch { /* ignore */ } finally {
+      if (!exitingRef.current) setHistoryLoading(false)
+    }
+  }, [user])
+
+  useEffect(() => { loadListings(true) }, [loadListings])
+  useEffect(() => { if (user) syncFromSupabase(user.id).catch(() => {}) }, [user, syncFromSupabase])
+
+  useEffect(() => {
+    if (activeTab === 'history') loadHistory()
+  }, [activeTab, loadHistory])
+
+  useEffect(() => {
+    if (!showInfo) return
+    const handler = (e: MouseEvent) => {
+      if (infoRef.current && !infoRef.current.contains(e.target as Node)) setShowInfo(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showInfo])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (buyTarget) { e.stopImmediatePropagation(); setBuyTarget(null); return }
+      if (cancelTarget) { e.stopImmediatePropagation(); setCancelTarget(null); setCancelError(null); return }
+      if (noGoldAlert) { e.stopImmediatePropagation(); setNoGoldAlert(null) }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [buyTarget, cancelTarget, noGoldAlert])
+
+  // ─── Filtering ──────────────────────────────────────────────────────────────
+
+  /** Filtered listings for the Listings tab (applies all filters) */
   const filteredListings = useMemo(() => {
-    let result = listings.filter((l) => !MARKETPLACE_BLOCKED_ITEMS.includes(l.item_id))
-    const searchLower = search.trim().toLowerCase()
-    if (searchLower) {
-      result = result.filter((l) => {
-        const item = LOOT_ITEMS.find((x) => x.id === l.item_id)
-        const name = item?.name ?? getFarmItemDisplay(l.item_id)?.name ?? l.item_id
-        return name.toLowerCase().includes(searchLower)
-      })
+    let result = listings.filter((l) => !MARKETPLACE_BLOCKED_ITEMS.includes(l.item_id) && isValidItemId(l.item_id))
+    const q = search.trim().toLowerCase()
+    if (q) {
+      result = result.filter((l) => getItemName(l.item_id).toLowerCase().includes(q))
     }
     if (perkFilter) {
       result = result.filter((l) => {
@@ -196,8 +614,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
     }
     if (rarityFilter) {
       result = result.filter((l) => {
-        const item = LOOT_ITEMS.find((x) => x.id === l.item_id)
-        const rarity = item?.rarity ?? getFarmItemDisplay(l.item_id)?.rarity ?? 'common'
+        const rarity = LOOT_ITEMS.find((x) => x.id === l.item_id)?.rarity ?? getFarmItemDisplay(l.item_id)?.rarity ?? 'common'
         return rarity === rarityFilter
       })
     }
@@ -214,185 +631,124 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
     return result
   }, [listings, search, perkFilter, skillFilter, rarityFilter, priceMin, priceMax, sortBy])
 
-  const [refreshing, setRefreshing] = useState(false)
-
-  const loadListings = async (withExpiry = false): Promise<ListingWithSeller[]> => {
-    if (exitingRef.current) return []
-    setLoading(true)
-    try {
-      if (withExpiry) await expireOldListings()
-      const data = await fetchActiveListings()
-      if (exitingRef.current) return data
-      setListings(data)
-      return data
-    } catch {
-      return []
-    } finally {
-      if (!exitingRef.current) setLoading(false)
-    }
+  const activeFiltersCount = [search, perkFilter, skillFilter, rarityFilter, priceMin, priceMax].filter(Boolean).length
+  const clearFilters = () => {
+    setSearch(''); setPerkFilter(''); setSkillFilter(''); setRarityFilter(''); setPriceMin(''); setPriceMax(''); setSortBy('price_asc')
   }
+
+  // Listings tab: only show other people's listings
+  const otherListings = filteredListings.filter((l) => user?.id !== l.seller_id)
+  const otherCount = listings.filter((l) => !MARKETPLACE_BLOCKED_ITEMS.includes(l.item_id) && isValidItemId(l.item_id) && user?.id !== l.seller_id).length
+
+  // My Listings tab: NOT affected by filters — always shows all your active listings
+  const myListingsUnfiltered = useMemo(
+    () => listings.filter((l) => !MARKETPLACE_BLOCKED_ITEMS.includes(l.item_id) && isValidItemId(l.item_id) && user?.id === l.seller_id),
+    [listings, user?.id],
+  )
+
+  // Order-book: stack other listings by item+price
+  const orderBook = useMemo(() => buildOrderBook(otherListings), [otherListings])
+
+  // Merged my listings (group same item+price) — from unfiltered
+  const mergedMyListings = useMemo(() => {
+    const groups = new Map<string, MergedMyListing>()
+    for (const l of myListingsUnfiltered) {
+      const key = `${l.item_id}::${l.price_gold}`
+      const g = groups.get(key)
+      if (g) { g.ids.push(l.id); g.totalQty += l.quantity }
+      else groups.set(key, { rep: l, ids: [l.id], totalQty: l.quantity, pricePerUnit: l.price_gold })
+    }
+    return Array.from(groups.values())
+  }, [myListingsUnfiltered])
+
+  // ─── Handlers ───────────────────────────────────────────────────────────────
 
   const handleRefresh = async () => {
     if (refreshing || exitingRef.current) return
     setRefreshing(true)
     await loadListings(false)
+    if (activeTab === 'history') await loadHistory()
     if (!exitingRef.current) {
       if (user) syncFromSupabase(user.id).catch(() => {})
       setRefreshing(false)
     }
   }
 
-  // Keep ref in sync for sold-listing detection
-  useEffect(() => { listingsRef.current = listings }, [listings])
-
-  // Reset buy quantity when modal target changes
-  useEffect(() => { setBuyQty(1) }, [buyConfirmTarget?.id])
-
-  // Clear marketplace badge when page opens
-  useEffect(() => { useNavBadgeStore.getState().clearMarketplaceSale() }, [])
-
-  useEffect(() => {
-    loadListings(true)
-  }, [])
-
-  // NOTE: realtime subscription removed — it fired during AnimatePresence exit,
-  // causing state updates that stalled the exit animation (grey screen).
-  // Listings refresh on mount, after buy/cancel, and via the refresh button.
-
-  useEffect(() => {
-    if (user) syncFromSupabase(user.id).catch(() => {})
-  }, [user, syncFromSupabase])
-
-  useEffect(() => {
-    if (!showInfo) return
-    const handler = (e: MouseEvent) => {
-      if (infoRef.current && !infoRef.current.contains(e.target as Node)) {
-        setShowInfo(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [showInfo])
-
-  // Escape key closes any open modal
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      if (buyConfirmTarget) { e.stopImmediatePropagation(); setBuyConfirmTarget(null); return }
-      if (cancelConfirmTarget) { e.stopImmediatePropagation(); setCancelConfirmTarget(null); setCancelError(null); return }
-      if (noGoldAlert) { e.stopImmediatePropagation(); setNoGoldAlert(null) }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [buyConfirmTarget, cancelConfirmTarget, noGoldAlert])
-
-  const showNoGoldAlert = (listing: ListingWithSeller) => {
-    if (noGoldTimerRef.current) clearTimeout(noGoldTimerRef.current)
-    setNoGoldAlert(listing)
-    noGoldTimerRef.current = setTimeout(() => setNoGoldAlert(null), 4000)
-  }
-
-  const handleBuyClick = (listing: ListingWithSeller) => {
+  const handleBuyClick = (row: OrderBookRow) => {
     if (!user) return
-    // price_gold is per-unit — check if user can afford at least 1
-    const minCost = listing.price_gold
-    if ((gold ?? 0) < minCost) {
-      showNoGoldAlert(listing)
+    if ((gold ?? 0) < row.pricePerUnit) {
+      if (noGoldTimerRef.current) clearTimeout(noGoldTimerRef.current)
+      setNoGoldAlert(row.listings[0])
+      noGoldTimerRef.current = setTimeout(() => setNoGoldAlert(null), 4000)
       return
     }
     setBuyQty(1)
-    setBuyConfirmTarget(listing)
+    setBuyTarget(row)
   }
 
-  const handleBuy = async (listing: ListingWithSeller, qty: number) => {
-    setBuyConfirmTarget(null)
-    if (!user) return
-    setBuyingId(listing.id)
-    try {
-      const res = await partialBuyListing(listing.id, qty)
-      if (exitingRef.current) return
-      if (res.ok) {
-        playClickSound()
-        syncFromSupabase(user.id).catch(() => {})
-        // Add purchased item to local inventory
-        if (res.item_id && res.quantity) {
-          if (isSeedId(res.item_id)) {
-            useFarmStore.getState().addSeed(res.item_id, res.quantity)
-          } else if (isSeedZipId(res.item_id)) {
-            const tier = seedZipTierFromItemId(res.item_id)
-            if (tier) useFarmStore.getState().addSeedZip(tier, res.quantity)
-          } else {
-            useInventoryStore.getState().addItem(res.item_id, res.quantity)
+  const handleBuy = async (row: OrderBookRow, qty: number) => {
+    setBuying(true)
+    if (!user) { setBuying(false); return }
+
+    let remaining = qty
+    let totalBought = 0
+    const sorted = [...row.listings].sort((a, b) => a.price_gold - b.price_gold)
+
+    for (const listing of sorted) {
+      if (remaining <= 0) break
+      const take = Math.min(remaining, listing.quantity)
+      try {
+        const res = await partialBuyListing(listing.id, take)
+        if (exitingRef.current) return
+        if (res.ok) {
+          syncFromSupabase(user.id).catch(() => {})
+          if (res.item_id && res.quantity) {
+            if (isSeedId(res.item_id)) {
+              useFarmStore.getState().addSeed(res.item_id, res.quantity)
+            } else if (isSeedZipId(res.item_id)) {
+              const tier = seedZipTierFromItemId(res.item_id)
+              if (tier) useFarmStore.getState().addSeedZip(tier, res.quantity)
+            } else {
+              useInventoryStore.getState().addItem(res.item_id, res.quantity)
+            }
+            totalBought += res.quantity
           }
+          remaining -= take
+        } else {
+          // listing sold out or error — skip to next
         }
-        try {
-          const { items, chests } = useInventoryStore.getState()
-          const { seeds, seedZips } = useFarmStore.getState()
-          await syncInventoryToSupabase(items, chests, { merge: false, seeds, seedZips })
-        } catch {
-          // Sync failure is non-fatal — local state already updated above
-        }
-        if (!exitingRef.current) loadListings().catch(() => {})
-      }
-    } catch {
-      // Network error — purchase may have succeeded server-side; reload listings to reflect reality
-      if (!exitingRef.current) loadListings().catch(() => {})
-    } finally {
-      if (!exitingRef.current) setBuyingId(null)
+      } catch { /* network — continue to next listing */ }
     }
-  }
 
-  const handleCancel = async (listing: ListingWithSeller) => {
-    if (!user) { setCancelError('Not logged in'); return }
-    if (listing.seller_id !== user.id) { setCancelError('Not your listing'); return }
-    cancelledListingIdsRef.current.add(listing.id)
-    setCancellingId(listing.id)
-    setCancelError(null)
+    // Sync inventory
     try {
-      const res = await cancelListing(listing.id)
-      if (exitingRef.current) return
-      if (res.ok) {
-        // Return item to local inventory
-        if (res.item_id && res.quantity) {
-          if (isSeedId(res.item_id)) {
-            useFarmStore.getState().addSeed(res.item_id, res.quantity)
-          } else if (isSeedZipId(res.item_id)) {
-            const tier = seedZipTierFromItemId(res.item_id)
-            if (tier) useFarmStore.getState().addSeedZip(tier, res.quantity)
-          } else {
-            useInventoryStore.getState().addItem(res.item_id, res.quantity)
-          }
-        }
+      const { items, chests } = useInventoryStore.getState()
+      const { seeds, seedZips } = useFarmStore.getState()
+      await syncInventoryToSupabase(items, chests, { merge: false, seeds, seedZips })
+    } catch { /* non-fatal */ }
+
+    if (!exitingRef.current) {
+      setBuying(false)
+      setBuyTarget(null)
+      if (totalBought > 0) {
         playClickSound()
-        setCancelConfirmTarget(null)
-        try {
-          const { items, chests } = useInventoryStore.getState()
-          const { seeds, seedZips } = useFarmStore.getState()
-          await syncInventoryToSupabase(items, chests, { merge: false, seeds, seedZips })
-        } catch {
-          // Sync failure is non-fatal — listing already cancelled server-side
-        }
-        if (!exitingRef.current) loadListings().catch(() => {})
+        showToast(`Bought ${totalBought}× ${getItemName(row.itemId)}`, 'success')
       } else {
-        console.error('[Marketplace] cancel failed:', res.error)
-        if (!exitingRef.current) setCancelError(res.error ?? 'Failed to remove listing')
+        showToast('Purchase failed — listing may have sold out', 'error')
       }
-    } catch (err) {
-      console.error('[Marketplace] cancel error:', err)
-      if (!exitingRef.current) setCancelError('Network error — try again')
-    } finally {
-      if (!exitingRef.current) setCancellingId(null)
+      loadListings().catch(() => {})
     }
   }
 
-  const handleCancelGroup = async (ids: string[]) => {
+  const handleCancelConfirm = async (group: MergedMyListing) => {
     if (!user) return
-    for (const id of ids) cancelledListingIdsRef.current.add(id)
-    setCancellingId(ids[0] ?? null)
-    setCancelGroupTarget(null)
-    const results = await Promise.all(ids.map((id) => cancelListing(id).catch(() => ({ ok: false } as CancelListingResult))))
+    setCancellingId(group.ids[0] ?? null)
+    setCancelTarget(null)
+    const results = await Promise.all(
+      group.ids.map((id) => cancelListing(id).catch(() => ({ ok: false } as CancelListingResult)))
+    )
     if (exitingRef.current) return
-    // Return items to local inventory
+    let returned = 0
     for (const res of results) {
       if (res.ok && res.item_id && res.quantity) {
         if (isSeedId(res.item_id)) {
@@ -403,66 +759,40 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
         } else {
           useInventoryStore.getState().addItem(res.item_id, res.quantity)
         }
+        returned += res.quantity
       }
     }
     setCancellingId(null)
     playClickSound()
+    if (returned > 0) {
+      showToast(`${returned}× ${getItemName(group.rep.item_id)} returned`, 'success')
+    }
     try {
       const { items, chests } = useInventoryStore.getState()
       const { seeds, seedZips } = useFarmStore.getState()
       await syncInventoryToSupabase(items, chests, { merge: false, seeds, seedZips })
-    } catch {
-      // Sync failure is non-fatal
-    }
+    } catch { /* non-fatal */ }
     if (!exitingRef.current) loadListings().catch(() => {})
   }
 
-  const activeFiltersCount = [search, perkFilter, skillFilter, rarityFilter, priceMin, priceMax].filter(Boolean).length
-  const clearFilters = () => {
-    setSearch('')
-    setPerkFilter('')
-    setSkillFilter('')
-    setRarityFilter('')
-    setPriceMin('')
-    setPriceMax('')
-    setSortBy('newest')
-  }
+  // ─── Render ─────────────────────────────────────────────────────────────────
 
-  const myListings = filteredListings.filter((l) => user?.id === l.seller_id)
-  const otherListings = filteredListings.filter((l) => user?.id !== l.seller_id)
-  const totalVisible = listings.filter((l) => !MARKETPLACE_BLOCKED_ITEMS.includes(l.item_id)).length
-
-  // Group identical my-listings (same item + same price/unit) into merged cards
-  const mergedMyListings = useMemo(() => {
-    const groups = new Map<string, { rep: ListingWithSeller; ids: string[]; totalQty: number; pricePerUnit: number }>()
-    for (const l of myListings) {
-      const ppu = l.quantity > 0 ? Math.round(l.price_gold / l.quantity) : l.price_gold
-      const key = `${l.item_id}::${ppu}`
-      const g = groups.get(key)
-      if (g) { g.ids.push(l.id); g.totalQty += l.quantity }
-      else groups.set(key, { rep: l, ids: [l.id], totalQty: l.quantity, pricePerUnit: ppu })
-    }
-    return Array.from(groups.values())
-  }, [myListings])
-
-  if (showBackpack) {
-    return <InventoryPage onBack={() => setShowBackpack(false)} />
-  }
+  if (showBackpack) return <InventoryPage onBack={() => setShowBackpack(false)} />
 
   return (
-    <div className="p-4 pb-20 space-y-4">
+    <div className="p-4 pb-20 space-y-3">
       <PageHeader
         title="Marketplace"
         onBack={onBack}
         rightSlot={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <BackpackButton onClick={() => setShowBackpack(true)} />
             <button
               type="button"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="w-7 h-7 flex items-center justify-center rounded-lg border border-white/10 text-gray-400 hover:text-white hover:border-white/25 transition-colors disabled:opacity-40"
-              title="Refresh listings"
+              className="w-7 h-7 flex items-center justify-center rounded-lg border border-white/10 text-gray-400 hover:text-white hover:border-white/25 transition-colors disabled:opacity-40 active:scale-95"
+              title="Refresh"
             >
               <svg
                 className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
@@ -491,626 +821,578 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
             >
               ?
             </button>
-            {showInfo && (
-              <div className="absolute left-0 top-6 z-50 w-60 rounded-xl border border-white/10 bg-[#1a1a2e]/95 p-3 shadow-2xl backdrop-blur-md">
-                <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono mb-2">How it works</p>
-                <ul className="space-y-1.5">
-                  {[
-                    'Buy and sell gear with other players.',
-                    'List items from the Inventory tab.',
-                    'Listings expire after 7 days — items return to your inventory.',
-                  ].map((tip) => (
-                    <li key={tip} className="flex items-start gap-1.5">
-                      <span className="text-cyber-neon/60 mt-px text-[9px] leading-tight shrink-0">▸</span>
-                      <span className="text-[11px] text-gray-300 leading-snug">{tip}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <AnimatePresence>
+              {showInfo && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.12 }}
+                  className="absolute left-0 top-6 z-50 w-60 rounded-xl border border-white/10 bg-[#1a1a2e]/95 p-3 shadow-2xl backdrop-blur-md"
+                >
+                  <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono mb-2">How it works</p>
+                  <ul className="space-y-1.5">
+                    {[
+                      'Buy and sell items with other players.',
+                      'Identical items at the same price are stacked.',
+                      '5% commission charged on listing.',
+                      'Listings expire after 7 days.',
+                    ].map((tip) => (
+                      <li key={tip} className="flex items-start gap-1.5">
+                        <span className="text-cyber-neon/60 mt-px text-[9px] leading-tight shrink-0">▸</span>
+                        <span className="text-[11px] text-gray-300 leading-snug">{tip}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         }
       />
 
-      {/* Filters */}
-      <div className="space-y-1.5">
-        {/* Row 1: Search + sort + clear */}
-        <div className="flex gap-1.5">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Search ${totalVisible} listing${totalVisible !== 1 ? 's' : ''}…`}
-            className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-[#11111b] border border-white/[0.08] text-white text-xs placeholder-gray-500 focus:border-cyber-neon/40 outline-none transition-all"
-          />
+      {/* Tabs */}
+      <div className="flex rounded-xl bg-[#11111b]/80 border border-white/[0.06] p-1 gap-1">
+        {([
+          { id: 'listings' as TabId, label: 'Browse', count: otherCount },
+          { id: 'sell' as TabId, label: 'Sell' },
+          { id: 'my_listings' as TabId, label: 'My Listings', count: myListingsUnfiltered.length },
+          { id: 'history' as TabId, label: 'History' },
+        ]).map((tab) => (
           <button
+            key={tab.id}
             type="button"
-            onClick={() => setSortBy((s) => s === 'price_asc' ? 'price_desc' : s === 'price_desc' ? 'newest' : 'price_asc')}
-            className="px-2.5 py-1.5 rounded-lg bg-[#11111b] border border-white/[0.08] text-gray-400 text-xs hover:text-white transition-colors whitespace-nowrap shrink-0"
-            title="Sort order"
-          >
-            {sortBy === 'newest' ? '🕒' : `🪙${sortBy === 'price_asc' ? '↑' : '↓'}`}
-          </button>
-          {activeFiltersCount > 0 && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="px-2.5 py-1.5 rounded-lg bg-[#11111b] border border-cyber-neon/30 text-cyber-neon text-xs hover:bg-cyber-neon/10 transition-colors whitespace-nowrap shrink-0"
-            >
-              ×{activeFiltersCount}
-            </button>
-          )}
-        </div>
-
-        {/* Row 2: Category chips + expand toggle */}
-        <div className="flex items-center gap-1 flex-wrap">
-          {([
-            { id: '', label: 'All' },
-            { id: 'combat', label: '⚔ Combat' },
-            { id: 'xp', label: '📈 XP' },
-            { id: 'drops', label: '🎁 Drops' },
-            { id: 'cosmetic', label: '✨ Cosmetic' },
-            { id: 'seeds', label: '🌱 Seeds' },
-          ] as const).map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => { setPerkFilter(f.id); setSkillFilter('') }}
-              className={`px-2 py-0.5 rounded-md border text-[11px] font-medium transition-all ${
-                perkFilter === f.id
-                  ? 'border-cyber-neon/50 bg-cyber-neon/12 text-cyber-neon'
-                  : 'border-white/[0.08] bg-[#11111b] text-gray-400 hover:text-gray-200 hover:border-white/20'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setFiltersExpanded((v) => !v)}
-            title={filtersExpanded ? 'Hide filters' : 'More filters'}
-            className={`px-2 py-0.5 rounded-md border text-[11px] transition-all ${
-              filtersExpanded
-                ? 'border-white/20 bg-white/8 text-gray-300'
-                : 'border-white/[0.08] bg-[#11111b] text-gray-500 hover:text-gray-300 hover:border-white/20'
+            onClick={() => setActiveTab(tab.id)}
+            className={`relative flex-1 py-1.5 rounded-lg text-[11px] font-medium transition-all active:scale-[0.97] ${
+              activeTab === tab.id
+                ? 'text-white'
+                : 'text-gray-500 hover:text-gray-300'
             }`}
           >
-            {filtersExpanded ? '▲' : '▼'}
+            {activeTab === tab.id && (
+              <motion.div
+                layoutId="marketplace-tab-bg"
+                className="absolute inset-0 rounded-lg bg-white/10 border border-white/[0.06]"
+                transition={{ type: 'spring', duration: 0.35, bounce: 0.15 }}
+              />
+            )}
+            <span className="relative z-10">
+              {tab.label}
+              {tab.count != null && tab.count > 0 && (
+                <span className="ml-1 text-[9px] opacity-50">{tab.count}</span>
+              )}
+            </span>
           </button>
-        </div>
-
-        {/* Row 3: Skill sub-chips (XP filter selected) */}
-        {perkFilter === 'xp' && (
-          <div className="flex flex-wrap gap-1">
-            {SKILLS.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setSkillFilter((prev) => prev === s.id ? '' : s.id)}
-                className={`px-2 py-0.5 rounded-md border text-[10px] transition-all ${
-                  skillFilter === s.id
-                    ? 'border-white/30 bg-white/10 text-white'
-                    : 'border-white/[0.06] bg-[#11111b] text-gray-500 hover:text-gray-300 hover:border-white/15'
-                }`}
-              >
-                {s.icon} {s.name}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Row 4: Rarity + price range (expanded only) */}
-        {filtersExpanded && (
-          <div className="rounded-lg border border-white/[0.07] bg-[#11111b]/60 p-2 space-y-1.5">
-            <div className="flex items-center gap-1 flex-wrap">
-              <span className="text-[9px] font-mono uppercase tracking-wider text-gray-600 mr-1">Rarity</span>
-              {RARITY_ORDER.map((r) => {
-                const t = RARITY_THEME[normalizeRarity(r)]
-                const active = rarityFilter === r
-                return (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRarityFilter((prev) => prev === r ? '' : r)}
-                    className="px-2 py-0.5 rounded-md border text-[10px] font-medium capitalize transition-all"
-                    style={active
-                      ? { borderColor: t.border, background: `${t.glow}18`, color: t.color }
-                      : { borderColor: 'rgba(255,255,255,0.07)', background: 'transparent', color: '#9ca3af' }}
-                  >
-                    {r}
-                  </button>
-                )
-              })}
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[9px] font-mono uppercase tracking-wider text-gray-600 mr-1">Price 🪙</span>
-              <input
-                type="number" min={0} value={priceMin}
-                onChange={(e) => setPriceMin(e.target.value)}
-                placeholder="Min"
-                className="grindly-no-spinner w-14 px-1.5 py-0.5 rounded-md bg-[#0d0d1a] border border-white/[0.08] text-white text-[11px] placeholder-gray-600 focus:border-cyber-neon/40 outline-none text-center"
-              />
-              <span className="text-gray-600 text-[10px]">–</span>
-              <input
-                type="number" min={0} value={priceMax}
-                onChange={(e) => setPriceMax(e.target.value)}
-                placeholder="Max"
-                className="grindly-no-spinner w-14 px-1.5 py-0.5 rounded-md bg-[#0d0d1a] border border-white/[0.08] text-white text-[11px] placeholder-gray-600 focus:border-cyber-neon/40 outline-none text-center"
-              />
-            </div>
-          </div>
-        )}
+        ))}
       </div>
 
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-2xl border border-white/[0.06] bg-[#1e1e2e]/50 p-4 flex items-center gap-4">
-              <SkeletonBlock className="w-14 h-14 rounded-xl shrink-0" />
-              <div className="flex-1 min-w-0 space-y-2">
-                <SkeletonBlock className="h-4 w-32" />
-                <SkeletonBlock className="h-3 w-48" />
-                <div className="flex gap-2 flex-wrap">
-                  <SkeletonBlock className="h-5 w-14 rounded-md" />
-                  <SkeletonBlock className="h-5 w-12 rounded" />
-                  <SkeletonBlock className="h-5 w-16 rounded" />
-                </div>
-              </div>
-              <div className="shrink-0 flex flex-col items-end gap-2">
-                <SkeletonBlock className="h-8 w-16 rounded-xl" />
-                <SkeletonBlock className="h-9 w-16 rounded-xl" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : totalVisible === 0 ? (
-        <div className="py-16 text-center rounded-2xl border border-white/[0.06] bg-[#1e1e2e]/50">
-          <span className="text-5xl mb-4 block opacity-60">🛒</span>
-          <p className="text-sm font-medium text-gray-300">Marketplace is empty</p>
-          <p className="text-xs text-gray-500 mt-1.5">List items from your inventory to get started.</p>
-        </div>
-      ) : filteredListings.length === 0 ? (
-        <div className="py-16 text-center rounded-2xl border border-white/[0.06] bg-[#1e1e2e]/50">
-          <span className="text-5xl mb-4 block opacity-60">🔍</span>
-          <p className="text-sm font-medium text-gray-300">No listings match your filters</p>
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="mt-3 px-4 py-1.5 rounded-lg border border-cyber-neon/30 text-cyber-neon text-xs hover:bg-cyber-neon/10 transition-colors"
+      {/* Filters — only on listings tab */}
+      <AnimatePresence>
+        {activeTab === 'listings' && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-1.5 overflow-hidden"
           >
-            Clear filters
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {/* My Listings section */}
-          {mergedMyListings.length > 0 && (
-            <div className="rounded-2xl border border-white/[0.08] bg-[#1e1e2e]/60 overflow-hidden">
+            <div className="flex gap-1.5">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={`Search ${otherCount} listing${otherCount !== 1 ? 's' : ''}...`}
+                className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-[#11111b] border border-white/[0.08] text-white text-xs placeholder-gray-500 focus:border-cyber-neon/40 outline-none transition-all"
+              />
               <button
                 type="button"
-                onClick={() => setMyListingsOpen((v) => !v)}
-                className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-white/[0.03] transition-colors"
+                onClick={() => setSortBy((s) => s === 'price_asc' ? 'price_desc' : s === 'price_desc' ? 'newest' : 'price_asc')}
+                className="px-2.5 py-1.5 rounded-lg bg-[#11111b] border border-white/[0.08] text-gray-400 text-xs hover:text-white transition-colors whitespace-nowrap shrink-0 active:scale-95"
+                title="Sort order"
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-mono text-gray-400 uppercase tracking-wider">My Listings</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-cyber-neon/15 text-cyber-neon font-bold">{myListings.length}</span>
-                </div>
-                <span className="text-gray-500 text-[10px]">{myListingsOpen ? '▾' : '▸'}</span>
+                {sortBy === 'newest' ? '🕒 New' : sortBy === 'price_asc' ? '🪙 ↑' : '🪙 ↓'}
               </button>
-              {myListingsOpen && (
-                <div className="border-t border-white/[0.06] flex flex-col gap-2 p-2">
-                  {mergedMyListings.map(({ rep, ids, totalQty, pricePerUnit }) => {
-                    const item = LOOT_ITEMS.find((x) => x.id === rep.item_id)
-                    const farmDisplay = !item ? getFarmItemDisplay(rep.item_id) : null
-                    const name = item?.name ?? farmDisplay?.name ?? rep.item_id
-                    const displayRarity = item?.rarity ?? farmDisplay?.rarity ?? 'common'
-                    const theme = getRarityTheme(displayRarity)
-                    const isGroup = ids.length > 1
-                    const isCancelling = ids.some((id) => cancellingId === id)
-                    const totalPrice = isGroup ? pricePerUnit * totalQty : rep.price_gold
-                    return (
-                      <div
-                        key={ids.join(',')}
-                        className="rounded-xl border p-2.5 flex items-center gap-3 transition-all"
-                        style={{ borderColor: theme.border, backgroundColor: `${theme.color}08` }}
-                      >
-                        {/* icon */}
-                        <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 relative"
-                          style={{ borderColor: theme.border, borderWidth: 1, backgroundColor: `${theme.color}15` }}
-                        >
-                          <LootVisualShared
-                            icon={item?.icon ?? farmDisplay?.icon ?? '📦'}
-                            image={item?.image ?? farmDisplay?.image}
-                            className="w-6 h-6 object-contain"
-                            scale={item?.renderScale ?? 1}
-                          />
-                          {totalQty > 1 && (
-                            <span
-                              className="absolute -top-1 -right-1 text-[8px] font-bold px-1 py-px rounded-full border leading-none"
-                              style={{ color: theme.color, backgroundColor: '#11111b', borderColor: theme.border }}
-                            >
-                              ×{totalQty}
-                            </span>
-                          )}
-                        </div>
-                        {/* info */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[12px] font-semibold text-white truncate">{name}</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">
-                            {isGroup
-                              ? <><span className="text-gray-500">{ids.length} orders · </span>{pricePerUnit}🪙 each</>
-                              : <>{rep.quantity > 1 ? `${rep.quantity} units · ` : ''}{pricePerUnit}🪙{rep.quantity > 1 ? '/unit' : ''}</>
-                            }
-                          </p>
-                        </div>
-                        {/* price + cancel */}
-                        <div className="flex flex-col items-end gap-1.5 shrink-0">
-                          <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/12 border border-amber-500/25">
-                            <span className="text-amber-400 text-[10px]">🪙</span>
-                            <span className="text-amber-400 font-bold text-[11px] tabular-nums">{totalPrice}</span>
-                          </div>
-                          <button
-                            type="button"
-                            disabled={isCancelling}
-                            onClick={() => {
-                              playClickSound()
-                              if (isGroup) {
-                                setCancelGroupTarget({ ids, name, totalQty })
-                              } else {
-                                setCancelError(null)
-                                setCancelConfirmTarget(rep)
-                              }
-                            }}
-                            className="px-2.5 py-0.5 rounded-lg text-[10px] font-semibold bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 disabled:opacity-50 transition-all whitespace-nowrap"
-                          >
-                            {isCancelling ? '…' : isGroup ? `Remove ×${ids.length}` : 'Remove'}
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
+              {activeFiltersCount > 0 && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="px-2.5 py-1.5 rounded-lg bg-[#11111b] border border-cyber-neon/30 text-cyber-neon text-xs hover:bg-cyber-neon/10 transition-colors whitespace-nowrap shrink-0 active:scale-95"
+                >
+                  ×{activeFiltersCount}
+                </button>
               )}
             </div>
-          )}
 
-          {/* Other listings */}
-          {otherListings.length > 0 && (
-            <div className="space-y-3">
-              {otherListings.map((listing) => <ListingCard key={listing.id} listing={listing} user={user} gold={gold} buyingId={buyingId} cancellingId={cancellingId} onBuy={handleBuyClick} onCancelClick={(l) => { setCancelError(null); setCancelConfirmTarget(l) }} />)}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* No gold toast — top right */}
-      {noGoldAlert &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          (() => {
-            try {
-            const alertItem = LOOT_ITEMS.find((x) => x.id === noGoldAlert.item_id)
-            const alertFarm = !alertItem ? getFarmItemDisplay(noGoldAlert.item_id) : null
-            const alertRarity = normalizeRarity(alertItem?.rarity ?? alertFarm?.rarity)
-            const alertTheme = RARITY_THEME[alertRarity] ?? RARITY_THEME.common
-            const deficit = noGoldAlert.price_gold - (gold ?? 0)
-            const dropRate = alertItem ? estimateLootDropRate(alertItem.id, { source: 'skill_grind', focusCategory: 'coding' }) : 0
-            return (
-              <div
-                className="fixed top-16 right-4 z-[200] w-[300px] rounded-xl border overflow-hidden shadow-2xl"
-                style={{
-                  borderColor: alertTheme.border,
-                  background: alertTheme.panel,
-                  boxShadow: `0 0 28px ${alertTheme.glow}`,
-                }}
+            <div className="flex items-center gap-1 flex-wrap">
+              {([
+                { id: '', label: 'All' },
+                { id: 'combat', label: '⚔ Combat' },
+                { id: 'xp', label: '📈 XP' },
+                { id: 'drops', label: '🎁 Drops' },
+                { id: 'cosmetic', label: '✨ Cosmetic' },
+                { id: 'seeds', label: '🌱 Seeds' },
+              ] as const).map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => { setPerkFilter(f.id); setSkillFilter('') }}
+                  className={`px-2 py-0.5 rounded-md border text-[11px] font-medium transition-all active:scale-95 ${
+                    perkFilter === f.id
+                      ? 'border-cyber-neon/50 bg-cyber-neon/12 text-cyber-neon'
+                      : 'border-white/[0.08] bg-[#11111b] text-gray-400 hover:text-gray-200 hover:border-white/20'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setFiltersExpanded((v) => !v)}
+                title={filtersExpanded ? 'Hide filters' : 'More filters'}
+                className={`px-2 py-0.5 rounded-md border text-[11px] transition-all active:scale-95 ${
+                  filtersExpanded
+                    ? 'border-white/20 bg-white/8 text-gray-300'
+                    : 'border-white/[0.08] bg-[#11111b] text-gray-500 hover:text-gray-300 hover:border-white/20'
+                }`}
               >
-                {/* radial glow */}
-                <div
-                  aria-hidden
-                  className="absolute inset-0 pointer-events-none opacity-40"
-                  style={{ background: `radial-gradient(circle at 50% 18%, ${alertTheme.glow} 0%, transparent 58%)` }}
-                />
+                {filtersExpanded ? '▲' : '▼'}
+              </button>
+            </div>
 
-                <div className="relative p-4">
-                  {/* close */}
-                  <button
-                    type="button"
-                    onClick={() => setNoGoldAlert(null)}
-                    className="absolute top-3 right-3 text-gray-500 hover:text-gray-300 text-xs leading-none transition-colors z-10"
-                  >
-                    ✕
-                  </button>
-
-                  {/* large centered item visual */}
-                  <div className="flex flex-col items-center mb-3">
-                    <div
-                      className="w-20 h-20 rounded-2xl flex items-center justify-center mb-2.5"
-                      style={{ backgroundColor: `${alertTheme.color}18`, border: `1px solid ${alertTheme.border}`, boxShadow: `0 0 20px ${alertTheme.glow}` }}
+            <AnimatePresence>
+              {perkFilter === 'xp' && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="flex flex-wrap gap-1 overflow-hidden"
+                >
+                  {SKILLS.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setSkillFilter((prev) => prev === s.id ? '' : s.id)}
+                      className={`px-2 py-0.5 rounded-md border text-[10px] transition-all ${
+                        skillFilter === s.id
+                          ? 'border-white/30 bg-white/10 text-white'
+                          : 'border-white/[0.06] bg-[#11111b] text-gray-500 hover:text-gray-300 hover:border-white/15'
+                      }`}
                     >
-                      <LootVisualShared
-                        icon={alertItem?.icon ?? alertFarm?.icon ?? '📦'}
-                        image={alertItem?.image ?? alertFarm?.image}
-                        className="w-14 h-14 object-contain"
-                        scale={alertItem?.renderScale ?? 1}
-                      />
+                      {s.icon} {s.name}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {filtersExpanded && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="rounded-lg border border-white/[0.07] bg-[#11111b]/60 p-2 space-y-1.5 overflow-hidden"
+                >
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className="text-[9px] font-mono uppercase tracking-wider text-gray-600 mr-1">Rarity</span>
+                    {RARITY_ORDER.map((r) => {
+                      const t = RARITY_THEME[normalizeRarity(r)]
+                      const active = rarityFilter === r
+                      return (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => setRarityFilter((prev) => prev === r ? '' : r)}
+                          className="px-2 py-0.5 rounded-md border text-[10px] font-medium capitalize transition-all"
+                          style={active
+                            ? { borderColor: t.border, background: `${t.glow}18`, color: t.color }
+                            : { borderColor: 'rgba(255,255,255,0.07)', background: 'transparent', color: '#9ca3af' }}
+                        >
+                          {r}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] font-mono uppercase tracking-wider text-gray-600 mr-1">Price 🪙</span>
+                    <input
+                      type="number" min={0} value={priceMin}
+                      onChange={(e) => setPriceMin(e.target.value)}
+                      placeholder="Min"
+                      className="grindly-no-spinner w-14 px-1.5 py-0.5 rounded-md bg-[#0d0d1a] border border-white/[0.08] text-white text-[11px] placeholder-gray-600 focus:border-cyber-neon/40 outline-none text-center"
+                    />
+                    <span className="text-gray-600 text-[10px]">–</span>
+                    <input
+                      type="number" min={0} value={priceMax}
+                      onChange={(e) => setPriceMax(e.target.value)}
+                      placeholder="Max"
+                      className="grindly-no-spinner w-14 px-1.5 py-0.5 rounded-md bg-[#0d0d1a] border border-white/[0.08] text-white text-[11px] placeholder-gray-600 focus:border-cyber-neon/40 outline-none text-center"
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Tab content ─────────────────────────────────────────────────────── */}
+
+      <AnimatePresence mode="wait">
+        {activeTab === 'listings' && (
+          <motion.div
+            key="tab-listings"
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 12 }}
+            transition={{ duration: 0.2 }}
+          >
+            {loading ? (
+              <div className="space-y-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="rounded-xl border border-white/[0.06] bg-[#1e1e2e]/50 p-3 flex items-center gap-2.5">
+                    <SkeletonBlock className="w-10 h-10 rounded-lg shrink-0" />
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <SkeletonBlock className="h-3 w-24" />
+                      <SkeletonBlock className="h-2.5 w-16" />
                     </div>
-                    <p className="text-sm font-semibold text-white text-center leading-tight">{alertItem?.name ?? alertFarm?.name ?? noGoldAlert.item_id}</p>
-                    <span
-                      className="inline-flex mt-1 text-[10px] px-2 py-0.5 rounded border font-mono uppercase tracking-wide"
-                      style={{ color: alertTheme.color, borderColor: alertTheme.border, backgroundColor: `${alertTheme.color}1A` }}
-                    >
-                      {alertRarity}
-                    </span>
+                    <SkeletonBlock className="h-8 w-16 rounded-lg" />
                   </div>
-
-                  {/* stats block */}
-                  <div className="rounded-lg border border-white/10 bg-black/30 p-2.5 space-y-1 mb-3">
-                    {alertItem && (
-                      <>
-                        <p className="text-[10px] text-gray-300"><span className="text-gray-500">Slot:</span> {SLOT_LABEL[alertItem.slot]}</p>
-                        <p className="text-[10px]" style={{ color: alertTheme.color }}><span className="text-gray-500">Effect:</span> {getItemPerkDescription(alertItem)}</p>
-                        <p className="text-[10px] text-gray-300"><span className="text-gray-500">Drop rate:</span> ~{dropRate}%</p>
-                      </>
-                    )}
-                    <p className="text-[10px] text-gray-300"><span className="text-gray-500">Seller:</span> {noGoldAlert.seller_username ?? 'Anonymous'}</p>
-                  </div>
-
-                  {/* price row */}
-                  <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-xl bg-black/30">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-amber-400">🪙</span>
-                      <span className="text-amber-400 font-bold text-sm tabular-nums">{noGoldAlert.price_gold}</span>
-                    </div>
-                    <span className="text-[11px] text-red-400 font-medium">−{deficit} short</span>
-                  </div>
-
-                  {/* disabled buy */}
-                  <button
-                    type="button"
-                    disabled
-                    className="w-full py-2 rounded-xl text-xs font-semibold bg-white/5 border border-white/10 text-gray-500 cursor-not-allowed"
-                  >
-                    Need {deficit} more 🪙 to buy
-                  </button>
-                </div>
+                ))}
               </div>
-            )
-            } catch (err) {
-              console.error('[Marketplace] No-gold alert render error:', err)
-              return null
-            }
-          })(),
-          document.body,
+            ) : orderBook.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="py-14 text-center rounded-2xl border border-white/[0.06] bg-[#1e1e2e]/40"
+              >
+                <span className="text-4xl mb-3 block opacity-40">🛒</span>
+                <p className="text-xs text-gray-400 font-medium">
+                  {otherCount === 0 ? 'No listings from other players' : 'No listings match your filters'}
+                </p>
+                {activeFiltersCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="mt-3 px-4 py-1.5 rounded-lg border border-cyber-neon/30 text-cyber-neon text-[10px] hover:bg-cyber-neon/10 transition-colors"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </motion.div>
+            ) : (
+              <div className="space-y-1.5">
+                {orderBook.map((row, i) => (
+                  <OrderBookTile key={`${row.itemId}::${row.pricePerUnit}`} row={row} onBuy={handleBuyClick} index={i} />
+                ))}
+              </div>
+            )}
+          </motion.div>
         )}
 
-      {/* Buy confirmation modal */}
-      {buyConfirmTarget &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4"
-            onClick={() => setBuyConfirmTarget(null)}
-          >
-            <div
-              className="w-[320px] rounded-xl bg-discord-card border border-white/10 p-4 flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {(() => {
-                try {
-                const item = LOOT_ITEMS.find((x) => x.id === buyConfirmTarget.item_id)
-                const confirmFarm = !item ? getFarmItemDisplay(buyConfirmTarget.item_id) : null
-                const confirmRarity = normalizeRarity(item?.rarity ?? confirmFarm?.rarity)
-                const confirmTheme = RARITY_THEME[confirmRarity] ?? RARITY_THEME.common
-                const maxQty = Math.max(1, buyConfirmTarget.quantity ?? 1)
-                const isMulti = maxQty > 1
-                const clampedBuyQty = Math.max(1, Math.min(maxQty, buyQty))
-                const buyCost = buyConfirmTarget.price_gold * clampedBuyQty
-                const canAffordSelected = (gold ?? 0) >= buyCost
-                return (
-                  <>
-                    {/* large centered item visual */}
-                    <div className="flex flex-col items-center mb-3">
-                      <div
-                        className="w-16 h-16 rounded-2xl flex items-center justify-center mb-2"
-                        style={{ backgroundColor: `${confirmTheme.color}18`, border: `1px solid ${confirmTheme.border}`, boxShadow: `0 0 20px ${confirmTheme.glow}` }}
-                      >
-                        <LootVisualShared
-                          icon={item?.icon ?? confirmFarm?.icon ?? '📦'}
-                          image={item?.image ?? confirmFarm?.image}
-                          className="w-11 h-11 object-contain"
-                          scale={item?.renderScale ?? 1}
-                        />
-                      </div>
-                      <p className="text-sm font-semibold text-white text-center">{item?.name ?? confirmFarm?.name ?? buyConfirmTarget.item_id}</p>
-                      <span
-                        className="inline-flex mt-1 text-[10px] px-2 py-0.5 rounded border font-mono uppercase tracking-wide"
-                        style={{ color: confirmTheme.color, borderColor: confirmTheme.border, backgroundColor: `${confirmTheme.color}1A` }}
-                      >
-                        {confirmRarity}
-                      </span>
-                      {item && getItemPerkDescription(item) && (
-                        <p className="text-[10px] text-gray-400 text-center mt-1 leading-snug">{getItemPerkDescription(item)}</p>
-                      )}
-                    </div>
+        {activeTab === 'sell' && (
+          <SellTab onListed={loadListings} />
+        )}
 
-                    {/* Quantity stepper — only when listing has multiple */}
-                    {isMulti && (
-                      <div className="mb-3 rounded-xl bg-discord-darker/60 border border-white/[0.08] p-2.5">
-                        <p className="text-[10px] text-gray-500 font-mono mb-2 text-center">
-                          Available: {maxQty} · {buyConfirmTarget.price_gold} 🪙 each
-                        </p>
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setBuyQty((q) => Math.max(1, q - 1))}
-                            className="w-8 h-8 rounded-lg border border-white/15 text-gray-300 hover:bg-white/10 text-sm font-bold transition-colors"
-                          >
-                            −
-                          </button>
-                          <input
-                            type="number"
-                            min={1}
-                            max={maxQty}
-                            value={buyQty}
-                            onChange={(e) => {
-                              const v = Math.max(1, Math.min(maxQty, Math.floor(Number(e.target.value) || 1)))
-                              setBuyQty(v)
-                            }}
-                            className="grindly-no-spinner w-16 text-center bg-[#11111b] border border-white/10 rounded-lg text-white text-sm font-bold py-1 outline-none focus:border-cyber-neon/40"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setBuyQty((q) => Math.min(maxQty, q + 1))}
-                            className="w-8 h-8 rounded-lg border border-white/15 text-gray-300 hover:bg-white/10 text-sm font-bold transition-colors"
-                          >
-                            +
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setBuyQty(maxQty)}
-                            className="px-2.5 py-1 rounded-lg border border-white/15 text-gray-400 text-[10px] hover:bg-white/10 transition-colors"
-                          >
-                            Max
-                          </button>
+        {activeTab === 'my_listings' && (
+          <motion.div
+            key="tab-my"
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 12 }}
+            transition={{ duration: 0.2 }}
+          >
+            {loading ? (
+              <div className="space-y-2">
+                {[1, 2].map((i) => (
+                  <div key={i} className="rounded-xl border border-white/[0.06] bg-[#1e1e2e]/50 p-3 flex items-center gap-2.5">
+                    <SkeletonBlock className="w-10 h-10 rounded-lg shrink-0" />
+                    <div className="flex-1 space-y-2"><SkeletonBlock className="h-3 w-24" /></div>
+                    <SkeletonBlock className="h-8 w-16 rounded-lg" />
+                  </div>
+                ))}
+              </div>
+            ) : mergedMyListings.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="py-14 text-center rounded-2xl border border-white/[0.06] bg-[#1e1e2e]/40"
+              >
+                <span className="text-4xl mb-3 block opacity-40">📦</span>
+                <p className="text-xs text-gray-400 font-medium">You have no active listings</p>
+                <button
+                  type="button"
+                  onClick={() => { playClickSound(); setActiveTab('sell') }}
+                  className="mt-3 px-4 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 to-amber-600/15 border border-amber-500/30 text-amber-300 text-[11px] font-semibold hover:from-amber-500/30 hover:to-amber-600/25 transition-all active:scale-95"
+                >
+                  + Sell an item
+                </button>
+              </motion.div>
+            ) : (
+              <div className="space-y-1.5">
+                {mergedMyListings.map((group, i) => (
+                  <MyListingRow
+                    key={group.ids.join(',')}
+                    group={group}
+                    cancellingId={cancellingId}
+                    onCancel={(g) => setCancelTarget(g)}
+                    index={i}
+                  />
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {activeTab === 'history' && (
+          <motion.div
+            key="tab-history"
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 12 }}
+            transition={{ duration: 0.2 }}
+          >
+            {historyLoading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="rounded-xl border border-white/[0.06] bg-[#1e1e2e]/50 p-3 flex items-center gap-2.5">
+                    <SkeletonBlock className="w-9 h-9 rounded-lg shrink-0" />
+                    <div className="flex-1 space-y-2"><SkeletonBlock className="h-3 w-28" /></div>
+                    <SkeletonBlock className="h-5 w-12 rounded-md" />
+                  </div>
+                ))}
+              </div>
+            ) : history.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="py-14 text-center rounded-2xl border border-white/[0.06] bg-[#1e1e2e]/40"
+              >
+                <span className="text-4xl mb-3 block opacity-40">📜</span>
+                <p className="text-xs text-gray-400 font-medium">No trade history yet</p>
+              </motion.div>
+            ) : (
+              <div className="space-y-1.5">
+                {history.map((entry, i) => (
+                  <HistoryRow key={entry.id} entry={entry} userId={user?.id ?? ''} index={i} />
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Buy confirmation modal ────────────────────────────────────────── */}
+      {createPortal(
+        <AnimatePresence>
+          {buyTarget && (
+            <motion.div
+              key="buy-overlay"
+              {...MODAL_OVERLAY}
+              className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-4"
+              onClick={() => { if (!buying) setBuyTarget(null) }}
+            >
+              <motion.div
+                {...MODAL_CARD}
+                className="w-[320px] rounded-2xl bg-[#1a1a2e] border border-white/10 p-5 flex flex-col shadow-2xl"
+                style={{ boxShadow: '0 0 60px rgba(0,0,0,0.5)' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {(() => {
+                  const meta = getItemMeta(buyTarget.itemId)
+                  const theme = RARITY_THEME[normalizeRarity(meta.rarity)] ?? RARITY_THEME.common
+                  const maxQty = buyTarget.totalQty
+                  const clampedBuyQty = Math.max(1, Math.min(maxQty, buyQty))
+                  const buyCost = buyTarget.pricePerUnit * clampedBuyQty
+                  const canAfford = (gold ?? 0) >= buyCost
+                  return (
+                    <>
+                      <div className="flex flex-col items-center mb-4">
+                        <div
+                          className="w-16 h-16 rounded-2xl flex items-center justify-center mb-2.5 relative"
+                          style={{ backgroundColor: `${theme.color}18`, border: `1px solid ${theme.border}`, boxShadow: `0 0 24px ${theme.glow}` }}
+                        >
+                          <LootVisualShared icon={meta.icon} image={meta.image} className="w-11 h-11 object-contain" scale={meta.scale} />
+                        </div>
+                        <p className="text-sm font-semibold text-white text-center">{meta.name}</p>
+                        <span
+                          className="inline-flex mt-1 text-[9px] px-2 py-0.5 rounded-md border font-mono uppercase tracking-wide"
+                          style={{ color: theme.color, borderColor: theme.border, backgroundColor: `${theme.color}1A` }}
+                        >
+                          {meta.rarity}
+                        </span>
+                        {meta.item && getItemPerkDescription(meta.item) && (
+                          <p className="text-[10px] text-gray-400 text-center mt-1.5 leading-snug max-w-[220px]">{getItemPerkDescription(meta.item)}</p>
+                        )}
+                      </div>
+
+                      {maxQty > 1 && (
+                        <div className="mb-3 rounded-xl bg-black/20 border border-white/[0.06] p-3">
+                          <p className="text-[10px] text-gray-500 font-mono mb-2.5 text-center">
+                            Available: {maxQty} · {buyTarget.pricePerUnit} 🪙 each
+                          </p>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setBuyQty((q) => Math.max(1, q - 1))}
+                              disabled={buying}
+                              className="w-8 h-8 rounded-lg border border-white/15 text-gray-300 hover:bg-white/10 text-sm font-bold transition-colors active:scale-90 disabled:opacity-40"
+                            >−</button>
+                            <input
+                              type="number"
+                              min={1} max={maxQty} value={buyQty}
+                              disabled={buying}
+                              onChange={(e) => setBuyQty(Math.max(1, Math.min(maxQty, Math.floor(Number(e.target.value) || 1))))}
+                              className="grindly-no-spinner w-16 text-center bg-[#11111b] border border-white/10 rounded-lg text-white text-sm font-bold py-1.5 outline-none focus:border-cyber-neon/40 disabled:opacity-40"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setBuyQty((q) => Math.min(maxQty, q + 1))}
+                              disabled={buying}
+                              className="w-8 h-8 rounded-lg border border-white/15 text-gray-300 hover:bg-white/10 text-sm font-bold transition-colors active:scale-90 disabled:opacity-40"
+                            >+</button>
+                            <button
+                              type="button"
+                              onClick={() => setBuyQty(maxQty)}
+                              disabled={buying}
+                              className="px-2.5 py-1 rounded-lg border border-white/15 text-gray-400 text-[10px] hover:bg-white/10 transition-colors disabled:opacity-40"
+                            >Max</button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className={`flex flex-col items-center gap-1 mb-4 px-3 py-2.5 rounded-xl border ${canAfford ? 'bg-amber-500/8 border-amber-500/20' : 'bg-red-500/8 border-red-500/20'}`}>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-amber-400">🪙</span>
+                          <span className={`font-bold text-base tabular-nums ${canAfford ? 'text-amber-400' : 'text-red-400'}`}>{buyCost}</span>
+                          <span className="text-gray-500 text-xs">gold</span>
+                          {!canAfford && <span className="text-red-400 text-[10px] ml-1">({buyCost - (gold ?? 0)} short)</span>}
+                        </div>
+                        {clampedBuyQty > 1 && (
+                          <p className="text-[10px] text-gray-500 font-mono">
+                            {clampedBuyQty} × {buyTarget.pricePerUnit} 🪙
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setBuyTarget(null)}
+                          disabled={buying}
+                          className="flex-1 py-2.5 rounded-xl border border-white/15 text-gray-400 text-xs hover:bg-white/5 transition-colors disabled:opacity-40 active:scale-[0.97]"
+                        >Cancel</button>
+                        <button
+                          type="button"
+                          onClick={() => handleBuy(buyTarget, clampedBuyQty)}
+                          disabled={!canAfford || buying}
+                          className="flex-1 py-2.5 rounded-xl bg-cyber-neon/20 border border-cyber-neon/40 text-cyber-neon text-xs font-semibold hover:bg-cyber-neon/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.97]"
+                        >
+                          {buying ? (
+                            <span className="flex items-center justify-center gap-1.5">
+                              <span className="w-3 h-3 border-2 border-cyber-neon/40 border-t-cyber-neon rounded-full animate-spin" />
+                              Buying...
+                            </span>
+                          ) : maxQty > 1 ? `Buy ×${clampedBuyQty}` : 'Buy'}
+                        </button>
+                      </div>
+                    </>
+                  )
+                })()}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
+
+      {/* ─── Cancel confirmation modal ─────────────────────────────────────── */}
+      {createPortal(
+        <AnimatePresence>
+          {cancelTarget && (
+            <motion.div
+              key="cancel-overlay"
+              {...MODAL_OVERLAY}
+              className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-4"
+              onClick={() => { setCancelTarget(null); setCancelError(null) }}
+            >
+              <motion.div
+                {...MODAL_CARD}
+                className="w-[300px] rounded-2xl bg-[#1a1a2e] border border-white/10 p-5 flex flex-col shadow-2xl"
+                style={{ boxShadow: '0 0 60px rgba(0,0,0,0.5)' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {(() => {
+                  const meta = getItemMeta(cancelTarget.rep.item_id)
+                  const theme = getRarityTheme(meta.rarity)
+                  return (
+                    <>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div
+                          className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: `${theme.color}15`, border: `1px solid ${theme.border}` }}
+                        >
+                          <LootVisualShared icon={meta.icon} image={meta.image} className="w-6 h-6 object-contain" scale={meta.scale} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-white">
+                            Cancel {cancelTarget.ids.length > 1 ? `${cancelTarget.ids.length} listings` : 'listing'}?
+                          </p>
+                          <p className="text-[10px] text-gray-500 mt-0.5">
+                            {meta.name}{cancelTarget.totalQty > 1 ? ` ×${cancelTarget.totalQty}` : ''} → inventory
+                          </p>
                         </div>
                       </div>
-                    )}
-
-                    {/* price */}
-                    <div className={`flex flex-col items-center gap-1 mb-3 px-3 py-2 rounded-xl border ${canAffordSelected ? 'bg-amber-500/8 border-amber-500/20' : 'bg-red-500/8 border-red-500/20'}`}>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-amber-400">🪙</span>
-                        <span className={`font-bold tabular-nums ${canAffordSelected ? 'text-amber-400' : 'text-red-400'}`}>{buyCost}</span>
-                        <span className="text-gray-500 text-xs">gold</span>
-                        {!canAffordSelected && <span className="text-red-400 text-xs ml-1">· {buyCost - (gold ?? 0)} short</span>}
+                      {cancelError && <p className="text-[11px] text-red-400 mb-3">{cancelError}</p>}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { setCancelTarget(null); setCancelError(null) }}
+                          className="flex-1 py-2.5 rounded-xl border border-white/15 text-gray-400 text-xs hover:bg-white/5 transition-colors active:scale-[0.97]"
+                        >Keep</button>
+                        <button
+                          type="button"
+                          disabled={cancelTarget.ids.some((id) => cancellingId === id)}
+                          onClick={() => handleCancelConfirm(cancelTarget)}
+                          className="flex-1 py-2.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/25 disabled:opacity-50 transition-all active:scale-[0.97]"
+                        >
+                          {cancelTarget.ids.some((id) => cancellingId === id) ? (
+                            <span className="flex items-center justify-center gap-1.5">
+                              <span className="w-3 h-3 border-2 border-red-400/40 border-t-red-400 rounded-full animate-spin" />
+                              Cancelling...
+                            </span>
+                          ) : cancelTarget.ids.length > 1 ? `Cancel all` : 'Cancel listing'}
+                        </button>
                       </div>
-                      {isMulti && clampedBuyQty > 1 && (
-                        <p className="text-[10px] text-gray-500 font-mono">
-                          {clampedBuyQty} × {buyConfirmTarget.price_gold} 🪙 = {buyCost} total
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setBuyConfirmTarget(null)}
-                        className="flex-1 py-2 rounded-lg border border-white/15 text-gray-400 text-xs hover:bg-white/5"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleBuy(buyConfirmTarget, clampedBuyQty)}
-                        disabled={!canAffordSelected}
-                        className="flex-1 py-2 rounded-lg bg-cyber-neon/20 border border-cyber-neon/40 text-cyber-neon text-xs font-semibold hover:bg-cyber-neon/30 disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        {isMulti ? `Buy ×${clampedBuyQty}` : 'Buy'}
-                      </button>
-                    </div>
-                  </>
-                )
-                } catch (err) {
-                  console.error('[Marketplace] Buy modal render error:', err)
-                  return (
-                    <div className="p-4 text-center">
-                      <p className="text-sm text-red-400 mb-2">Failed to show buy dialog</p>
-                      <button type="button" onClick={() => setBuyConfirmTarget(null)} className="text-xs text-gray-400 hover:text-white">Close</button>
-                    </div>
+                    </>
                   )
-                }
-              })()}
-            </div>
-          </div>,
-          document.body,
-        )}
-
-      {/* Cancel group confirmation modal */}
-      {cancelGroupTarget &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4"
-            onClick={() => setCancelGroupTarget(null)}
-          >
-            <div
-              className="w-[300px] rounded-xl bg-discord-card border border-white/10 p-4 flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <p className="text-sm font-semibold text-white mb-1">Remove {cancelGroupTarget.ids.length} listings?</p>
-              <p className="text-[11px] text-gray-400 mb-4">
-                {cancelGroupTarget.name}
-                {cancelGroupTarget.totalQty > 1 ? ` ×${cancelGroupTarget.totalQty}` : ''} will return to your inventory.
-              </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCancelGroupTarget(null)}
-                  className="flex-1 py-2 rounded-lg border border-white/15 text-gray-400 text-xs hover:bg-white/5"
-                >
-                  Keep
-                </button>
-                <button
-                  type="button"
-                  disabled={cancelGroupTarget.ids.some((id) => cancellingId === id)}
-                  onClick={() => handleCancelGroup(cancelGroupTarget.ids)}
-                  className="flex-1 py-2 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-semibold hover:bg-red-500/30 disabled:opacity-50"
-                >
-                  Remove all
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
-
-      {/* Remove confirmation modal */}
-      {cancelConfirmTarget &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4"
-            onClick={() => {
-              setCancelConfirmTarget(null)
-              setCancelError(null)
-            }}
-          >
-          <div
-            className="w-[320px] rounded-xl bg-discord-card border border-white/10 p-4 flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="text-sm font-semibold text-white mb-1">Remove listing?</p>
-            <p className="text-[11px] text-gray-400 mb-4">
-              {LOOT_ITEMS.find((x) => x.id === cancelConfirmTarget.item_id)?.name ?? getFarmItemDisplay(cancelConfirmTarget.item_id)?.name ?? cancelConfirmTarget.item_id} will return to your inventory.
-            </p>
-            {cancelError && (
-              <p className="text-[11px] text-red-400 mb-3">{cancelError}</p>
-            )}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setCancelConfirmTarget(null)
-                  setCancelError(null)
-                }}
-                className="flex-1 py-2 rounded-lg border border-white/15 text-gray-400 text-xs hover:bg-white/5"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => handleCancel(cancelConfirmTarget)}
-                disabled={cancellingId === cancelConfirmTarget.id}
-                className="flex-1 py-2 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-semibold hover:bg-red-500/30 disabled:opacity-50"
-              >
-                {cancellingId === cancelConfirmTarget.id ? 'Removing...' : 'Remove'}
-              </button>
-            </div>
-          </div>
-        </div>
-        , document.body
+                })()}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
       )}
+
+      {/* ─── No gold toast ─────────────────────────────────────────────────── */}
+      {createPortal(
+        <AnimatePresence>
+          {noGoldAlert && (
+            <NoGoldToast alert={noGoldAlert} gold={gold} onClose={() => setNoGoldAlert(null)} />
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
+
+      {/* ─── Toast ─────────────────────────────────────────────────────────── */}
+      {createPortal(
+        <AnimatePresence>
+          {toast && <BuyToast message={toast.message} type={toast.type} />}
+        </AnimatePresence>,
+        document.body,
+      )}
+
+      {/* showBackpack handled above */}
     </div>
   )
 }

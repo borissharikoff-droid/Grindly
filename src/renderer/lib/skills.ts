@@ -52,6 +52,7 @@ export const SKILLS: SkillDef[] = [
   { id: 'farmer', name: 'Farmer', icon: '🌾', color: '#84cc16', category: 'farming' },
   { id: 'warrior', name: 'Warrior', icon: '⚔️', color: '#EF4444', category: 'warrior' },
   { id: 'crafter', name: 'Crafter', icon: '⚒️', color: '#f97316', category: 'crafting' },
+  { id: 'grindly', name: 'Grindly', icon: '🏠', color: '#c084fc', category: 'grindly' },
 ]
 
 /** Max total skill level (all skills at 99). */
@@ -70,6 +71,7 @@ const CATEGORY_TO_SKILL: Record<string, string> = {
   farming: 'farmer',
   warrior:  'warrior',
   crafting: 'crafter',
+  grindly:  'grindly',
   other:    'researcher',
 }
 
@@ -160,6 +162,87 @@ export function formatSkillTime(xp: number): string {
   const m = totalMin % 60
   if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`
   return `${m}m`
+}
+
+// ── Grindly skill bonuses (cumulative thresholds) ───────────────────────────
+
+export interface GrindlyBonuses {
+  /** Multiplier for all skill XP (e.g. 1.15 = +15%) */
+  xpMultiplier: number
+  /** Multiplier for craft time (e.g. 0.85 = -15% time) */
+  craftSpeedMultiplier: number
+  /** Flat bonus ATK for combat */
+  atk: number
+  /** Flat bonus HP for combat */
+  hp: number
+  /** Flat bonus HP regen for combat */
+  hpRegen: number
+}
+
+export const GRINDLY_PERK_TABLE: { level: number; label: string }[] = [
+  { level: 5,  label: '+3% All Skill XP' },
+  { level: 10, label: '-5% Craft Time' },
+  { level: 15, label: '+3% All Skill XP' },
+  { level: 20, label: '+1 ATK, +5 HP' },
+  { level: 25, label: '+4% All Skill XP' },
+  { level: 30, label: '-5% Craft Time' },
+  { level: 35, label: '+5 HP, +1 HP Regen' },
+  { level: 40, label: '+5% All Skill XP' },
+  { level: 45, label: '+1 ATK' },
+  { level: 50, label: '-5% Craft Time' },
+  { level: 55, label: '+5% All Skill XP' },
+  { level: 60, label: '+2 ATK, +10 HP' },
+  { level: 65, label: '-5% Craft Time' },
+  { level: 70, label: '+5% All Skill XP' },
+  { level: 75, label: '+2 ATK, +10 HP, +1 HP Regen' },
+  { level: 80, label: '-5% Craft Time' },
+  { level: 85, label: '+5% All Skill XP' },
+  { level: 90, label: '+2 ATK, +10 HP, +1 HP Regen' },
+  { level: 95, label: '-5% Craft Time' },
+  { level: 99, label: '+5% XP, +2 ATK, +10 HP, +1 HP Regen' },
+]
+
+export function computeGrindlyBonuses(level: number): GrindlyBonuses {
+  let xpPct = 0, craftPct = 0, atk = 0, hp = 0, hpRegen = 0
+
+  if (level >= 5)  xpPct += 3
+  if (level >= 10) craftPct += 5
+  if (level >= 15) xpPct += 3
+  if (level >= 20) { atk += 1; hp += 5 }
+  if (level >= 25) xpPct += 4
+  if (level >= 30) craftPct += 5
+  if (level >= 35) { hp += 5; hpRegen += 1 }
+  if (level >= 40) xpPct += 5
+  if (level >= 45) atk += 1
+  if (level >= 50) craftPct += 5
+  if (level >= 55) xpPct += 5
+  if (level >= 60) { atk += 2; hp += 10 }
+  if (level >= 65) craftPct += 5
+  if (level >= 70) xpPct += 5
+  if (level >= 75) { atk += 2; hp += 10; hpRegen += 1 }
+  if (level >= 80) craftPct += 5
+  if (level >= 85) xpPct += 5
+  if (level >= 90) { atk += 2; hp += 10; hpRegen += 1 }
+  if (level >= 95) craftPct += 5
+  if (level >= 99) { xpPct += 5; atk += 2; hp += 10; hpRegen += 1 }
+
+  return {
+    xpMultiplier: 1 + xpPct / 100,
+    craftSpeedMultiplier: 1 - craftPct / 100,
+    atk,    // Max: +10
+    hp,     // Max: +50
+    hpRegen // Max: +4
+  }
+}
+
+/** Get current Grindly skill level from localStorage (safe for any context). */
+export function getGrindlyLevel(): number {
+  try {
+    const stored = JSON.parse(localStorage.getItem('grindly_skill_xp') || '{}') as Record<string, number>
+    return skillLevelFromXP(stored['grindly'] ?? 0)
+  } catch {
+    return 0
+  }
 }
 
 export interface ActivitySegmentForXP {

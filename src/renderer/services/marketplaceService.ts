@@ -74,7 +74,7 @@ export async function fetchActiveListings(): Promise<ListingWithSeller[]> {
     .eq('status', 'active')
     .order('created_at', { ascending: false })
 
-  if (error || !listings?.length) return listings ?? []
+  if (error || !listings?.length) return []
 
   const sellerIds = [...new Set((listings as { seller_id: string }[]).map((l) => l.seller_id))]
   const { data: profiles } = await supabase
@@ -172,4 +172,56 @@ export async function expireOldListings(): Promise<number> {
   const { data, error } = await supabase.rpc('expire_old_listings')
   if (error) return 0
   return (data as number) ?? 0
+}
+
+export interface TradeHistoryEntry {
+  id: string
+  seller_id: string
+  buyer_id: string | null
+  item_id: string
+  quantity: number
+  price_gold: number
+  status: string
+  created_at: string
+  seller_username: string | null
+  buyer_username: string | null
+}
+
+/** Fetch trade history: sold/cancelled/expired listings involving the current user */
+export async function fetchTradeHistory(userId: string): Promise<TradeHistoryEntry[]> {
+  if (!supabase) return []
+  const { data: rows, error } = await supabase
+    .from('marketplace_listings')
+    .select('id, seller_id, buyer_id, item_id, quantity, price_gold, status, created_at')
+    .in('status', ['sold', 'cancelled', 'expired'])
+    .or(`seller_id.eq.${userId},buyer_id.eq.${userId}`)
+    .order('created_at', { ascending: false })
+    .limit(100)
+
+  if (error || !rows?.length) return []
+
+  const allIds = new Set<string>()
+  for (const r of rows as { seller_id: string; buyer_id?: string }[]) {
+    allIds.add(r.seller_id)
+    if (r.buyer_id) allIds.add(r.buyer_id)
+  }
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, username')
+    .in('id', [...allIds])
+
+  const nameMap = new Map((profiles || []).map((p: { id: string; username?: string }) => [p.id, p.username ?? null]))
+
+  return (rows as Record<string, unknown>[]).map((r) => ({
+    id: r.id as string,
+    seller_id: r.seller_id as string,
+    buyer_id: (r.buyer_id as string) ?? null,
+    item_id: r.item_id as string,
+    quantity: r.quantity as number,
+    price_gold: r.price_gold as number,
+    status: r.status as string,
+    created_at: r.created_at as string,
+    seller_username: nameMap.get(r.seller_id as string) ?? null,
+    buyer_username: r.buyer_id ? nameMap.get(r.buyer_id as string) ?? null : null,
+  }))
 }

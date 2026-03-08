@@ -601,8 +601,8 @@ export function maxAffordableQty(recipe: CraftRecipe, items: Record<string, numb
  * Total seconds to craft `qty` items, adjusted for crafter level speed perk.
  * Pass `crafterLevel` to apply the reduction; omit (0) for base time display.
  */
-export function craftDuration(recipe: CraftRecipe, qty: number, crafterLevel = 0): number {
-  return Math.max(1, Math.round(recipe.secPerItem * getCrafterSpeedMultiplier(crafterLevel))) * qty
+export function craftDuration(recipe: CraftRecipe, qty: number, crafterLevel = 0, grindlyCraftMult = 1): number {
+  return Math.max(1, Math.round(recipe.secPerItem * getCrafterSpeedMultiplier(crafterLevel) * grindlyCraftMult)) * qty
 }
 
 /** Format seconds as "Xh Ym Zs". */

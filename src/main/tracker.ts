@@ -446,7 +446,7 @@ function stopWindowDetector(): void {
 
 // ── Activity types ──
 /** 'idle' = desktop/explorer or unknown window — does not give XP. */
-export type ActivityCategory = 'coding' | 'design' | 'games' | 'social' | 'browsing' | 'creative' | 'learning' | 'music' | 'other' | 'idle'
+export type ActivityCategory = 'coding' | 'design' | 'games' | 'social' | 'browsing' | 'creative' | 'learning' | 'music' | 'grindly' | 'other' | 'idle'
 
 export interface ActivitySnapshot {
   appName: string
@@ -550,7 +550,7 @@ function makeAiCacheKey(appName: string, windowTitle: string): string {
 
 function normalizeAiCategory(category: string): ActivityCategory | null {
   const c = category.toLowerCase()
-  const allowed: ActivityCategory[] = ['coding', 'design', 'games', 'social', 'browsing', 'creative', 'learning', 'music', 'other']
+  const allowed: ActivityCategory[] = ['coding', 'design', 'games', 'social', 'browsing', 'creative', 'learning', 'music', 'grindly', 'other']
   return (allowed as string[]).includes(c) ? (c as ActivityCategory) : null
 }
 
@@ -703,9 +703,9 @@ export function categorizeMultiple(appName: string, windowTitle: string): Activi
 export function categorizeDetailed(appName: string, windowTitle: string): ClassificationResult {
   const lowerApp = appName.toLowerCase().replace(/\.(exe|app)$/i, '')
   const lowerTitle = windowTitle.toLowerCase()
-  // Grindly's own window — never award XP for sitting in the app itself
+  // Grindly's own window — awards Grindly skill XP
   if (lowerApp === 'electron' || lowerApp === 'grindly') {
-    return { categories: ['idle'], contextTag: 'self', confidence: 1 }
+    return { categories: ['grindly'], contextTag: 'self', confidence: 1 }
   }
   // When process name is unknown (e.g. protected), infer from window title
   if (lowerApp === 'unknown' && lowerTitle) {

@@ -9,6 +9,7 @@ import {
   nextPityAfterChestRoll,
   openChest,
   rollChestDrop,
+  isValidItemId,
   type BonusMaterial,
   type ChestType,
   type LootDropContext,
@@ -128,7 +129,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       const pity = snapshot.pity ?? state.pity
       return {
         ...state,
-        items: snapshot.items ?? state.items,
+        items: Object.fromEntries(Object.entries(snapshot.items ?? state.items).filter(([id]) => isValidItemId(id))),
         chests: {
           common_chest: chests.common_chest ?? 0,
           rare_chest: chests.rare_chest ?? 0,

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { CRAFT_RECIPE_MAP, canAffordRecipe, getCrafterSpeedMultiplier, getCrafterDoubleChance } from '../lib/crafting'
-import { skillLevelFromXP } from '../lib/skills'
+import { skillLevelFromXP, getGrindlyLevel, computeGrindlyBonuses } from '../lib/skills'
 
 const STORAGE_KEY = 'grindly_crafting_v2'
 
@@ -111,7 +111,9 @@ export const useCraftingStore = create<CraftingState>((set, get) => ({
     const now = Date.now()
     // Bake in crafter level speed perk at job creation time
     const crafterLevel = skillLevelFromXP(get().craftXp)
-    const speedMult = getCrafterSpeedMultiplier(crafterLevel)
+    const crafterSpeedMult = getCrafterSpeedMultiplier(crafterLevel)
+    const grindlySpeedMult = computeGrindlyBonuses(getGrindlyLevel()).craftSpeedMultiplier
+    const speedMult = crafterSpeedMult * grindlySpeedMult
     const effectiveSecPerItem = Math.max(1, Math.round(recipe.secPerItem * speedMult))
 
     const job: CraftJob = {

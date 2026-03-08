@@ -10,7 +10,7 @@ import {
   type CraftRecipe,
 } from '../../lib/crafting'
 import { getRarityTheme, LOOT_ITEMS, type LootSlot } from '../../lib/loot'
-import { skillLevelFromXP } from '../../lib/skills'
+import { skillLevelFromXP, getGrindlyLevel, computeGrindlyBonuses } from '../../lib/skills'
 import { useCraftingStore } from '../../stores/craftingStore'
 import { useInventoryStore } from '../../stores/inventoryStore'
 import { playClickSound, playLootRaritySound } from '../../lib/sounds'
@@ -251,7 +251,7 @@ function RecipeCard({
               {/* Summary + start */}
               <div className="flex items-end justify-between gap-3 pt-0.5">
                 <div className="text-[10px] font-mono text-gray-400 space-y-0.5">
-                  <p>⏱ {formatCraftTime(craftDuration(recipe, qty, crafterLevel))}</p>
+                  <p>⏱ {formatCraftTime(craftDuration(recipe, qty, crafterLevel, computeGrindlyBonuses(getGrindlyLevel()).craftSpeedMultiplier))}</p>
                   <p style={{ color: CRAFT_COLOR }}>✦ {(qty * recipe.xpPerItem).toLocaleString()} xp total</p>
                 </div>
                 <motion.button type="button"

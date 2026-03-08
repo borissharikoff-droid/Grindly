@@ -7,7 +7,7 @@ import { syncSkillsToSupabase, syncSessionToSupabase } from '../services/supabas
 import { useAlertStore } from './alertStore'
 import { useSkillSyncStore } from './skillSyncStore'
 import { getAchievementById, LevelReward } from '../lib/xp'
-import { skillLevelFromXP } from '../lib/skills'
+import { skillLevelFromXP, getGrindlyLevel, computeGrindlyBonuses } from '../lib/skills'
 import { appendProgressionHistory } from '../lib/progressionHistory'
 import { buildFocusTickEvent, computeSkillXpForCategories, makeProgressionEvent, type ProgressionEvent } from '../lib/progressionContract'
 import { routeNotification } from '../services/notificationRouter'
@@ -352,9 +352,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         const skillDelta = computeSkillXpForCategories(cats, 1)
         const perk = getEquippedPerkRuntime(useInventoryStore.getState().equippedBySlot)
         const activeFocusMultiplier = get().focusModeActive ? perk.focusBoostMultiplier : 1
+        const grindlyXpMult = computeGrindlyBonuses(getGrindlyLevel()).xpMultiplier
         for (const [skillId, delta] of Object.entries(skillDelta)) {
           if (delta <= 0) continue
-          const adjustedDelta = Math.max(1, Math.floor(delta * activeFocusMultiplier))
+          const adjustedDelta = Math.max(1, Math.floor(delta * activeFocusMultiplier * grindlyXpMult))
           newSessionXP[skillId] = (newSessionXP[skillId] ?? 0) + adjustedDelta
           const baseXP = skillXPAtStart[skillId] ?? 0
           const currentXP = baseXP + (newSessionXP[skillId] ?? 0)

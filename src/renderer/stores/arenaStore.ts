@@ -9,7 +9,7 @@ import {
 import type { CombatStats } from '../lib/loot'
 import { CHEST_DEFS, LOOT_ITEMS, rollBossChestTier, type ChestType, type LootSlot } from '../lib/loot'
 import { PLANT_COMBAT_BUFFS, grantWarriorXP } from '../lib/farming'
-import { skillLevelFromXP } from '../lib/skills'
+import { skillLevelFromXP, getGrindlyLevel, computeGrindlyBonuses } from '../lib/skills'
 import { useAuthStore } from './authStore'
 import { useGoldStore } from './goldStore'
 import { useInventoryStore } from './inventoryStore'
@@ -155,7 +155,12 @@ export const useArenaStore = create<ArenaState>()(
         const { equippedBySlot, permanentStats } = useInventoryStore.getState()
         const warriorLevel = getWarriorLevel()
         const warriorBonuses = computeWarriorBonuses(warriorLevel)
-        const playerSnapshot = computePlayerStats(equippedBySlot, permanentStats, warriorBonuses)
+        const grindlyBonuses = computeGrindlyBonuses(getGrindlyLevel())
+        const playerSnapshot = computePlayerStats(equippedBySlot, permanentStats, {
+          atk: warriorBonuses.atk + grindlyBonuses.atk,
+          hp: warriorBonuses.hp + grindlyBonuses.hp,
+          hpRegen: warriorBonuses.hpRegen + grindlyBonuses.hpRegen,
+        })
 
         const { dailyBossClaimedDate } = get()
         const today = new Date().toLocaleDateString('sv-SE')
@@ -202,6 +207,7 @@ export const useArenaStore = create<ArenaState>()(
         const { equippedBySlot, permanentStats } = inv
         const warriorLevel = getWarriorLevel()
         const warriorBonuses = computeWarriorBonuses(warriorLevel)
+        const grindlyBonuses = computeGrindlyBonuses(getGrindlyLevel())
 
         // Apply plant buff if provided
         let consumableBuff = { atk: 0, hp: 0, hpRegen: 0 }
@@ -215,9 +221,9 @@ export const useArenaStore = create<ArenaState>()(
         }
 
         const additionalBonuses = {
-          atk: warriorBonuses.atk + consumableBuff.atk,
-          hp: warriorBonuses.hp + consumableBuff.hp,
-          hpRegen: warriorBonuses.hpRegen + consumableBuff.hpRegen,
+          atk: warriorBonuses.atk + grindlyBonuses.atk + consumableBuff.atk,
+          hp: warriorBonuses.hp + grindlyBonuses.hp + consumableBuff.hp,
+          hpRegen: warriorBonuses.hpRegen + grindlyBonuses.hpRegen + consumableBuff.hpRegen,
         }
         const playerSnapshot = computePlayerStats(equippedBySlot, permanentStats, additionalBonuses)
 
@@ -250,7 +256,12 @@ export const useArenaStore = create<ArenaState>()(
         const { equippedBySlot, permanentStats } = useInventoryStore.getState()
         const warriorLevel = getWarriorLevel()
         const warriorBonuses = computeWarriorBonuses(warriorLevel)
-        const playerSnapshot = computePlayerStats(equippedBySlot, permanentStats, warriorBonuses)
+        const grindlyBonuses = computeGrindlyBonuses(getGrindlyLevel())
+        const playerSnapshot = computePlayerStats(equippedBySlot, permanentStats, {
+          atk: warriorBonuses.atk + grindlyBonuses.atk,
+          hp: warriorBonuses.hp + grindlyBonuses.hp,
+          hpRegen: warriorBonuses.hpRegen + grindlyBonuses.hpRegen,
+        })
 
         if (nextIndex < 3) {
           // Next mob
@@ -522,7 +533,12 @@ export const useArenaStore = create<ArenaState>()(
           const { equippedBySlot, permanentStats } = useInventoryStore.getState()
           const warriorLevel = getWarriorLevel()
           const warriorBonuses = computeWarriorBonuses(warriorLevel)
-          const playerSnapshot = computePlayerStats(equippedBySlot, permanentStats, warriorBonuses)
+          const grindlyBonuses = computeGrindlyBonuses(getGrindlyLevel())
+          const playerSnapshot = computePlayerStats(equippedBySlot, permanentStats, {
+            atk: warriorBonuses.atk + grindlyBonuses.atk,
+            hp: warriorBonuses.hp + grindlyBonuses.hp,
+            hpRegen: warriorBonuses.hpRegen + grindlyBonuses.hpRegen,
+          })
 
           // Fight 3 mobs
           for (let m = 0; m < 3 && !failed; m++) {

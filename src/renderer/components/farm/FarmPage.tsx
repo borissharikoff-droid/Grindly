@@ -282,7 +282,7 @@ const ZIP_SCALE_FRAMES: Record<string, number[]> = Object.fromEntries(
   Object.entries(ZIP_OPEN_ANIM).map(([k, cfg]) => [k, zipScaleFrames(cfg.shakeCount)]),
 )
 
-function SeedZipRevealModal({ tier, seedId, onClose }: { tier: SeedZipTier; seedId: string; onClose: () => void }) {
+function SeedZipRevealModal({ tier, seedId, remainingCount, onClose, onOpenAnother }: { tier: SeedZipTier; seedId: string; remainingCount: number; onClose: () => void; onOpenAnother?: () => void }) {
   const seed = getSeedById(seedId)
   const plant = seed ? LOOT_ITEMS.find((x) => x.id === seed.yieldPlantId) : null
   const animCfg = ZIP_OPEN_ANIM[seed?.rarity ?? 'common'] ?? ZIP_OPEN_ANIM.common
@@ -502,18 +502,28 @@ function SeedZipRevealModal({ tier, seedId, onClose }: { tier: SeedZipTier; seed
               </motion.div>
             </motion.div>
 
-            {/* Done button */}
+            {/* Action buttons */}
             <motion.div
-              className="mt-4"
+              className="mt-4 space-y-2"
               animate={{ opacity: isRevealed ? 1 : 0, y: isRevealed ? 0 : 8 }}
               transition={{ duration: 0.28, delay: isRevealed ? 0.18 : 0, ease: 'easeOut' }}
               style={{ pointerEvents: isRevealed ? 'auto' : 'none' }}
             >
+              {remainingCount > 0 && onOpenAnother && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); playClickSound(); onOpenAnother() }}
+                  className="w-full h-10 rounded-xl text-[13px] font-semibold transition-all active:scale-[0.97]"
+                  style={{ color: zipTheme.color, border: `1px solid ${zipTheme.border}`, background: `${zipTheme.color}22` }}
+                >
+                  Open Another ({remainingCount} left)
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => { playClickSound(); onClose() }}
-                className="w-full h-10 rounded-xl text-[13px] font-semibold transition-all active:scale-[0.97]"
-                style={{ color: zipTheme.color, border: `1px solid ${zipTheme.border}`, background: `${zipTheme.color}22` }}
+                className={`w-full h-10 rounded-xl text-[13px] font-semibold transition-all active:scale-[0.97] ${remainingCount > 0 && onOpenAnother ? 'text-gray-400 border border-white/[0.08] bg-white/[0.04]' : ''}`}
+                style={remainingCount > 0 && onOpenAnother ? undefined : { color: zipTheme.color, border: `1px solid ${zipTheme.border}`, background: `${zipTheme.color}22` }}
               >
                 Done
               </button>
@@ -669,9 +679,7 @@ function SeedZipSection() {
 
   const totalZips = ZIP_TIER_ORDER.reduce((acc, t) => acc + (seedZips[t] ?? 0), 0)
 
-  const handleOpen = useCallback((tier: SeedZipTier) => {
-    if (lastOpened) return // prevent rapid double-open
-    playClickSound()
+  const doOpen = useCallback((tier: SeedZipTier) => {
     const seedId = openSeedZip(tier)
     if (seedId) {
       setLastOpened({ tier, seedId })
@@ -683,7 +691,21 @@ function SeedZipSection() {
         syncInventoryToSupabase(items, chests, { merge: false, seeds, seedZips: sz }).catch(() => {})
       }
     }
-  }, [openSeedZip, lastOpened])
+  }, [openSeedZip])
+
+  const handleOpen = useCallback((tier: SeedZipTier) => {
+    if (lastOpened) return // prevent rapid double-open
+    playClickSound()
+    doOpen(tier)
+  }, [doOpen, lastOpened])
+
+  const handleOpenAnother = useCallback(() => {
+    if (!lastOpened) return
+    const tier = lastOpened.tier
+    setLastOpened(null)
+    // Small delay so the modal re-mounts with animation
+    setTimeout(() => doOpen(tier), 80)
+  }, [lastOpened, doOpen])
 
   if (totalZips === 0) return null
 
@@ -734,10 +756,12 @@ function SeedZipSection() {
       <AnimatePresence>
         {lastOpened && (
           <SeedZipRevealModal
-            key="zip-modal"
+            key={`zip-${lastOpened.seedId}`}
             tier={lastOpened.tier}
             seedId={lastOpened.seedId}
+            remainingCount={(seedZips[lastOpened.tier] ?? 0)}
             onClose={() => setLastOpened(null)}
+            onOpenAnother={handleOpenAnother}
           />
         )}
       </AnimatePresence>
@@ -761,7 +785,11 @@ function SeedZipSection() {
 function HarvestRevealModal({ result, remaining = 0, onClose }: { result: HarvestResult; remaining?: number; onClose: () => void }) {
   const plant = LOOT_ITEMS.find((x) => x.id === result.yieldPlantId)
   const t = getRarityTheme(plant?.rarity ?? 'common')
-  const zipT = result.seedZipTier ? rarityTheme(result.seedZipTier) : null
+  // Aggregated zip drops
+  const zipDrops = result.seedZipDrops ?? (result.seedZipTier ? [{ tier: result.seedZipTier, count: 1 }] : [])
+  const compostDrops = result.compostDropCount ?? (result.compostDrop ? 1 : 0)
+  const compostedCount = result.compostedCount ?? (result.composted ? 1 : 0)
+  const plotCount = result.plotCount ?? 1
 
   useEffect(() => {
     if (plant) playLootRaritySound(plant.rarity)
@@ -816,7 +844,7 @@ function HarvestRevealModal({ result, remaining = 0, onClose }: { result: Harves
         </motion.div>
 
         <p className="text-[11px] font-mono uppercase tracking-wider" style={{ color: t.color }}>
-          Harvested
+          {plotCount > 1 ? `Harvested ${plotCount} plots` : 'Harvested'}
         </p>
 
         <p className="text-sm text-white font-semibold">
@@ -841,9 +869,9 @@ function HarvestRevealModal({ result, remaining = 0, onClose }: { result: Harves
           />
 
           {/* Composted bonus indicator */}
-          {result.composted && (
+          {compostedCount > 0 && (
             <div className="flex items-center justify-between relative">
-              <span className="text-[10px] text-amber-400 font-mono">🧪 Composted</span>
+              <span className="text-[10px] text-amber-400 font-mono">🧪 Composted{compostedCount > 1 ? ` ×${compostedCount}` : ''}</span>
               <span className="text-[10px] font-bold text-amber-400">+20% yield · +5% XP</span>
             </div>
           )}
@@ -854,37 +882,45 @@ function HarvestRevealModal({ result, remaining = 0, onClose }: { result: Harves
             <span className="text-sm font-bold text-lime-400">+{result.xpGained}</span>
           </div>
 
-          {/* Compost drop */}
-          {result.compostDrop && (
+          {/* Compost drops */}
+          {compostDrops > 0 && (
             <div className="flex items-center gap-2 rounded-lg border border-amber-500/25 px-2.5 py-1.5 bg-amber-500/8 relative">
               <span className="text-base">🧪</span>
               <div className="flex-1 text-left">
                 <p className="text-[10px] font-bold text-amber-400 leading-none">Bonus drop!</p>
-                <p className="text-[9px] text-gray-400 font-mono mt-0.5">Compost ×1</p>
+                <p className="text-[9px] text-gray-400 font-mono mt-0.5">Compost ×{compostDrops}</p>
               </div>
             </div>
           )}
 
-          {/* Seed Zip bonus */}
-          {result.seedZipTier && zipT && (
-            <div
-              className="flex items-center gap-2 rounded-lg border px-2.5 py-1.5 relative"
-              style={{ borderColor: zipT.border, background: `${zipT.glow}12` }}
-            >
-              {(() => { const d = getSeedZipDisplay(result.seedZipTier!); return d.image ? <img src={d.image} className="w-5 h-5 object-contain" /> : <span className="text-base">{d.icon}</span> })()}
-              <div className="flex-1 text-left">
-                <p className="text-[10px] font-bold leading-none" style={{ color: zipT.color }}>Bonus drop!</p>
-                <p className="text-[9px] text-gray-400 font-mono mt-0.5">{getSeedZipDisplay(result.seedZipTier!).name}</p>
+          {/* Seed Zip drops */}
+          {zipDrops.map(({ tier, count }) => {
+            const zt = rarityTheme(tier)
+            const d = getSeedZipDisplay(tier)
+            return (
+              <div
+                key={tier}
+                className="flex items-center gap-2 rounded-lg border px-2.5 py-1.5 relative"
+                style={{ borderColor: zt.border, background: `${zt.glow}12` }}
+              >
+                {d.image ? <img src={d.image} className="w-5 h-5 object-contain" /> : <span className="text-base">{d.icon}</span>}
+                <div className="flex-1 text-left">
+                  <p className="text-[10px] font-bold leading-none" style={{ color: zt.color }}>Bonus drop!</p>
+                  <p className="text-[9px] text-gray-400 font-mono mt-0.5">{d.name}{count > 1 ? ` ×${count}` : ''}</p>
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })}
         </motion.div>
         </div>
+
+        {/* Spacer pushes button to bottom */}
+        <div className="flex-1 min-h-4" />
 
         <button
           type="button"
           onClick={() => { playClickSound(); onClose() }}
-          className="w-full mt-auto pt-3 py-2 rounded-xl font-semibold transition-colors"
+          className="w-full py-2.5 rounded-xl font-semibold transition-colors shrink-0"
           style={{ color: t.color, border: `1px solid ${t.border}`, backgroundColor: `${t.color}20` }}
         >
           {remaining > 0 ? `Next (${remaining} more)` : 'Sweet!'}
@@ -1485,7 +1521,38 @@ export function FarmPage() {
                   exit={{ opacity: 0, scale: 0.9 }}
                   type="button"
                   whileTap={{ scale: 0.96 }}
-                  onClick={() => { playClickSound(); const res = harvestAll(); if (res.length > 0) { setHarvestResult(res[0]); setHarvestQueue(res.slice(1)); syncAfterHarvest() } }}
+                  onClick={() => {
+                    playClickSound()
+                    const res = harvestAll()
+                    if (res.length === 0) return
+                    // Aggregate by plant type
+                    const map = new Map<string, HarvestResult>()
+                    for (const r of res) {
+                      const existing = map.get(r.yieldPlantId)
+                      if (existing) {
+                        existing.qty += r.qty
+                        existing.xpGained += r.xpGained
+                        existing.plotCount = (existing.plotCount ?? 1) + 1
+                        if (r.composted) existing.compostedCount = (existing.compostedCount ?? (existing.composted ? 1 : 0)) + 1
+                        if (r.compostDrop) existing.compostDropCount = (existing.compostDropCount ?? (existing.compostDrop ? 1 : 0)) + 1
+                        if (r.seedZipTier) {
+                          if (!existing.seedZipDrops) {
+                            existing.seedZipDrops = existing.seedZipTier ? [{ tier: existing.seedZipTier, count: 1 }] : []
+                            existing.seedZipTier = null
+                          }
+                          const z = existing.seedZipDrops.find((s) => s.tier === r.seedZipTier)
+                          if (z) z.count++
+                          else existing.seedZipDrops.push({ tier: r.seedZipTier!, count: 1 })
+                        }
+                      } else {
+                        map.set(r.yieldPlantId, { ...r, plotCount: 1 })
+                      }
+                    }
+                    const merged = Array.from(map.values())
+                    setHarvestResult(merged[0])
+                    setHarvestQueue(merged.slice(1))
+                    syncAfterHarvest()
+                  }}
                   className="text-[10px] font-semibold px-3 py-1.5 rounded-lg bg-lime-400/15 border border-lime-400/35 text-lime-400 hover:bg-lime-400/25 transition-colors"
                 >
                   Claim All{readyCount > 1 ? ` (${readyCount})` : ''}
@@ -1561,7 +1628,7 @@ export function FarmPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Harvest result modal ── */}
+      {/* ── Harvest result modal (single slot) ── */}
       <AnimatePresence>
         {harvestResult && (
           <HarvestRevealModal
@@ -1579,6 +1646,7 @@ export function FarmPage() {
           />
         )}
       </AnimatePresence>
+
 
       {/* ── Plot unlock celebration ── */}
       <AnimatePresence>
