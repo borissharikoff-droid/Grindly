@@ -68,7 +68,7 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
   const [totalSessionsCount, setTotalSessionsCount] = useState(0)
   const [friendCount, setFriendCount] = useState(0)
   const [hasMarathonSession, setHasMarathonSession] = useState(false)
-  const [_publicProgressEvents, setPublicProgressEvents] = useState<SocialFeedEvent[]>([])
+  const [publicProgressEvents, setPublicProgressEvents] = useState<SocialFeedEvent[]>([])
   const [allSkills, setAllSkills] = useState<FriendSkillRow[]>(() => {
     if (profile.all_skills && profile.all_skills.some((s) => s.level > 0)) {
       return mapAllSkillsToRows(profile)
@@ -296,20 +296,23 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
       animate={MOTION.subPage.animate}
       exit={MOTION.subPage.exit}
       transition={{ duration: MOTION.duration.base, ease: MOTION.easing }}
-      className="space-y-4 pb-2"
+      className="space-y-3 pb-2"
     >
       <PageHeader
         title={profile.username || 'Friend'}
         onBack={onBack}
-        rightSlot={(
-          <span className={`grindly-badge ${profile.is_online ? 'text-cyber-neon border-cyber-neon/30 bg-cyber-neon/10' : 'text-gray-400 border-white/15 bg-white/5'}`}>
-            {profile.is_online ? 'Online' : 'Offline'}
-          </span>
-        )}
       />
       {/* Profile Hero */}
-      <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-discord-card to-discord-card/70 overflow-hidden">
-        <div className="p-4">
+      <div
+        className="rounded-2xl border overflow-hidden"
+        style={{
+          borderColor: profile.is_online ? 'rgba(0,255,135,0.12)' : 'rgba(255,255,255,0.10)',
+          background: profile.is_online
+            ? 'linear-gradient(135deg, rgba(0,255,135,0.04) 0%, rgba(30,32,40,0.95) 40%)'
+            : 'linear-gradient(135deg, rgba(30,32,40,0.95) 0%, rgba(25,27,35,0.95) 100%)',
+        }}
+      >
+        <div className="p-3.5">
           <div className="flex items-center gap-3">
             <div className="relative shrink-0 overflow-visible">
               <AvatarWithFrame
@@ -388,9 +391,8 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
         </div>
       </div>
 
-      {/* Character */}
-      <div className="rounded-xl border border-white/[0.09] bg-discord-card/80 p-3 space-y-2">
-        <p className="text-[10px] uppercase tracking-widest text-gray-500 font-mono font-semibold">Character</p>
+      {/* Gear */}
+      <div className="rounded-xl border border-white/[0.09] bg-discord-card/80 p-3">
         <CharacterPanel
           equippedBySlot={equippedLootBySlot as Partial<Record<LootSlot, string>>}
         />
@@ -492,31 +494,81 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
         )}
       </div>
 
-      {/* Recent Sessions */}
-      {sessions.length > 0 && (() => {
-        const maxDur = Math.max(...sessions.map(s => s.duration_seconds), 1)
-        return (
-          <div className="rounded-xl bg-discord-card/80 border border-white/10 p-3">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 font-mono font-semibold mb-2">Recent Sessions</p>
-            <div className="space-y-1">
-              {sessions.map((s) => {
-                const pct = Math.max(8, (s.duration_seconds / maxDur) * 100)
-                return (
-                  <div key={s.id} className="flex items-center gap-2.5 py-1">
-                    <span className="text-[10px] text-gray-500 font-mono w-[50px] shrink-0">
-                      {new Date(s.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </span>
-                    <div className="flex-1 h-2 rounded-sm bg-black/20 overflow-hidden">
-                      <div className="h-full rounded-sm" style={{ width: `${pct}%`, background: 'linear-gradient(90deg, rgba(0,255,135,0.25), rgba(0,255,135,0.10))' }} />
+      {/* Activity Insights — sessions + progression feed */}
+      {(sessions.length > 0 || publicProgressEvents.length > 0) && (
+        <div className="rounded-xl bg-discord-card/80 border border-white/10 p-3 space-y-3">
+          <p className="text-[10px] uppercase tracking-widest text-gray-500 font-mono font-semibold">Activity</p>
+
+          {/* Recent sessions with bars */}
+          {sessions.length > 0 && (() => {
+            const maxDur = Math.max(...sessions.map(s => s.duration_seconds), 1)
+            return (
+              <div className="space-y-1">
+                {sessions.map((s) => {
+                  const pct = Math.max(8, (s.duration_seconds / maxDur) * 100)
+                  return (
+                    <div key={s.id} className="flex items-center gap-2.5 py-0.5">
+                      <span className="text-[10px] text-gray-500 font-mono w-[50px] shrink-0">
+                        {new Date(s.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                      <div className="flex-1 h-2 rounded-sm bg-black/20 overflow-hidden">
+                        <div className="h-full rounded-sm" style={{ width: `${pct}%`, background: 'linear-gradient(90deg, rgba(0,255,135,0.3), rgba(0,255,135,0.08))' }} />
+                      </div>
+                      <span className="text-[11px] text-cyber-neon font-mono font-bold w-[44px] text-right shrink-0">{formatDuration(s.duration_seconds)}</span>
                     </div>
-                    <span className="text-[11px] text-cyber-neon font-mono font-bold w-[44px] text-right shrink-0">{formatDuration(s.duration_seconds)}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )
-      })()}
+                  )
+                })}
+              </div>
+            )
+          })()}
+
+          {/* Progression feed */}
+          {publicProgressEvents.length > 0 && (
+            <>
+              {sessions.length > 0 && <div className="border-t border-white/[0.05]" />}
+              <div className="space-y-1">
+                {publicProgressEvents.slice(0, 6).map((event) => {
+                  const icon = event.event_type === 'skill_level_up' ? '⬆'
+                    : event.event_type === 'achievement_unlocked' ? '🏆'
+                    : event.event_type === 'streak_milestone' ? '🔥'
+                    : event.event_type === 'loot_drop' ? '✦'
+                    : event.event_type === 'legendary_unlock' ? '⭐'
+                    : event.event_type === 'session_milestone' ? '📊'
+                    : '·'
+                  const p = event.payload as Record<string, unknown>
+                  const label = event.event_type === 'skill_level_up'
+                    ? `${p.skill || 'Skill'} reached level ${p.level ?? '?'}`
+                    : event.event_type === 'achievement_unlocked'
+                    ? `Unlocked: ${p.name || p.achievement_id || 'Achievement'}`
+                    : event.event_type === 'streak_milestone'
+                    ? `${p.days ?? '?'} day streak`
+                    : event.event_type === 'loot_drop' || event.event_type === 'legendary_unlock'
+                    ? `Got ${p.item_name || p.name || 'item'}`
+                    : event.event_type === 'session_milestone'
+                    ? `${p.count ?? '?'} sessions completed`
+                    : event.event_type.split('_').join(' ')
+                  const ago = (() => {
+                    const ms = Date.now() - new Date(event.created_at).getTime()
+                    const mins = Math.floor(ms / 60000)
+                    if (mins < 60) return `${mins}m`
+                    const hrs = Math.floor(mins / 60)
+                    if (hrs < 24) return `${hrs}h`
+                    const days = Math.floor(hrs / 24)
+                    return `${days}d`
+                  })()
+                  return (
+                    <div key={event.id} className="flex items-center gap-2 py-1 px-1">
+                      <span className="text-[11px] shrink-0 w-4 text-center">{icon}</span>
+                      <span className="text-[11px] text-gray-300 flex-1 min-w-0 truncate">{label}</span>
+                      <span className="text-[9px] text-gray-600 font-mono shrink-0">{ago}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </motion.div>
   )
 }

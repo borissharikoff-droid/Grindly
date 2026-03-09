@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useArenaStore } from '../stores/arenaStore'
+import { useArenaStore, ITEM_LOSS_CHANCE } from '../stores/arenaStore'
 import { useToastStore } from '../stores/toastStore'
 import { useNotificationStore } from '../stores/notificationStore'
 import { LOOT_ITEMS } from '../lib/loot'
@@ -48,11 +48,16 @@ export function useArenaBattleTick(activeTab: TabId) {
           const { goldLost, lostItem } = useArenaStore.getState().endBattle()
           if (!victory) {
             // Mob defeat — show notification
+            const lossChancePct = Math.round(ITEM_LOSS_CHANCE * 100)
+            const bodyParts: string[] = []
+            if (goldLost > 0) bodyParts.push(`-${formatShort(goldLost)} 🪙`)
+            if (lostItem) bodyParts.push(`Lost ${lostItem.icon} ${lostItem.name} (${lossChancePct}%)`)
+            else bodyParts.push(`Gear survived (${100 - lossChancePct}% safe)`)
             const notifId = pushNotification({
               type: 'arena_result',
               icon: '💀',
               title: `Died in dungeon vs ${bossName}`,
-              body: goldLost > 0 ? `-${formatShort(goldLost)} 🪙 lost` : 'Dungeon failed',
+              body: bodyParts.join(' · ') || 'Dungeon failed',
               arenaResult: { victory: false, gold: 0, bossName },
             })
             if (notifId) {
@@ -79,7 +84,7 @@ export function useArenaBattleTick(activeTab: TabId) {
       const victory = state.victory ?? false
 
       timeoutRef.current = setTimeout(() => {
-        const { goldLost, chest } = endBattleWithoutGold()
+        const { goldLost, chest, lostItem: bossLostItem } = endBattleWithoutGold()
         // Also grab material drop info from the boss def for the notification
         const bossDef = activeBattle.bossSnapshot as { materialDropId?: string; materialDropQty?: number; id: string }
         let materialDrop: { id: string; name: string; icon: string; qty: number } | null = null
@@ -88,13 +93,20 @@ export function useArenaBattleTick(activeTab: TabId) {
           if (matItem) materialDrop = { id: matItem.id, name: matItem.name, icon: matItem.icon, qty: bossDef.materialDropQty ?? 1 }
         }
         const warriorXP = BOSS_WARRIOR_XP[activeBattle.bossSnapshot.id] ?? 0
+        const lossChancePct = Math.round(ITEM_LOSS_CHANCE * 100)
         const notifId = pushNotification({
           type: 'arena_result',
           icon: victory ? '🏆' : '💀',
           title: victory ? `You killed ${bossName}!` : `You died vs ${bossName}`,
           body: victory
             ? chest ? `${chest.icon} ${chest.name} — check Inventory` : 'Boss slain!'
-            : goldLost > 0 ? `-${formatShort(goldLost)} 🪙 lost on death` : '',
+            : (() => {
+                const parts: string[] = []
+                if (goldLost > 0) parts.push(`-${formatShort(goldLost)} 🪙`)
+                if (bossLostItem) parts.push(`Lost ${bossLostItem.icon} ${bossLostItem.name} (${lossChancePct}%)`)
+                else parts.push(`Gear survived (${100 - lossChancePct}% safe)`)
+                return parts.join(' · ')
+              })(),
           arenaResult: { victory, gold: 0, bossName, chest, materialDrop, warriorXP },
         })
         if (notifId) {

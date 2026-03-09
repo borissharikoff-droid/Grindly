@@ -10,6 +10,7 @@ import { useGoldStore } from '../../stores/goldStore'
 import { useFarmStore } from '../../stores/farmStore'
 import { syncInventoryToSupabase } from '../../services/supabaseSync'
 import { playClickSound } from '../../lib/sounds'
+import { useToastStore } from '../../stores/toastStore'
 
 interface ListForSaleModalProps {
   itemId: string
@@ -63,6 +64,7 @@ export function ListForSaleModal({ itemId, onClose, onListed, maxQty = 1, onDedu
       setLoading(false)
       if (res.ok) {
         playClickSound()
+        useToastStore.getState().push({ kind: 'marketplace_listed', itemName: displayName, qty, priceGold: priceNum })
         // Sync inventory to Supabase immediately so Math.max merge doesn't restore the item
         try {
           const { items, chests } = useInventoryStore.getState()

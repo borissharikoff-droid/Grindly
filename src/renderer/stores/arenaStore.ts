@@ -44,6 +44,9 @@ interface ArenaState {
   clearedZones: string[]
   killCounts: Record<string, number>
   dailyBossClaimedDate: string | null
+  /** Whether auto-farm is currently running (persisted so ArenaPage stays mounted) */
+  isAutoRunning: boolean
+  setAutoRunning: (v: boolean) => void
   resultModal: { chestType: ChestType | null; itemId: string | null; goldDropped: number; bonusMaterials: BonusMaterial[]; warriorXP: number; pendingGold: number } | null
   setResultModal: (v: { chestType: ChestType | null; itemId: string | null; goldDropped: number; bonusMaterials: BonusMaterial[]; warriorXP: number; pendingGold: number } | null) => void
   recordKill: (id: string) => void
@@ -62,6 +65,9 @@ interface ArenaState {
 
 /** Fraction of current gold lost on death */
 const DEATH_GOLD_PENALTY = 0.10
+
+/** Chance to lose an equipped item on death (35%) */
+export const ITEM_LOSS_CHANCE = 0.35
 
 const STORAGE_KEY = 'grindly_arena_state'
 
@@ -105,8 +111,9 @@ function randomGold(min: number, max: number): number {
   return min + Math.floor(Math.random() * (max - min + 1))
 }
 
-/** Destroy one random equipped item on dungeon death. Returns name+icon of the lost item, or null if nothing equipped. */
+/** Roll item loss on dungeon death. Returns name+icon of the lost item, or null if roll missed or nothing equipped. */
 function loseRandomEquippedItem(): { name: string; icon: string } | null {
+  if (Math.random() > ITEM_LOSS_CHANCE) return null
   const inv = useInventoryStore.getState()
   const slots = Object.keys(inv.equippedBySlot) as LootSlot[]
   if (slots.length === 0) return null
@@ -136,6 +143,7 @@ export interface AutoRunResult {
   chestResults: AutoRunChestResult[]
   failed: boolean
   failedAt?: string
+  lostItem?: { name: string; icon: string } | null
   passesUsed: number
 }
 
@@ -147,8 +155,10 @@ export const useArenaStore = create<ArenaState>()(
       clearedZones: [],
       killCounts: {},
       dailyBossClaimedDate: null,
+      isAutoRunning: false,
       resultModal: null,
 
+      setAutoRunning: (v) => set({ isAutoRunning: v }),
       setResultModal: (v) => set({ resultModal: v }),
 
       recordKill(id: string) {
@@ -650,6 +660,7 @@ export const useArenaStore = create<ArenaState>()(
         clearedZones: s.clearedZones,
         killCounts: s.killCounts,
         dailyBossClaimedDate: s.dailyBossClaimedDate,
+        isAutoRunning: s.isAutoRunning,
       }),
     },
   ),

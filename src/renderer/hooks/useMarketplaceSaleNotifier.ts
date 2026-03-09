@@ -6,6 +6,7 @@ import { useNotificationStore } from '../stores/notificationStore'
 import { LOOT_ITEMS } from '../lib/loot'
 import { getFarmItemDisplay } from '../lib/farming'
 import { recentlyCancelledListingIds } from '../services/marketplaceService'
+import { useToastStore } from '../stores/toastStore'
 
 type CachedListing = { item_id: string; quantity: number; price_gold: number }
 
@@ -49,8 +50,8 @@ export function useMarketplaceSaleNotifier() {
     const item = LOOT_ITEMS.find((x) => x.id === prev.item_id)
     const farmDisplay = !item ? getFarmItemDisplay(prev.item_id) : null
     const name = item?.name ?? farmDisplay?.name ?? prev.item_id
-    const perUnit = prev.quantity > 0 ? Math.round(prev.price_gold / prev.quantity) : prev.price_gold
-    const totalGold = perUnit * qtySold
+    // price_gold is already the per-unit price
+    const totalGold = prev.price_gold * qtySold
     useNotificationStore.getState().push({
       type: 'marketplace_sale',
       icon: '🛒',
@@ -58,6 +59,7 @@ export function useMarketplaceSaleNotifier() {
       body: `${name}${qtySold > 1 ? ` ×${qtySold}` : ''} — ${totalGold} 🪙`,
     })
     useNavBadgeStore.getState().addMarketplaceSale()
+    useToastStore.getState().push({ kind: 'marketplace_sold', itemName: name, qty: qtySold, totalGold })
   }, [])
 
   // Shared detection logic — compares prevMap vs freshly fetched active listings

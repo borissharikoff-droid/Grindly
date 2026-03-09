@@ -7,7 +7,7 @@ import {
 import { LOOT_ITEMS, type ChestType, type BonusMaterial } from '../../lib/loot'
 import { useInventoryStore } from '../../stores/inventoryStore'
 import { ChestOpenModal } from '../animations/ChestOpenModal'
-import { useArenaStore, type AutoRunResult } from '../../stores/arenaStore'
+import { useArenaStore, ITEM_LOSS_CHANCE, type AutoRunResult } from '../../stores/arenaStore'
 import { useAdminConfigStore } from '../../stores/adminConfigStore'
 import { SKILLS, skillLevelFromXP } from '../../lib/skills'
 import { CharacterCard } from '../character/CharacterCard'
@@ -562,7 +562,10 @@ export function ArenaPage() {
     passesUsed: number
   } | null>(null)
   const [autoChestQueue, setAutoChestQueue] = useState<{ chestType: ChestType; itemId: string | null; goldDropped: number; bonusMaterials: BonusMaterial[] }[]>([])
-  const [isAutoMode, setIsAutoMode] = useState(false)
+  const isAutoRunning = useArenaStore((s) => s.isAutoRunning)
+  const setAutoRunning = useArenaStore((s) => s.setAutoRunning)
+  const [isAutoMode, _setIsAutoMode] = useState(false)
+  const setIsAutoMode = useCallback((v: boolean) => { _setIsAutoMode(v); setAutoRunning(v) }, [setAutoRunning])
   const [playerFlash, setPlayerFlash] = useState(false)
   const [bossFlash, setBossFlash] = useState(false)
   const prevPlayerHpRef = useRef<number | null>(null)
@@ -570,6 +573,33 @@ export function ArenaPage() {
   const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
   const dailyBossId = getDailyBossId()
+
+  // Restore auto-mode state on mount (survives tab switches)
+  useEffect(() => {
+    if (isAutoRunning && !autoAccRef.current) {
+      try {
+        const saved = localStorage.getItem('grindly_auto_acc')
+        if (saved) {
+          autoAccRef.current = JSON.parse(saved)
+          _setIsAutoMode(true)
+        } else {
+          // No saved state — reset store flag
+          setAutoRunning(false)
+        }
+      } catch {
+        setAutoRunning(false)
+      }
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist auto accumulator when it changes
+  useEffect(() => {
+    if (isAutoMode && autoAccRef.current) {
+      localStorage.setItem('grindly_auto_acc', JSON.stringify(autoAccRef.current))
+    } else {
+      localStorage.removeItem('grindly_auto_acc')
+    }
+  }, [isAutoMode, battleState])
 
   const handleAutoFarm = useCallback((zoneId: string) => {
     const inv = useInventoryStore.getState()
@@ -736,6 +766,7 @@ export function ArenaPage() {
               chestResults: auto.chestResults,
               failed: true,
               failedAt: enemyName,
+              lostItem,
               passesUsed: auto.passesUsed,
             })
             autoAccRef.current = null
@@ -761,8 +792,11 @@ export function ArenaPage() {
             }
             // Open chest silently (grant item but no animation — shown after summary)
             if (chest) {
+              // Claim the pending reward first (endBattle adds to pendingRewards, not chest count)
               const inv = useInventoryStore.getState()
-              const opened = inv.openChestAndGrantItem(chest.type as ChestType, { source: 'session_complete', focusCategory: null })
+              const pending = inv.pendingRewards.find((r) => !r.claimed && r.chestType === chest.type)
+              if (pending) inv.claimPendingReward(pending.id)
+              const opened = useInventoryStore.getState().openChestAndGrantItem(chest.type as ChestType, { source: 'session_complete', focusCategory: null })
               auto.chests.push(chest.type as ChestType)
               if (opened) {
                 if (opened.goldDropped) auto.totalGold += opened.goldDropped
@@ -820,6 +854,7 @@ export function ArenaPage() {
               chestResults: auto.chestResults,
               failed: true,
               failedAt: enemyName,
+              lostItem,
               passesUsed: auto.passesUsed,
             })
             autoAccRef.current = null
@@ -830,8 +865,11 @@ export function ArenaPage() {
           if (victory) {
             const matBonuses: BonusMaterial[] = materialDrop ? [{ itemId: materialDrop.id, qty: materialDrop.qty }] : []
             if (chest) {
+              // Claim the pending reward first (endBattle adds to pendingRewards, not chest count)
               const inv = useInventoryStore.getState()
-              const opened = inv.openChestAndGrantItem(chest.type as ChestType, { source: 'session_complete', focusCategory: null })
+              const pending = inv.pendingRewards.find((r) => !r.claimed && r.chestType === chest.type)
+              if (pending) inv.claimPendingReward(pending.id)
+              const opened = useInventoryStore.getState().openChestAndGrantItem(chest.type as ChestType, { source: 'session_complete', focusCategory: null })
               if (opened) {
                 setArenaChestModal({
                   chestType: chest.type as ChestType,
@@ -1026,9 +1064,20 @@ export function ArenaPage() {
                   </div>
                 )}
                 {autoRunResult.failed && autoRunResult.failedAt && (
-                  <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/25 px-3 py-1.5">
-                    <span>💀</span>
-                    <span className="text-[12px] text-red-300 font-semibold">Died vs {autoRunResult.failedAt}</span>
+                  <div className="rounded-lg bg-red-500/10 border border-red-500/25 px-3 py-1.5 space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span>💀</span>
+                      <span className="text-[12px] text-red-300 font-semibold">Died vs {autoRunResult.failedAt}</span>
+                    </div>
+                    {autoRunResult.lostItem ? (
+                      <p className="text-[11px] text-red-400/80 pl-6">
+                        Lost {autoRunResult.lostItem.icon} {autoRunResult.lostItem.name} <span className="text-red-400/50">({Math.round(ITEM_LOSS_CHANCE * 100)}% chance)</span>
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-gray-500 pl-6">
+                        Gear survived <span className="text-gray-600">({100 - Math.round(ITEM_LOSS_CHANCE * 100)}% safe)</span>
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

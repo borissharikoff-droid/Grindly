@@ -22,7 +22,9 @@ function accentFor(t: Toast): string {
     case 'mob_kill':       return '#22c55e'
     case 'craft_complete': return '#f97316'
     case 'friend_online':  return '#22c55e'
-    case 'friend_message': return '#60a5fa'
+    case 'friend_message':      return '#60a5fa'
+    case 'marketplace_listed': return '#fbbf24'
+    case 'marketplace_sold':   return '#22c55e'
   }
 }
 
@@ -30,6 +32,7 @@ function tabForToast(d: Toast['data']): TabId | null {
   if (d.kind === 'arena_boss' || d.kind === 'mob_kill') return 'arena'
   if (d.kind === 'craft_complete') return 'craft'
   if (d.kind === 'friend_online' || d.kind === 'friend_message') return 'friends'
+  if (d.kind === 'marketplace_listed' || d.kind === 'marketplace_sold') return 'marketplace'
   return null
 }
 
@@ -58,7 +61,9 @@ function ToastItem({ toast, onDismiss, onNavigate }: { toast: Toast; onDismiss: 
     if (d.kind === 'mob_kill')       return '⚔️'
     if (d.kind === 'craft_complete') return d.itemIcon
     if (d.kind === 'friend_online')  return '🟢'
-    if (d.kind === 'friend_message') return '💬'
+    if (d.kind === 'friend_message')      return '💬'
+    if (d.kind === 'marketplace_listed') return '🏷️'
+    if (d.kind === 'marketplace_sold')   return '🛒'
   })()
 
   const title = (() => {
@@ -66,7 +71,9 @@ function ToastItem({ toast, onDismiss, onNavigate }: { toast: Toast; onDismiss: 
     if (d.kind === 'mob_kill')       return `${d.mobName} slain!`
     if (d.kind === 'craft_complete') return `${d.itemName} crafted!`
     if (d.kind === 'friend_online')  return `${d.friendName} is online`
-    if (d.kind === 'friend_message') return `${d.friendName}`
+    if (d.kind === 'friend_message')      return `${d.friendName}`
+    if (d.kind === 'marketplace_listed') return 'Listed on marketplace'
+    if (d.kind === 'marketplace_sold')   return 'Item sold!'
   })()
 
   const body = (() => {
@@ -83,6 +90,8 @@ function ToastItem({ toast, onDismiss, onNavigate }: { toast: Toast; onDismiss: 
       return parts.join('  ·  ')
     }
     if (d.kind === 'friend_message') return d.messagePreview ?? 'sent a message'
+    if (d.kind === 'marketplace_listed') return `${d.itemName}${d.qty > 1 ? ` ×${d.qty}` : ''} — ${d.priceGold * d.qty} 🪙`
+    if (d.kind === 'marketplace_sold')   return `${d.itemName}${d.qty > 1 ? ` ×${d.qty}` : ''} — +${d.totalGold} 🪙`
     return null
   })()
 

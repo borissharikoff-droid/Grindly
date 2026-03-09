@@ -193,6 +193,7 @@ export default function App() {
   useCraftTick()                // crafting job queue — runs on all tabs
   const arenaResultModal = useArenaStore((s) => s.resultModal)
   const setArenaResultModal = useArenaStore((s) => s.setResultModal)
+  const arenaAutoRunning = useArenaStore((s) => s.isAutoRunning)
 
   useEffect(() => {
     if (!localStorage.getItem('grindly_migration_done')) {
@@ -432,8 +433,10 @@ export default function App() {
                   </PageErrorBoundary>
                 </motion.div>
               )}
-              {activeTab === 'arena' && (
-                <motion.div key="arena" variants={PAGE_SLIDE} initial="initial" animate="animate">
+              {(activeTab === 'arena' || arenaAutoRunning) && (
+                <motion.div key="arena" variants={PAGE_SLIDE} initial="initial" animate="animate"
+                  style={activeTab !== 'arena' ? { position: 'absolute', left: '-9999px', pointerEvents: 'none' } : undefined}
+                >
                   <Suspense fallback={<PageFallback />}>
                     <ArenaPage />
                   </Suspense>
