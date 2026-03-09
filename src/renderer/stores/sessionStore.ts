@@ -603,6 +603,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       focusModeOsApplied: false,
     })
     api?.db?.clearCheckpoint?.().catch(() => { })
+
+    // Show window on session end if enabled
+    if (api?.window?.show && localStorage.getItem('grindly_show_window_on_session_end') !== 'false') {
+      api.window.show().catch(() => {})
+    }
   },
 
   pause() {
@@ -867,6 +872,9 @@ declare global {
       window?: {
         flashFrame: () => Promise<void>
         setBadgeCount: (count: number) => Promise<void>
+        show: () => Promise<void>
+        setAlwaysOnTop: (enabled: boolean) => Promise<void>
+        getAlwaysOnTop: () => Promise<boolean>
       }
     }
   }

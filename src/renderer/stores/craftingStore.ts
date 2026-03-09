@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { CRAFT_RECIPE_MAP, canAffordRecipe, getCrafterSpeedMultiplier, getCrafterDoubleChance } from '../lib/crafting'
 import { skillLevelFromXP, getGrindlyLevel, computeGrindlyBonuses } from '../lib/skills'
+import { recordCraftComplete } from '../services/dailyActivityService'
 
 const STORAGE_KEY = 'grindly_crafting_v2'
 
@@ -169,6 +170,7 @@ export const useCraftingStore = create<CraftingState>((set, get) => ({
 
     let newActiveJob: CraftJob | null
     if (newDone >= activeJob.totalQty) {
+      recordCraftComplete()
       const next = newQueue.shift() ?? null
       newActiveJob = next ? { ...next, startedAt: now, doneQty: 0 } : null
     } else {

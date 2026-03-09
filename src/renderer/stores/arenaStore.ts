@@ -14,6 +14,7 @@ import { useAuthStore } from './authStore'
 import { useGoldStore } from './goldStore'
 import { useInventoryStore } from './inventoryStore'
 import { track } from '../lib/analytics'
+import { recordDungeonComplete } from '../services/dailyActivityService'
 
 export interface ActiveBattle {
   bossId: string
@@ -43,8 +44,8 @@ interface ArenaState {
   clearedZones: string[]
   killCounts: Record<string, number>
   dailyBossClaimedDate: string | null
-  resultModal: { victory: boolean; gold: number; goldAlreadyAdded?: boolean; bossName?: string; goldLost?: number; isDaily?: boolean; chest?: ArenaChestDrop | null; lostItemName?: string; lostItemIcon?: string; materialDrop?: { id: string; name: string; icon: string; qty: number } | null; warriorXP?: number } | null
-  setResultModal: (v: { victory: boolean; gold: number; goldAlreadyAdded?: boolean; bossName?: string; goldLost?: number; isDaily?: boolean; chest?: ArenaChestDrop | null; lostItemName?: string; lostItemIcon?: string; materialDrop?: { id: string; name: string; icon: string; qty: number } | null; warriorXP?: number } | null) => void
+  resultModal: { chestType: ChestType | null; itemId: string | null; goldDropped: number; bonusMaterials: BonusMaterial[]; warriorXP: number; pendingGold: number } | null
+  setResultModal: (v: { chestType: ChestType | null; itemId: string | null; goldDropped: number; bonusMaterials: BonusMaterial[]; warriorXP: number; pendingGold: number } | null) => void
   recordKill: (id: string) => void
   startBattle: (bossId: string) => boolean
   startDungeon: (zoneId: string, consumablePlantId?: string | null) => boolean
@@ -420,6 +421,7 @@ export const useArenaStore = create<ArenaState>()(
                   ? s.clearedZones
                   : [...s.clearedZones, activeBattle.dungeonZoneId!],
               }))
+              recordDungeonComplete()
             } else {
               set({ activeBattle: null })
             }
@@ -608,6 +610,7 @@ export const useArenaStore = create<ArenaState>()(
               clearedZones: s.clearedZones.includes(zoneId) ? s.clearedZones : [...s.clearedZones, zoneId],
             }))
             runsCompleted++
+            recordDungeonComplete()
           } else {
             failed = true
             failedAt = zone.boss.name

@@ -1,44 +1,170 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { ACHIEVEMENTS } from '../../lib/xp'
+import { ACHIEVEMENTS, getAchievementProgress, type AchievementProgressContext } from '../../lib/xp'
+import { skillLevelFromXP } from '../../lib/skills'
+import { ACHIEVEMENT_COSMETIC_UNLOCKS, FRAMES, BADGES } from '../../lib/cosmetics'
+
+const CAT_META: Record<string, { label: string; icon: string }> = {
+  grind:   { label: 'Grind',   icon: '\u26A1' },
+  streak:  { label: 'Streak',  icon: '\uD83D\uDD25' },
+  social:  { label: 'Social',  icon: '\uD83E\uDD1D' },
+  special: { label: 'Special', icon: '\u2728' },
+  skill:   { label: 'Skills',  icon: '\u26A1' },
+}
 
 export function Achievements() {
   const [unlockedIds, setUnlockedIds] = useState<string[]>([])
+  const [progressCtx, setProgressCtx] = useState<AchievementProgressContext>({
+    totalSessions: 0, streakCount: 0, friendCount: 0, skillLevels: {},
+  })
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.electronAPI?.db?.getUnlockedAchievements) {
-      window.electronAPI.db.getUnlockedAchievements().then(setUnlockedIds)
+    const api = window.electronAPI
+    if (api?.db?.getUnlockedAchievements) {
+      api.db.getUnlockedAchievements().then(setUnlockedIds)
     }
+    const load = async () => {
+      let totalSessions = 0, streakCount = 0, friendCount = 0
+      const skillLevels: Record<string, number> = {}
+      try {
+        if (api?.db?.getSessions) { const s = await api.db.getSessions() as unknown[]; totalSessions = s.length }
+        if (api?.db?.getStreak) streakCount = await api.db.getStreak()
+        if (api?.db?.getAllSkillXP) {
+          const rows = await api.db.getAllSkillXP() as { skill_id: string; total_xp: number }[]
+          for (const r of rows) skillLevels[r.skill_id] = skillLevelFromXP(r.total_xp)
+        }
+      } catch { /* ignore */ }
+      try {
+        const stored = localStorage.getItem('grindly_friends_count')
+        if (stored) friendCount = parseInt(stored, 10) || 0
+      } catch { /* ignore */ }
+      setProgressCtx({ totalSessions, streakCount, friendCount, skillLevels })
+    }
+    load()
   }, [])
+
+  const unlockedCount = ACHIEVEMENTS.filter((a) => unlockedIds.includes(a.id)).length
+  const categories = ['grind', 'streak', 'social', 'special', 'skill'] as const
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-xl bg-discord-card/80 border border-white/10 p-4"
+      className="rounded-xl bg-discord-card/80 border border-white/10 p-4 space-y-3"
     >
-      <p className="text-xs uppercase tracking-wider text-gray-400 font-mono mb-3">[ achievements ]</p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {ACHIEVEMENTS.map((a) => {
-          const unlocked = unlockedIds.includes(a.id)
-          return (
-            <motion.div
-              key={a.id}
-              whileHover={{ scale: 1.02 }}
-              className={`rounded-lg border p-3 ${
-                unlocked
-                  ? 'border-cyber-neon/50 bg-cyber-glow/10'
-                  : 'border-white/10 bg-discord-darker/50 opacity-70'
-              }`}
-              title={a.description}
-            >
-              <div className="font-semibold text-sm text-white">{a.name}</div>
-              <div className="text-xs text-gray-400 mt-0.5">{a.description}</div>
-              {unlocked && <span className="text-cyber-neon text-xs">+{a.xpReward} XP</span>}
-            </motion.div>
-          )
-        })}
+      <div className="flex items-center justify-between">
+        <p className="text-xs uppercase tracking-wider text-gray-400 font-mono">[ achievements ]</p>
+        <span className="text-[10px] font-mono text-gray-500">{unlockedCount}/{ACHIEVEMENTS.length}</span>
       </div>
+
+      {/* Progress bar */}
+      <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-cyber-neon/70 to-yellow-400/70 transition-all duration-700"
+          style={{ width: `${(unlockedCount / ACHIEVEMENTS.length) * 100}%` }}
+        />
+      </div>
+
+      {categories.map((cat) => {
+        const items = ACHIEVEMENTS.filter((a) => a.category === cat)
+        if (items.length === 0) return null
+        const meta = CAT_META[cat]
+        const catUnlocked = items.filter((a) => unlockedIds.includes(a.id)).length
+        return (
+          <div key={cat} className="space-y-1.5">
+            <div className="flex items-center gap-2 px-0.5">
+              <span className="text-[9px] text-gray-500 font-mono uppercase tracking-wider">
+                {meta.icon} {meta.label}
+              </span>
+              <span className="text-[8px] text-gray-600 font-mono">{catUnlocked}/{items.length}</span>
+            </div>
+            <div className="grid grid-cols-1 gap-1.5">
+              {items.map((a) => {
+                const unlocked = unlockedIds.includes(a.id)
+                const progress = getAchievementProgress(a.id, progressCtx)
+                const pct = progress ? Math.min(100, (progress.current / progress.target) * 100) : (unlocked ? 100 : 0)
+                const cosmetic = ACHIEVEMENT_COSMETIC_UNLOCKS[a.id]
+                return (
+                  <motion.div
+                    key={a.id}
+                    whileHover={{ scale: 1.01 }}
+                    className={`rounded-lg border p-2.5 transition-all ${
+                      unlocked
+                        ? 'border-cyber-neon/30 bg-cyber-neon/5'
+                        : 'border-white/5 bg-discord-darker/40'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                        unlocked ? 'bg-cyber-neon/15' : 'bg-discord-darker/80'
+                      }`}>
+                        <span className="text-sm leading-none">{unlocked ? a.icon : '\uD83D\uDD12'}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className={`text-[11px] font-medium truncate ${unlocked ? 'text-white' : 'text-gray-400'}`}>
+                            {a.name}
+                          </span>
+                          <span className={`text-[8px] font-mono shrink-0 ${unlocked ? 'text-cyber-neon/60' : 'text-gray-600'}`}>
+                            +{a.xpReward}xp
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className={`text-[9px] truncate ${unlocked ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {a.description}
+                          </span>
+                          {cosmetic && <CosmeticMini cosmetic={cosmetic} unlocked={unlocked} />}
+                        </div>
+                      </div>
+                    </div>
+                    {!unlocked && progress && (
+                      <div className="mt-1.5 h-1 rounded-full bg-white/5 overflow-hidden">
+                        <div className="h-full rounded-full bg-cyber-neon/40 transition-all duration-500" style={{ width: `${pct}%` }} />
+                      </div>
+                    )}
+                  </motion.div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
     </motion.div>
   )
+}
+
+function CosmeticMini({ cosmetic, unlocked }: { cosmetic: { badgeId?: string; frameId?: string; avatarEmoji?: string }; unlocked: boolean }) {
+  const opacity = unlocked ? '' : 'opacity-50'
+  const parts: React.ReactNode[] = []
+
+  if (cosmetic.frameId) {
+    const frame = FRAMES.find((f) => f.id === cosmetic.frameId)
+    if (frame) {
+      const rarityColor = frame.rarity === 'Legendary' ? '#FFD700' : frame.rarity === 'Epic' ? '#C084FC' : '#4FC3F7'
+      parts.push(
+        <span key="frame" className={`text-[8px] font-mono ${opacity}`} style={{ color: rarityColor }}>
+          {frame.name}
+        </span>
+      )
+    }
+  }
+  if (cosmetic.badgeId) {
+    const badge = BADGES.find((b) => b.id === cosmetic.badgeId)
+    if (badge) {
+      parts.push(
+        <span key="badge" className={`text-[8px] px-1 rounded font-medium border ${opacity}`}
+          style={{ borderColor: `${badge.color}30`, backgroundColor: `${badge.color}10`, color: badge.color }}>
+          {badge.icon}
+        </span>
+      )
+    }
+  }
+  if (cosmetic.avatarEmoji) {
+    parts.push(
+      <span key="avatar" className={`text-xs leading-none ${opacity}`}>{cosmetic.avatarEmoji}</span>
+    )
+  }
+
+  if (parts.length === 0) return null
+  return <span className="inline-flex items-center gap-1 shrink-0">{parts}</span>
 }

@@ -77,7 +77,7 @@ const CH = {
     setAutoLaunch: 'settings:setAutoLaunch',
   },
   notify: { show: 'notify:show', smart: 'notification:smart' },
-  window: { flashFrame: 'window:flashFrame', setBadgeCount: 'window:setBadgeCount' },
+  window: { flashFrame: 'window:flashFrame', setBadgeCount: 'window:setBadgeCount', show: 'window:show', setAlwaysOnTop: 'window:setAlwaysOnTop', getAlwaysOnTop: 'window:getAlwaysOnTop' },
   data: { exportSessions: 'data:exportSessions', getLogsPath: 'data:getLogsPath', openLogsFolder: 'data:openLogsFolder' },
   updater: { status: 'updater:status', install: 'updater:install' },
   focus: { enable: 'focus:enable', disable: 'focus:disable', status: 'focus:status' },
@@ -188,6 +188,9 @@ try {
     window: {
       flashFrame: () => ipcRenderer.invoke(CH.window.flashFrame),
       setBadgeCount: (count: number) => ipcRenderer.invoke(CH.window.setBadgeCount, count),
+      show: () => ipcRenderer.invoke(CH.window.show),
+      setAlwaysOnTop: (enabled: boolean) => ipcRenderer.invoke(CH.window.setAlwaysOnTop, enabled),
+      getAlwaysOnTop: () => ipcRenderer.invoke(CH.window.getAlwaysOnTop),
     },
     data: {
       exportSessions: (format: 'csv' | 'json') => ipcRenderer.invoke(CH.data.exportSessions, format),

@@ -194,6 +194,8 @@ function useTypingIndicator(peerId: string | null, userId: string | undefined) {
   return { peerIsTyping, broadcastTyping }
 }
 
+const isImageUrl = (s: string | null | undefined): boolean => !!s && /^(https?:\/\/|data:|blob:|file:|\/)/i.test(s)
+
 export function ChatThread({ profile, onBack, onOpenProfile, messages, loading, sending, sendError, getConversation, sendMessage, markConversationRead }: ChatThreadProps) {
   const { user } = useAuthStore()
   const [input, setInput] = useState('')
@@ -346,9 +348,9 @@ export function ChatThread({ profile, onBack, onOpenProfile, messages, loading, 
           {/* Avatar */}
           <div className="relative">
             <div className="w-7 h-7 rounded-full bg-discord-card flex items-center justify-center text-xs font-bold text-gray-300 overflow-hidden border border-white/10">
-              {profile.avatar_url
-                ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                : (profile.username?.[0]?.toUpperCase() ?? '?')
+              {isImageUrl(profile.avatar_url)
+                ? <img src={profile.avatar_url!} alt="" className="w-full h-full object-cover" />
+                : (profile.avatar_url || profile.username?.[0]?.toUpperCase() || '?')
               }
             </div>
             <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#1e1e2e] ${profile.is_online ? 'bg-emerald-400' : 'bg-gray-500'}`} />
@@ -450,9 +452,9 @@ export function ChatThread({ profile, onBack, onOpenProfile, messages, loading, 
                         <div className="w-7 shrink-0 self-end">
                           {last && (
                             <div className="w-7 h-7 rounded-full bg-discord-card flex items-center justify-center text-[10px] font-bold text-gray-400 overflow-hidden border border-white/10">
-                              {profile.avatar_url
-                                ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                                : (profile.username?.[0]?.toUpperCase() ?? '?')
+                              {isImageUrl(profile.avatar_url)
+                                ? <img src={profile.avatar_url!} alt="" className="w-full h-full object-cover" />
+                                : (profile.avatar_url || profile.username?.[0]?.toUpperCase() || '?')
                               }
                             </div>
                           )}

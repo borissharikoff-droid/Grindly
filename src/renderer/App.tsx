@@ -13,9 +13,12 @@ import { StreakOverlay } from './components/animations/StreakOverlay'
 import { LootDrop } from './components/alerts/LootDrop'
 import { ChestDrop } from './components/alerts/ChestDrop'
 import { ToastStack } from './components/alerts/ToastStack'
-import { VictoryResultModal } from './components/arena/VictoryResultModal'
+import { ChestOpenModal } from './components/animations/ChestOpenModal'
 import { useArenaBattleTick } from './hooks/useArenaBattleTick'
 import { useArenaStore } from './stores/arenaStore'
+import { LOOT_ITEMS } from './lib/loot'
+import { useGoldStore } from './stores/goldStore'
+import { useAuthStore } from './stores/authStore'
 import { MessageBanner } from './components/alerts/MessageBanner'
 import { SkillLevelUpModal } from './components/home/SkillLevelUpModal'
 import { InventoryPage } from './components/inventory/InventoryPage'
@@ -27,14 +30,12 @@ import { useCraftTick } from './hooks/useCraftTick'
 import { UpdateBanner } from './components/UpdateBanner'
 import { useSessionStore } from './stores/sessionStore'
 import { useChatTargetStore } from './stores/chatTargetStore'
-import { useAuthStore } from './stores/authStore'
 import { categoryToSkillId, getSkillById } from './lib/skills'
 import { warmUpAudio } from './lib/sounds'
 import { runSupabaseHealthCheck } from './services/supabaseHealth'
 import { routeNotification } from './services/notificationRouter'
 import { MOTION } from './lib/motion'
 import { PageLoading } from './components/shared/PageLoading'
-import { LOOT_ITEMS } from './lib/loot'
 import { BOSSES, ZONES } from './lib/combat'
 import { CRAFT_RECIPES } from './lib/crafting'
 import { applyAdminConfig, syncAdminConfigFromSupabase } from './lib/itemConfig'
@@ -468,20 +469,22 @@ export default function App() {
           <LootDrop />
           <ChestDrop />
           <ToastStack onNavigate={navigateTo} />
-          <VictoryResultModal
+          <ChestOpenModal
             open={Boolean(arenaResultModal)}
-            victory={arenaResultModal?.victory ?? false}
-            gold={arenaResultModal?.gold ?? 0}
-            goldAlreadyAdded={arenaResultModal?.goldAlreadyAdded ?? true}
-            bossName={arenaResultModal?.bossName}
-            goldLost={arenaResultModal?.goldLost}
-            chest={arenaResultModal?.chest ?? null}
-            lostItemName={arenaResultModal?.lostItemName}
-            lostItemIcon={arenaResultModal?.lostItemIcon}
-            materialDrop={arenaResultModal?.materialDrop ?? null}
-            dungeonGold={arenaResultModal?.gold ?? 0}
+            chestType={arenaResultModal?.chestType ?? null}
+            item={arenaResultModal?.itemId ? (LOOT_ITEMS.find((x) => x.id === arenaResultModal.itemId) ?? null) : null}
+            goldDropped={arenaResultModal?.goldDropped ?? 0}
+            bonusMaterials={arenaResultModal?.bonusMaterials}
             warriorXP={arenaResultModal?.warriorXP ?? 0}
-            onClose={() => setArenaResultModal(null)}
+            onClose={() => {
+              const pending = arenaResultModal?.pendingGold ?? 0
+              setArenaResultModal(null)
+              if (pending > 0) {
+                useGoldStore.getState().addGold(pending)
+                const user = useAuthStore.getState().user
+                if (user) useGoldStore.getState().syncToSupabase(user.id)
+              }
+            }}
           />
           <MessageBanner onNavigateToChat={handleNavigateToChat} />
           <SkillLevelUpModal />

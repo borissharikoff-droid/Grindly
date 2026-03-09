@@ -405,6 +405,24 @@ export function registerIpcHandlers() {
       mainWindow.flashFrame(true)
     }
   })
+  ipcMain.handle(IPC_CHANNELS.window.show, () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
+  ipcMain.handle(IPC_CHANNELS.window.setAlwaysOnTop, (_, enabled: unknown) => {
+    if (typeof enabled !== 'boolean') throw new Error('enabled must be boolean')
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setAlwaysOnTop(enabled)
+    }
+  })
+  ipcMain.handle(IPC_CHANNELS.window.getAlwaysOnTop, () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      return mainWindow.isAlwaysOnTop()
+    }
+    return false
+  })
   ipcMain.handle(IPC_CHANNELS.window.setBadgeCount, async (_: unknown, count: number) => {
     const n = typeof count === 'number' ? Math.max(0, Math.floor(count)) : 0
     if (process.platform === 'darwin' && app.dock) {

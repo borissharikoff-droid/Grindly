@@ -211,7 +211,15 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
           {showLeaderboard ? (
             <div className="space-y-3">
               <BackButton onClick={() => setShowLeaderboard(false)} />
-              <Leaderboard />
+              <Leaderboard onSelectUser={(userId) => {
+                const friend = friends.find((f) => f.id === userId)
+                if (friend) {
+                  setSelected(friend)
+                  setProfileFromChat(false)
+                  setView('profile')
+                  setShowLeaderboard(false)
+                }
+              }} />
             </div>
           ) : (
             <>

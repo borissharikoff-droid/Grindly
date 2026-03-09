@@ -540,7 +540,6 @@ export function ArenaPage() {
   const clearedZones = useArenaStore((s) => s.clearedZones)
   const getBattleState = useArenaStore((s) => s.getBattleState)
   const endBattle = useArenaStore((s) => s.endBattle)
-  const setResultModal = useArenaStore((s) => s.setResultModal)
   const startDungeon = useArenaStore((s) => s.startDungeon)
   const passCount = useInventoryStore((s) => s.items['dungeon_pass'] ?? 0)
   const [autoRunResult, setAutoRunResult] = useState<AutoRunResult | null>(null)
@@ -741,9 +740,8 @@ export function ArenaPage() {
             })
             autoAccRef.current = null
             setIsAutoMode(false)
-          } else if (lostItem) {
-            setResultModal({ victory: false, gold: 0, goldAlreadyAdded: true, goldLost, lostItemName: lostItem.name, lostItemIcon: lostItem.icon })
           }
+          // Mob defeat: no modal — notifications handle it
         }
       } else {
         // Boss battle
@@ -829,27 +827,36 @@ export function ArenaPage() {
           }
         } else {
           // Normal mode (no auto)
-          if (victory && chest) {
-            const inv = useInventoryStore.getState()
-            const opened = inv.openChestAndGrantItem(chest.type as ChestType, { source: 'session_complete', focusCategory: null })
-            if (opened) {
+          if (victory) {
+            const matBonuses: BonusMaterial[] = materialDrop ? [{ itemId: materialDrop.id, qty: materialDrop.qty }] : []
+            if (chest) {
+              const inv = useInventoryStore.getState()
+              const opened = inv.openChestAndGrantItem(chest.type as ChestType, { source: 'session_complete', focusCategory: null })
+              if (opened) {
+                setArenaChestModal({
+                  chestType: chest.type as ChestType,
+                  itemId: opened.itemId,
+                  goldDropped: opened.goldDropped + dungeonGold,
+                  bonusMaterials: [...matBonuses, ...opened.bonusMaterials],
+                  warriorXP,
+                })
+              }
+            } else {
+              // No chest — show ChestOpenModal with just gold + materials + XP
               setArenaChestModal({
-                chestType: chest.type as ChestType,
-                itemId: opened.itemId,
-                goldDropped: opened.goldDropped + dungeonGold,
-                bonusMaterials: opened.bonusMaterials,
+                chestType: null,
+                itemId: null,
+                goldDropped: dungeonGold,
+                bonusMaterials: matBonuses,
                 warriorXP,
               })
             }
-          } else if (victory) {
-            setResultModal({ victory: true, gold: dungeonGold, goldAlreadyAdded: true, bossName: enemyName, materialDrop, warriorXP })
-          } else {
-            setResultModal({ victory: false, gold: 0, goldAlreadyAdded: true, bossName: enemyName, goldLost, lostItemName: lostItem?.name, lostItemIcon: lostItem?.icon })
           }
+          // Defeat: no modal — notifications handle it
         }
       }
     }, isMob ? 600 : 1200)
-  }, [battleState, activeBattle, endBattle, setResultModal, startDungeon])
+  }, [battleState, activeBattle, endBattle, startDungeon])
 
   // Clear resolve timer on forfeit / unmount
   useEffect(() => {
@@ -864,7 +871,7 @@ export function ArenaPage() {
 
   // Chest open modal state for boss victories
   const [arenaChestModal, setArenaChestModal] = useState<{
-    chestType: ChestType
+    chestType: ChestType | null
     itemId: string | null
     goldDropped: number
     bonusMaterials: BonusMaterial[]

@@ -707,7 +707,7 @@ function SeedZipSection() {
     setTimeout(() => doOpen(tier), 80)
   }, [lastOpened, doOpen])
 
-  if (totalZips === 0) return null
+  if (totalZips === 0 && !lastOpened) return null
 
   return (
     <div className="rounded-xl border border-white/[0.08] bg-discord-card/70 p-3">
@@ -1477,7 +1477,7 @@ export function FarmPage() {
               {farmerLevel < 50 && (
                 <div className="absolute right-0 top-full mt-1 z-50 hidden group-hover:block w-44">
                   <div className="bg-discord-darker border border-white/10 rounded-lg px-2.5 py-1.5 text-[9px] text-gray-300 font-mono shadow-lg">
-                    Unlocks at <span className="text-amber-400 font-bold">Farmer lv.50</span>
+                    Unlocks at <span className="text-amber-400 font-bold">Farmer LVL 50</span>
                     <br />Current level: <span className="text-white">{farmerLevel}</span>
                     <br />Compost empty plots automatically
                   </div>

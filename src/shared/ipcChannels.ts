@@ -93,5 +93,8 @@ export const IPC_CHANNELS = {
   window: {
     flashFrame: 'window:flashFrame',
     setBadgeCount: 'window:setBadgeCount',
+    show: 'window:show',
+    setAlwaysOnTop: 'window:setAlwaysOnTop',
+    getAlwaysOnTop: 'window:getAlwaysOnTop',
   },
 } as const

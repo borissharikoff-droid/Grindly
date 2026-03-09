@@ -15,6 +15,7 @@ import {
   type SeedZipTier,
 } from '../lib/farming'
 import type { ChestType } from '../lib/loot'
+import { recordHarvest } from '../services/dailyActivityService'
 import { useGoldStore } from './goldStore'
 import { useInventoryStore } from './inventoryStore'
 import { useAuthStore } from './authStore'
@@ -191,6 +192,7 @@ export const useFarmStore = create<FarmState>()(
         const xp = isComposted ? Math.ceil(seed.xpOnHarvest * 1.05) : seed.xpOnHarvest
         grantFarmerXP(xp).catch(() => undefined)
 
+        recordHarvest(1)
         return { yieldPlantId: seed.yieldPlantId, qty, xpGained: xp, seedZipTier, composted: isComposted, compostDrop }
       },
 
@@ -226,6 +228,7 @@ export const useFarmStore = create<FarmState>()(
         }
 
         set({ planted: newPlanted, seedZips: newZips })
+        if (results.length > 0) recordHarvest(results.length)
         return results
       },
 

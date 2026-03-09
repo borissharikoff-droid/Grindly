@@ -5,8 +5,26 @@ import { playAchievementSound, playClickSound } from '../../lib/sounds'
 import { MOTION } from '../../lib/motion'
 import { defaultSkillForAchievement } from '../../services/rewardGrant'
 import { getSkillById } from '../../lib/skills'
+import { ACHIEVEMENT_COSMETIC_UNLOCKS, FRAMES, BADGES } from '../../lib/cosmetics'
 
 const AUTO_DISMISS_MS = 12000
+
+/** Build a human-readable summary of ALL cosmetic rewards for an achievement */
+function getCosmeticSummary(achievementId: string): string | null {
+  const unlock = ACHIEVEMENT_COSMETIC_UNLOCKS[achievementId]
+  if (!unlock) return null
+  const parts: string[] = []
+  if (unlock.frameId) {
+    const f = FRAMES.find((x) => x.id === unlock.frameId)
+    if (f) parts.push(`${f.name} frame`)
+  }
+  if (unlock.badgeId) {
+    const b = BADGES.find((x) => x.id === unlock.badgeId)
+    if (b) parts.push(`${b.name} badge`)
+  }
+  if (unlock.avatarEmoji) parts.push(`${unlock.avatarEmoji} avatar`)
+  return parts.length > 0 ? parts.join(' + ') : null
+}
 
 export function LootDrop() {
   const { currentAlert, claimCurrent, dismissCurrent } = useAlertStore()
@@ -50,6 +68,10 @@ export function LootDrop() {
     dismissCurrent()
   }
 
+  const cosmeticUnlock = currentAlert ? ACHIEVEMENT_COSMETIC_UNLOCKS[currentAlert.achievement.id] : null
+  const cosmeticFrame = cosmeticUnlock?.frameId ? FRAMES.find((f) => f.id === cosmeticUnlock.frameId) : null
+  const cosmeticBadge = cosmeticUnlock?.badgeId ? BADGES.find((b) => b.id === cosmeticUnlock.badgeId) : null
+
   return (
     <AnimatePresence>
       {currentAlert && (
@@ -67,7 +89,7 @@ export function LootDrop() {
             exit={{ scale: 0.7, opacity: 0, y: MOTION.entry.prominent.y }}
             transition={MOTION.spring.pop}
             onClick={(e) => e.stopPropagation()}
-            className="w-[280px] rounded-2xl bg-discord-card border border-cyber-neon/30 shadow-glow-xl overflow-hidden"
+            className="w-[290px] rounded-2xl bg-discord-card border border-cyber-neon/30 shadow-glow-xl overflow-hidden"
           >
             {/* Header glow */}
             <div className="relative bg-gradient-to-b from-cyber-neon/10 to-transparent px-6 pt-6 pb-4 text-center">
@@ -110,7 +132,7 @@ export function LootDrop() {
               </motion.p>
             </div>
 
-            {/* Content — adaptive min height to avoid clipping reward text */}
+            {/* Content */}
             <div className="px-6 pt-1 pb-4 min-h-[138px] flex flex-col">
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -122,7 +144,7 @@ export function LootDrop() {
                   +{currentAlert.achievement.xpReward} XP
                   {(() => {
                     const skill = getSkillById(defaultSkillForAchievement(currentAlert.achievement))
-                    return skill ? <span className="text-gray-400 font-normal text-xs ml-1.5">→ {skill.icon} {skill.name}</span> : null
+                    return skill ? <span className="text-gray-400 font-normal text-xs ml-1.5">{skill.icon} {skill.name}</span> : null
                   })()}
                 </span>
               </motion.div>
@@ -133,18 +155,40 @@ export function LootDrop() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.6 }}
-                    className="w-full rounded-xl bg-discord-darker/80 border border-white/10 p-3 text-center"
+                    className="w-full rounded-xl bg-discord-darker/80 border border-white/10 p-3 text-center space-y-2"
                   >
                     <div className="flex items-center justify-center gap-2">
                       <motion.span
                         animate={{ rotate: [0, 10, -10, 0] }}
-                      transition={{ repeat: Infinity, duration: 2, ease: MOTION.easing }}
+                        transition={{ repeat: Infinity, duration: 2, ease: MOTION.easing }}
                         className="text-xl"
                       >
-                        🎁
+                        {'\uD83C\uDF81'}
                       </motion.span>
                       <span className="text-xs text-gray-400 font-mono">reward available</span>
                     </div>
+                    {/* Preview what cosmetics are inside */}
+                    {cosmeticUnlock && (
+                      <div className="flex items-center justify-center gap-2 flex-wrap">
+                        {cosmeticFrame && (
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border"
+                            style={{ borderColor: `${cosmeticFrame.color}40`, color: cosmeticFrame.color, backgroundColor: `${cosmeticFrame.color}10` }}>
+                            {cosmeticFrame.name} frame
+                          </span>
+                        )}
+                        {cosmeticBadge && (
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border"
+                            style={{ borderColor: `${cosmeticBadge.color}40`, color: cosmeticBadge.color, backgroundColor: `${cosmeticBadge.color}10` }}>
+                            {cosmeticBadge.icon} {cosmeticBadge.name}
+                          </span>
+                        )}
+                        {cosmeticUnlock.avatarEmoji && (
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-gray-300">
+                            {cosmeticUnlock.avatarEmoji} avatar
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </motion.div>
                 )}
 
@@ -153,24 +197,41 @@ export function LootDrop() {
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={MOTION.spring.soft}
-                    className="w-full rounded-xl bg-gradient-to-b from-cyber-neon/10 to-discord-darker/80 border border-cyber-neon/20 px-3 py-2.5 text-center"
+                    className="w-full space-y-2"
                   >
+                    {/* Cosmetic reward card */}
+                    <div className="rounded-xl bg-gradient-to-b from-cyber-neon/10 to-discord-darker/80 border border-cyber-neon/20 px-3 py-2.5 text-center">
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: [0, 1.3, 1] }}
+                        transition={{ duration: MOTION.duration.slow, ease: MOTION.easing }}
+                        className="text-3xl mb-1"
+                      >
+                        {currentAlert.achievement.reward.value}
+                      </motion.div>
+                      <p className="text-white text-xs font-medium leading-tight">
+                        {getCosmeticSummary(currentAlert.achievement.id) || currentAlert.achievement.reward.label}
+                      </p>
+                      <p className="text-gray-500 text-[10px] mt-0.5 leading-tight">
+                        {currentAlert.achievement.reward.type === 'avatar' || currentAlert.achievement.reward.type === 'badge' || currentAlert.achievement.reward.type === 'profile_frame'
+                          ? 'Profile \u2192 Cosmetics'
+                          : currentAlert.achievement.reward.type === 'skill_boost'
+                            ? 'Applied instantly to your skill XP'
+                            : 'Unlocked'}
+                      </p>
+                    </div>
+                    {/* Chest bonus card */}
                     <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: [0, 1.3, 1] }}
-                      transition={{ duration: MOTION.duration.slow, ease: MOTION.easing }}
-                      className="text-3xl mb-1"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="rounded-lg bg-discord-darker/60 border border-white/8 px-3 py-2 flex items-center justify-center gap-2"
                     >
-                      {currentAlert.achievement.reward.value}
+                      <span className="text-sm">{currentAlert.achievement.category === 'skill' ? '\uD83D\uDC8E' : '\uD83D\uDCE6'}</span>
+                      <span className="text-[10px] text-gray-400 font-mono">
+                        +1 {currentAlert.achievement.category === 'skill' ? 'Rare' : 'Common'} Chest
+                      </span>
                     </motion.div>
-                    <p className="text-white text-xs font-medium leading-tight">{currentAlert.achievement.reward.label}</p>
-                    <p className="text-gray-500 text-[10px] mt-0.5 leading-tight">
-                      {currentAlert.achievement.reward.type === 'avatar'
-                        ? 'Now in Settings -> Avatar'
-                        : currentAlert.achievement.reward.type === 'skill_boost'
-                          ? 'Applied instantly to your skill XP'
-                          : 'Unlocked'}
-                    </p>
                   </motion.div>
                 )}
 
@@ -183,16 +244,16 @@ export function LootDrop() {
               {currentAlert.achievement.reward && !showReward ? (
                 <button
                   onClick={handleClaim}
-                  className="w-full py-2.5 rounded-xl bg-cyber-neon text-discord-darker font-bold text-sm transition-all hover:shadow-glow"
+                  className="w-full py-2.5 rounded-xl bg-cyber-neon text-discord-darker font-bold text-sm transition-all hover:shadow-glow active:scale-[0.97]"
                 >
                   CLAIM
                 </button>
               ) : (
                 <button
                   onClick={handleDone}
-                  className="w-full py-2.5 rounded-xl bg-cyber-neon/15 border border-cyber-neon/30 text-cyber-neon text-xs font-bold transition-all hover:bg-cyber-neon/25"
+                  className="w-full py-2.5 rounded-xl bg-cyber-neon/15 border border-cyber-neon/30 text-cyber-neon text-xs font-bold transition-all hover:bg-cyber-neon/25 active:scale-[0.97]"
                 >
-                  ✓ nice
+                  {'\u2713'} nice
                 </button>
               )}
             </div>

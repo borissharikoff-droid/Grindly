@@ -51,7 +51,11 @@ function computeFlexScore(row: LeaderboardRow, equippedLootOverride?: Partial<Re
   return score
 }
 
-export function Leaderboard() {
+interface LeaderboardProps {
+  onSelectUser?: (userId: string) => void
+}
+
+export function Leaderboard({ onSelectUser }: LeaderboardProps) {
   const { user } = useAuthStore()
   const equippedBySlot = useInventoryStore((s) => s.equippedBySlot)
   const [rows, setRows] = useState<LeaderboardRow[]>([])
@@ -198,8 +202,9 @@ export function Leaderboard() {
               initial={{ opacity: 0, x: -6 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.05 }}
+              onClick={() => { if (!isMe && onSelectUser) onSelectUser(r.id) }}
               className={`flex items-center gap-2.5 py-2 px-3 rounded-xl transition-colors ${
-                isMe ? 'bg-cyber-neon/5 border border-cyber-neon/20' : 'hover:bg-white/[0.02]'
+                isMe ? 'bg-cyber-neon/5 border border-cyber-neon/20' : 'hover:bg-white/[0.04] cursor-pointer'
               }`}
             >
               {/* Rank */}

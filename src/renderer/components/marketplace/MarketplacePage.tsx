@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { LOOT_ITEMS, getRarityTheme, getItemPower, MARKETPLACE_BLOCKED_ITEMS, getItemPerkDescription, isValidItemId, type LootRarity } from '../../lib/loot'
@@ -289,14 +289,35 @@ function HistoryRow({ entry, userId, index }: { entry: TradeHistoryEntry; userId
   )
 }
 
-// ─── Sell tab (inline inventory picker) ───────────────────────────────────────
+// ─── Sell tab (inventory-style picker with category filters) ──────────────────
 
-function SellTab({ onListed }: { onListed: () => void }) {
+const SELL_FILTERS = [
+  { id: 'all',       label: 'All',       icon: '🎒' },
+  { id: 'gear',      label: 'Gear',      icon: '⚔️' },
+  { id: 'materials', label: 'Materials', icon: '🪨' },
+  { id: 'plants',    label: 'Plants',    icon: '🌿' },
+  { id: 'seeds',     label: 'Seeds',     icon: '🌱' },
+] as const
+
+type SellFilterId = typeof SELL_FILTERS[number]['id']
+
+function sellItemCategory(id: string): SellFilterId {
+  if (isSeedId(id) || isSeedZipId(id)) return 'seeds'
+  const item = LOOT_ITEMS.find((x) => x.id === id)
+  if (!item) return 'materials'
+  if (item.slot === 'plant') return 'plants'
+  if (item.slot === 'material') return 'materials'
+  if (['head', 'body', 'legs', 'ring', 'weapon'].includes(item.slot)) return 'gear'
+  return 'materials'
+}
+
+function SellTab({ onListed, onToast }: { onListed: () => void; onToast: (message: string, type: 'success' | 'error') => void }) {
   const items = useInventoryStore((s) => s.items)
   const seeds = useFarmStore((s) => s.seeds)
   const seedZips = useFarmStore((s) => s.seedZips)
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
   const [sellSearch, setSellSearch] = useState('')
+  const [filterBy, setFilterBy] = useState<SellFilterId>('all')
 
   const sellable = useMemo(() => {
     const result: { id: string; qty: number }[] = []
@@ -317,39 +338,105 @@ function SellTab({ onListed }: { onListed: () => void }) {
     for (const [tier, qty] of Object.entries(seedZips)) {
       if (qty > 0) result.push({ id: zipMap[tier] ?? `seed_zip_${tier}`, qty })
     }
+    // Sort by rarity (highest first)
+    const rarityVal: Record<string, number> = { mythic: 5, legendary: 4, epic: 3, rare: 2, common: 1 }
+    result.sort((a, b) => {
+      const ra = getItemMeta(a.id).rarity
+      const rb = getItemMeta(b.id).rarity
+      return (rarityVal[rb] ?? 0) - (rarityVal[ra] ?? 0)
+    })
     return result
   }, [items, seeds, seedZips])
 
-  const filtered = useMemo(() => {
-    if (!sellSearch.trim()) return sellable
-    const q = sellSearch.toLowerCase()
-    return sellable.filter(({ id }) => {
-      const meta = getItemMeta(id)
-      return meta.name.toLowerCase().includes(q) || meta.rarity.toLowerCase().includes(q) || id.toLowerCase().includes(q)
-    })
-  }, [sellable, sellSearch])
+  const filterCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const f of SELL_FILTERS) {
+      counts[f.id] = f.id === 'all' ? sellable.length : sellable.filter((s) => sellItemCategory(s.id) === f.id).length
+    }
+    return counts
+  }, [sellable])
 
-  if (selectedItem) {
-    const sellEntry = sellable.find((s) => s.id === selectedItem)
-    const isSeed = isSeedId(selectedItem)
-    const isSeedZip = isSeedZipId(selectedItem)
+  const filtered = useMemo(() => {
+    let result = sellable
+    if (filterBy !== 'all') result = result.filter((s) => sellItemCategory(s.id) === filterBy)
+    if (sellSearch.trim()) {
+      const q = sellSearch.toLowerCase()
+      result = result.filter(({ id }) => {
+        const meta = getItemMeta(id)
+        return meta.name.toLowerCase().includes(q) || meta.rarity.toLowerCase().includes(q) || id.toLowerCase().includes(q)
+      })
+    }
+    return result
+  }, [sellable, sellSearch, filterBy])
+
+  // Group items by category when showing "all"
+  const grouped = useMemo(() => {
+    if (filterBy !== 'all' || sellSearch.trim()) return null
+    const cats: { key: SellFilterId; label: string; icon: string; items: { id: string; qty: number }[] }[] = [
+      { key: 'gear', label: 'Gear', icon: '⚔️', items: [] },
+      { key: 'materials', label: 'Materials', icon: '🪨', items: [] },
+      { key: 'plants', label: 'Plants', icon: '🌿', items: [] },
+      { key: 'seeds', label: 'Seeds', icon: '🌱', items: [] },
+    ]
+    for (const entry of filtered) {
+      const cat = sellItemCategory(entry.id)
+      const group = cats.find((c) => c.key === cat)
+      if (group) group.items.push(entry)
+    }
+    const nonEmpty = cats.filter((c) => c.items.length > 0)
+    return nonEmpty.length >= 2 ? nonEmpty : null
+  }, [filtered, filterBy, sellSearch])
+
+  // Stable refs so ListForSaleModal callback doesn't cause remount
+  const onListedRef = useRef(onListed)
+  onListedRef.current = onListed
+  const onToastRef = useRef(onToast)
+  onToastRef.current = onToast
+  // Snapshot maxQty at modal open so it doesn't change mid-listing
+  const [modalMaxQty, setModalMaxQty] = useState(1)
+  useEffect(() => {
+    if (selectedItem) {
+      const entry = sellable.find((s) => s.id === selectedItem)
+      setModalMaxQty(entry?.qty ?? 1)
+    }
+  }, [selectedItem]) // eslint-disable-line react-hooks/exhaustive-deps -- snapshot qty at open, not when sellable changes
+
+  const renderSellCard = (entry: { id: string; qty: number }, i: number) => {
+    const meta = getItemMeta(entry.id)
+    const theme = RARITY_THEME[normalizeRarity(meta.rarity)] ?? RARITY_THEME.common
+    const lootItem = LOOT_ITEMS.find((x) => x.id === entry.id)
+    const perkChip = lootItem && lootItem.perkType !== 'cosmetic' && lootItem.slot !== 'consumable' && lootItem.slot !== 'plant'
+      ? getItemPerkDescription(lootItem) : null
     return (
-      <ListForSaleModal
-        itemId={selectedItem}
-        maxQty={sellEntry?.qty ?? 1}
-        onClose={() => setSelectedItem(null)}
-        onListed={() => { setSelectedItem(null); onListed() }}
-        onDeductItem={isSeed ? (qty) => useFarmStore.getState().removeSeed(selectedItem, qty)
-          : isSeedZip ? (qty) => {
-            const tier = seedZipTierFromItemId(selectedItem)
-            if (tier) useFarmStore.getState().removeSeedZip(tier, qty)
-          } : undefined}
-        onRollbackDeduct={isSeed ? (qty) => useFarmStore.getState().addSeed(selectedItem, qty)
-          : isSeedZip ? (qty) => {
-            const tier = seedZipTierFromItemId(selectedItem)
-            if (tier) useFarmStore.getState().addSeedZip(tier, qty)
-          } : undefined}
-      />
+      <motion.button
+        key={entry.id}
+        {...LIST_ITEM}
+        transition={{ duration: 0.15, delay: Math.min(i * 0.02, 0.25) }}
+        type="button"
+        onClick={() => { playClickSound(); setSelectedItem(entry.id) }}
+        className="relative flex items-center gap-2 p-2 rounded-lg border border-white/[0.06] bg-discord-darker/50 hover:bg-discord-darker/80 active:scale-[0.98] transition-all text-left overflow-hidden group"
+      >
+        {/* Left rarity accent */}
+        <div className="absolute left-0 top-1 bottom-1 w-[2px] rounded-full" style={{ background: theme.color, opacity: normalizeRarity(meta.rarity) === 'common' ? 0.3 : 0.7 }} />
+        {/* Icon box */}
+        <div
+          className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 overflow-hidden transition-transform group-hover:scale-105"
+          style={{ background: '#0a0a14', border: `1px solid ${theme.color}30` }}
+        >
+          <LootVisualShared icon={meta.icon} image={meta.image} className="w-6 h-6 object-contain" scale={meta.scale} />
+        </div>
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-semibold text-gray-100 leading-tight truncate">{meta.name}</p>
+          <div className="flex items-center gap-1 mt-0.5">
+            <span className="text-[8px] font-mono uppercase" style={{ color: theme.color }}>{meta.rarity}</span>
+          </div>
+          {perkChip && <p className="text-[8px] text-gray-500 truncate mt-0.5">{perkChip}</p>}
+        </div>
+        {/* Qty + Sell label */}
+        {entry.qty > 1 && <span className="text-[9px] font-mono font-bold shrink-0" style={{ color: theme.color }}>×{entry.qty}</span>}
+        <span className="text-[10px] text-amber-400/70 font-medium shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">Sell</span>
+      </motion.button>
     )
   }
 
@@ -360,19 +447,51 @@ function SellTab({ onListed }: { onListed: () => void }) {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 12 }}
       transition={{ duration: 0.2 }}
+      className="space-y-2"
     >
       {/* Search */}
-      <div className="mb-2.5">
+      <div className="relative">
         <input
           type="text"
           value={sellSearch}
           onChange={(e) => setSellSearch(e.target.value)}
           placeholder={`Search ${sellable.length} item${sellable.length !== 1 ? 's' : ''} in inventory...`}
-          className="w-full px-3 py-1.5 rounded-lg bg-[#11111b] border border-white/[0.08] text-white text-xs placeholder-gray-500 focus:border-amber-500/40 outline-none transition-all"
+          className="w-full text-[10px] font-mono px-2.5 py-1.5 pl-7 rounded-lg border border-white/[0.08] bg-[#11111b] text-gray-200 placeholder-gray-500 outline-none focus:border-amber-500/40 transition-colors"
         />
+        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-500 pointer-events-none">🔍</span>
+        {sellSearch && (
+          <button type="button" onClick={() => setSellSearch('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-gray-500 hover:text-gray-300 px-1">✕</button>
+        )}
       </div>
 
-      {/* Items grid */}
+      {/* Category filter pills */}
+      <div className="flex flex-wrap gap-1">
+        {SELL_FILTERS.map((f) => {
+          const active = filterBy === f.id
+          const count = filterCounts[f.id] ?? 0
+          return (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => { playClickSound(); setFilterBy(f.id) }}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-md border text-[9px] font-medium transition-all ${
+                active
+                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
+                  : 'border-white/[0.08] bg-discord-darker/30 text-gray-400 hover:text-gray-200 hover:border-white/20'
+              }`}
+            >
+              <span className="text-[10px] leading-none">{f.icon}</span>
+              <span>{f.label}</span>
+              {!active && count > 0 && <span className="ml-0.5 text-[8px] font-mono opacity-50">{count}</span>}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Divider */}
+      <div className="border-t border-white/[0.05]" />
+
+      {/* Items */}
       {filtered.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, scale: 0.97 }}
@@ -381,40 +500,51 @@ function SellTab({ onListed }: { onListed: () => void }) {
         >
           <span className="text-4xl mb-3 block opacity-40">📦</span>
           <p className="text-xs text-gray-400 font-medium">
-            {sellable.length === 0 ? 'No sellable items in inventory' : 'No items match your search'}
+            {sellable.length === 0 ? 'No sellable items in inventory' : 'No items match your filters'}
           </p>
         </motion.div>
-      ) : (
-        <div className="space-y-1">
-          {filtered.map(({ id, qty }, i) => {
-            const meta = getItemMeta(id)
-            const theme = getRarityTheme(meta.rarity)
-            return (
-              <motion.button
-                key={id}
-                {...LIST_ITEM}
-                transition={{ duration: 0.15, delay: Math.min(i * 0.02, 0.25) }}
-                type="button"
-                onClick={() => { playClickSound(); setSelectedItem(id) }}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border hover:border-white/20 transition-all text-left group"
-                style={{ borderColor: `${theme.border}60`, backgroundColor: `${theme.color}06` }}
-              >
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-105"
-                  style={{ backgroundColor: `${theme.color}15`, border: `1px solid ${theme.border}` }}
-                >
-                  <LootVisualShared icon={meta.icon} image={meta.image} className="w-6 h-6 object-contain" scale={meta.scale} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-medium text-white truncate">{meta.name}</p>
-                  <p className="text-[9px] capitalize" style={{ color: theme.color }}>{meta.rarity}</p>
-                </div>
-                <span className="text-xs text-gray-400 font-mono shrink-0">×{qty}</span>
-                <span className="text-[10px] text-amber-400/70 font-medium shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">Sell</span>
-              </motion.button>
-            )
-          })}
+      ) : grouped ? (
+        <div className="grid grid-cols-2 gap-1">
+          {grouped.map(({ key, label, icon, items: grpItems }) => (
+            <React.Fragment key={key}>
+              <div className="col-span-full text-[9px] font-mono uppercase tracking-widest text-gray-500 pt-1 pb-0.5 flex items-center gap-2">
+                <span className="flex items-center gap-1.5">{icon} {label}</span>
+                <div className="flex-1 border-t border-white/[0.05]" />
+                <span>{grpItems.length}</span>
+              </div>
+              {grpItems.map((entry, i) => renderSellCard(entry, i))}
+            </React.Fragment>
+          ))}
         </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-1">
+          {filtered.map((entry, i) => renderSellCard(entry, i))}
+        </div>
+      )}
+
+      {selectedItem && (
+        <ListForSaleModal
+          key={selectedItem}
+          itemId={selectedItem}
+          maxQty={modalMaxQty}
+          onClose={() => setSelectedItem(null)}
+          onListed={() => {
+            const name = getItemMeta(selectedItem).name
+            setSelectedItem(null)
+            onListedRef.current()
+            onToastRef.current(`Listed ${name} on marketplace`, 'success')
+          }}
+          onDeductItem={isSeedId(selectedItem) ? (qty) => useFarmStore.getState().removeSeed(selectedItem, qty)
+            : isSeedZipId(selectedItem) ? (qty) => {
+              const tier = seedZipTierFromItemId(selectedItem)
+              if (tier) useFarmStore.getState().removeSeedZip(tier, qty)
+            } : undefined}
+          onRollbackDeduct={isSeedId(selectedItem) ? (qty) => useFarmStore.getState().addSeed(selectedItem, qty)
+            : isSeedZipId(selectedItem) ? (qty) => {
+              const tier = seedZipTierFromItemId(selectedItem)
+              if (tier) useFarmStore.getState().addSeedZip(tier, qty)
+            } : undefined}
+        />
       )}
     </motion.div>
   )
@@ -1091,7 +1221,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
         )}
 
         {activeTab === 'sell' && (
-          <SellTab onListed={loadListings} />
+          <SellTab onListed={loadListings} onToast={showToast} />
         )}
 
         {activeTab === 'my_listings' && (

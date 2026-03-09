@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useToastStore, type Toast } from '../../stores/toastStore'
 import { useArenaStore } from '../../stores/arenaStore'
 import { useNotificationStore } from '../../stores/notificationStore'
-import { LOOT_ITEMS } from '../../lib/loot'
+import { LOOT_ITEMS, type BonusMaterial, type ChestType } from '../../lib/loot'
+import { useInventoryStore } from '../../stores/inventoryStore'
 import { playClickSound } from '../../lib/sounds'
 import type { TabId } from '../../App'
 
@@ -37,6 +38,7 @@ function ToastItem({ toast, onDismiss, onNavigate }: { toast: Toast; onDismiss: 
   const [pct, setPct] = useState(100)
   const setResultModal = useArenaStore((s) => s.setResultModal)
   const dismissNotif = useNotificationStore((s) => s.dismiss)
+  const openChestAndGrantItem = useInventoryStore((s) => s.openChestAndGrantItem)
 
   useEffect(() => {
     const tick = () => {
@@ -90,15 +92,29 @@ function ToastItem({ toast, onDismiss, onNavigate }: { toast: Toast; onDismiss: 
     playClickSound()
     if (d.kind === 'arena_boss') {
       dismissNotif(d.notificationId)
-      setResultModal({
-        victory: true,
-        gold: d.gold,
-        goldAlreadyAdded: false,
-        bossName: d.bossName,
-        chest: d.chest as import('../../stores/arenaStore').ArenaChestDrop | null | undefined,
-        materialDrop: d.materialDrop ?? null,
-        warriorXP: d.warriorXP ?? 0,
-      })
+      const matBonuses: BonusMaterial[] = d.materialDrop ? [{ itemId: d.materialDrop.id, qty: d.materialDrop.qty }] : []
+      if (d.chest) {
+        const result = openChestAndGrantItem(d.chest.type as ChestType, { source: 'session_complete', focusCategory: null })
+        if (result) {
+          setResultModal({
+            chestType: d.chest.type as ChestType,
+            itemId: result.itemId,
+            goldDropped: result.goldDropped + d.gold,
+            bonusMaterials: [...matBonuses, ...result.bonusMaterials],
+            warriorXP: d.warriorXP ?? 0,
+            pendingGold: 0,
+          })
+        }
+      } else {
+        setResultModal({
+          chestType: null,
+          itemId: null,
+          goldDropped: d.gold,
+          bonusMaterials: matBonuses,
+          warriorXP: d.warriorXP ?? 0,
+          pendingGold: 0,
+        })
+      }
     }
     onDismiss()
   }

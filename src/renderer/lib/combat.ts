@@ -107,7 +107,7 @@ export const ZONES: ZoneDef[] = [
       materialDropId: 'goblin_tooth', materialDropQty: 3,
     },
   },
-  // ── Zone 3 — Wild Forest (target: Copper set → 18 ATK, 155 HP, 2 Regen) ────
+  // ── Zone 3 — Wild Forest (target: Copper set → 18 ATK, 155 HP, 2 Regen; rewards Shadow gear) ────
   {
     id: 'zone3',
     name: 'Wild Forest',
@@ -124,7 +124,7 @@ export const ZONES: ZoneDef[] = [
     ],
     boss: {
       id: 'wolf', name: 'Forest Wolf', icon: '🐺', hp: 700, atk: 5,
-      rewards: { chestTier: 'rare_chest' },
+      rewards: { chestTier: 'epic_chest' },
       requirements: { minAtk: 12, minHp: 120 },
       materialDropId: 'wolf_fang', materialDropQty: 2,
     },

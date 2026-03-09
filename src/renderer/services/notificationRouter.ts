@@ -72,7 +72,18 @@ export async function routeNotification(
   const globalEnabled = typeof localStorage !== 'undefined'
     ? localStorage.getItem('grindly_notifications_enabled') !== 'false'
     : true
-  if (event.desktop && globalEnabled && api?.notify?.show) {
+  // Per-type desktop notification check
+  const typeKeyMap: Record<string, string> = {
+    progression_level_up: 'grindly_notif_desktop_level_up',
+    progression_achievement: 'grindly_notif_desktop_achievement',
+    progression_info: 'grindly_notif_desktop_progression',
+    friend_levelup: 'grindly_notif_desktop_friend',
+  }
+  const typeKey = typeKeyMap[event.type]
+  const typeEnabled = typeKey
+    ? (typeof localStorage !== 'undefined' ? localStorage.getItem(typeKey) !== 'false' : true)
+    : true
+  if (event.desktop && globalEnabled && typeEnabled && api?.notify?.show) {
     await api.notify.show(event.title, event.body)
   }
   return true

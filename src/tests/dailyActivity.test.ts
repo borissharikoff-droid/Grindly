@@ -5,6 +5,9 @@ import {
   recordDeveloperXp,
   recordFocusSeconds,
   recordSessionWithoutAfk,
+  recordDungeonComplete,
+  recordHarvest,
+  recordCraftComplete,
 } from '../renderer/services/dailyActivityService'
 
 function createMemoryStorage(): Storage {
@@ -46,6 +49,9 @@ describe('daily activity service', () => {
     recordFocusSeconds(50 * 60)
     recordDeveloperXp(1200)
     recordSessionWithoutAfk(true)
+    recordDungeonComplete()
+    recordHarvest(2)
+    recordCraftComplete()
     const missions = getDailyActivities()
     expect(missions.every((m) => m.completed)).toBe(true)
     const chest = claimDailyActivity('focus_minutes')

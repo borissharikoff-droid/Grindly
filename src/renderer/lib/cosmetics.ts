@@ -161,9 +161,17 @@ export const FRAMES: Frame[] = [
 export const FREE_AVATARS = ['🐺', '🦊', '🐱', '🐼', '🐸', '🤖']
 
 export const LOCKED_AVATARS: { emoji: string; unlockHint: string; achievementId: string }[] = [
+  { emoji: '🚀', unlockHint: 'First session', achievementId: 'first_session' },
+  { emoji: '⚔️', unlockHint: '2h+ coding session', achievementId: 'code_warrior' },
   { emoji: '🦁', unlockHint: '2h+ session', achievementId: 'marathon' },
+  { emoji: '🌟', unlockHint: '30-day streak', achievementId: 'streak_30' },
   { emoji: '🦉', unlockHint: 'Night Owl', achievementId: 'night_owl' },
-  { emoji: '🐤', unlockHint: 'Early Bird', achievementId: 'early_bird' },
+  { emoji: '🐦', unlockHint: 'Early Bird', achievementId: 'early_bird' },
+  { emoji: '🤝', unlockHint: 'Add first friend', achievementId: 'first_friend' },
+  { emoji: '🌐', unlockHint: 'Have 5 friends', achievementId: 'five_friends' },
+  { emoji: '🦋', unlockHint: 'Have 10 friends', achievementId: 'social_butterfly' },
+  { emoji: '🧠', unlockHint: 'Developer LVL 99', achievementId: 'skill_developer_99' },
+  { emoji: '🔮', unlockHint: 'All skills LVL 10+', achievementId: 'jack_of_all_trades' },
 ]
 
 type AchievementCosmeticUnlock = {
@@ -174,22 +182,34 @@ type AchievementCosmeticUnlock = {
 
 /**
  * Canonical source of achievement -> cosmetic unlock mapping.
- * Keep one strong cosmetic unlock per milestone unless intentionally tiered.
+ * Every achievement with a cosmetic reward (avatar, badge, frame) MUST be listed here.
+ * An achievement can grant multiple cosmetics (e.g. badge + avatar).
  */
 export const ACHIEVEMENT_COSMETIC_UNLOCKS: Record<string, AchievementCosmeticUnlock> = {
-  streak_2: { badgeId: 'fire' },
-  streak_7: { frameId: 'ember' },
-  streak_14: { frameId: 'blaze' },
-  streak_30: { frameId: 'fire' },
-  night_owl: { badgeId: 'night_owl' },
-  early_bird: { badgeId: 'early_bird' },
-  ten_sessions: { frameId: 'diamond' },
-  fifty_sessions: { frameId: 'crown' },
-  marathon: { avatarEmoji: '🦁' },
-  social_butterfly: { badgeId: 'social' },
-  skill_developer_50: { frameId: 'code' },
-  skill_designer_50: { frameId: 'art' },
-  polymath: { frameId: 'star' },
+  // Grind
+  first_session:       { avatarEmoji: '🚀' },
+  code_warrior:        { avatarEmoji: '⚔️' },
+  marathon:            { avatarEmoji: '🦁' },
+  ten_sessions:        { frameId: 'diamond' },
+  fifty_sessions:      { frameId: 'crown' },
+  // Streak
+  streak_2:            { badgeId: 'fire' },
+  streak_7:            { frameId: 'ember' },
+  streak_14:           { frameId: 'blaze' },
+  streak_30:           { frameId: 'fire', avatarEmoji: '🌟' },
+  // Special
+  night_owl:           { badgeId: 'night_owl', avatarEmoji: '🦉' },
+  early_bird:          { badgeId: 'early_bird', avatarEmoji: '🐦' },
+  // Social
+  first_friend:        { avatarEmoji: '🤝' },
+  five_friends:        { avatarEmoji: '🌐' },
+  social_butterfly:    { badgeId: 'social', avatarEmoji: '🦋' },
+  // Skill
+  skill_developer_50:  { frameId: 'code' },
+  skill_developer_99:  { avatarEmoji: '🧠' },
+  skill_designer_50:   { frameId: 'art' },
+  polymath:            { frameId: 'star' },
+  jack_of_all_trades:  { avatarEmoji: '🔮' },
 }
 
 // ─── LOCAL STORAGE HELPERS ────────────────────────────────
@@ -257,4 +277,20 @@ export function unlockCosmeticsFromAchievement(achievementId: string): void {
       localStorage.setItem('grindly_unlocked_avatars', JSON.stringify([...current, unlock.avatarEmoji]))
     }
   }
+}
+
+/**
+ * Retroactive fix: re-process all unlocked achievements to ensure cosmetics are granted.
+ * Fixes cases where achievements were unlocked before their cosmetic mapping existed.
+ * Safe to call multiple times — idempotent (only adds missing unlocks).
+ */
+const COSMETIC_MIGRATION_KEY = 'grindly_cosmetic_migration_v2'
+export function ensureCosmeticsForUnlockedAchievements(unlockedAchievementIds: string[]): void {
+  const migrated = localStorage.getItem(COSMETIC_MIGRATION_KEY)
+  const currentVersion = '2'
+  if (migrated === currentVersion && unlockedAchievementIds.length === 0) return
+  for (const id of unlockedAchievementIds) {
+    unlockCosmeticsFromAchievement(id)
+  }
+  localStorage.setItem(COSMETIC_MIGRATION_KEY, currentVersion)
 }

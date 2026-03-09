@@ -1,3 +1,4 @@
+declare const __APP_VERSION__: string
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
@@ -7,26 +8,50 @@ import { MOTION } from '../../lib/motion'
 import { PageHeader } from '../shared/PageHeader'
 import { InlineSuccess } from '../shared/InlineSuccess'
 
+// ─── Helpers ───────────────────────────────────────────────
+function loadBool(key: string, fallback = true): boolean {
+  try { return localStorage.getItem(key) !== 'false' } catch { return fallback }
+}
+
+function saveBool(key: string, value: boolean, syncDb = false) {
+  localStorage.setItem(key, String(value))
+  if (syncDb) window.electronAPI?.db?.setLocalStat(key, String(value))
+}
+
+// ─── Main Component ─────────────────────────────────────────
 export function SettingsPage() {
   const { user, signOut } = useAuthStore()
-
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
-  // Preferences
-  const [autoLaunch, setAutoLaunch] = useState(false)
+  // Sound
   const [soundMuted, setSoundMutedState] = useState(false)
   const [soundVolume, setSoundVolumeState] = useState(0.5)
+
+  // General
+  const [autoLaunch, setAutoLaunch] = useState(false)
   const [shortcutsEnabled, setShortcutsEnabled] = useState(true)
+  const [alwaysOnTop, setAlwaysOnTop] = useState(false)
+
+  // Notifications — master
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
 
-  // Notification toggles (smart notifications)
+  // Notifications — desktop per-type
+  const [notifDesktopLevelUp, setNotifDesktopLevelUp] = useState(true)
+  const [notifDesktopAchievement, setNotifDesktopAchievement] = useState(true)
+  const [notifDesktopProgression, setNotifDesktopProgression] = useState(true)
+  const [notifDesktopFriend, setNotifDesktopFriend] = useState(true)
+
+  // Notifications — smart (main process)
   const [notifGrindReminder, setNotifGrindReminder] = useState(true)
   const [notifStreakWarning, setNotifStreakWarning] = useState(true)
   const [notifDistraction, setNotifDistraction] = useState(true)
   const [notifPraise, setNotifPraise] = useState(true)
 
-  // Accordion state — first two open by default
-  const [openSections, setOpenSections] = useState<Set<string>>(new Set(['sound', 'preferences']))
+  // Window behavior
+  const [showWindowOnSessionEnd, setShowWindowOnSessionEnd] = useState(true)
+
+  // Accordion
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set(['general', 'notifications']))
   const toggleSection = useCallback((id: string) => {
     setOpenSections((prev) => {
       const next = new Set(prev)
@@ -36,31 +61,41 @@ export function SettingsPage() {
     })
   }, [])
 
-  // Load local preferences
+  // Load all settings
   useEffect(() => {
     const sound = getSoundSettings()
     setSoundMutedState(sound.muted)
     setSoundVolumeState(sound.volume)
-    setShortcutsEnabled(localStorage.getItem('grindly_shortcuts_enabled') !== 'false')
-    setNotificationsEnabled(localStorage.getItem('grindly_notifications_enabled') !== 'false')
+    setShortcutsEnabled(loadBool('grindly_shortcuts_enabled'))
+    setNotificationsEnabled(loadBool('grindly_notifications_enabled'))
+    setShowWindowOnSessionEnd(loadBool('grindly_show_window_on_session_end'))
 
-    // Smart notification toggles
-    setNotifGrindReminder(localStorage.getItem('grindly_notif_grind_reminder') !== 'false')
-    setNotifStreakWarning(localStorage.getItem('grindly_notif_streak_warning') !== 'false')
-    setNotifDistraction(localStorage.getItem('grindly_notif_distraction') !== 'false')
-    setNotifPraise(localStorage.getItem('grindly_notif_praise') !== 'false')
+    // Desktop per-type
+    setNotifDesktopLevelUp(loadBool('grindly_notif_desktop_level_up'))
+    setNotifDesktopAchievement(loadBool('grindly_notif_desktop_achievement'))
+    setNotifDesktopProgression(loadBool('grindly_notif_desktop_progression'))
+    setNotifDesktopFriend(loadBool('grindly_notif_desktop_friend'))
 
-    // Check auto-launch status
-    if (window.electronAPI?.settings?.getAutoLaunch) {
-      window.electronAPI.settings.getAutoLaunch().then(setAutoLaunch)
-    }
+    // Smart notifications
+    setNotifGrindReminder(loadBool('grindly_notif_grind_reminder'))
+    setNotifStreakWarning(loadBool('grindly_notif_streak_warning'))
+    setNotifDistraction(loadBool('grindly_notif_distraction'))
+    setNotifPraise(loadBool('grindly_notif_praise'))
+
+    // Electron-only settings
+    window.electronAPI?.settings?.getAutoLaunch?.().then(setAutoLaunch)
+    window.electronAPI?.window?.getAlwaysOnTop?.().then(setAlwaysOnTop)
   }, [])
 
-  const handleAutoLaunch = async (enabled: boolean) => {
+  // ─── Handlers ─────────────────────────────────────────────
+  const handleAutoLaunch = (enabled: boolean) => {
     setAutoLaunch(enabled)
-    if (window.electronAPI?.settings?.setAutoLaunch) {
-      window.electronAPI.settings.setAutoLaunch(enabled)
-    }
+    window.electronAPI?.settings?.setAutoLaunch?.(enabled)
+  }
+
+  const handleAlwaysOnTop = (enabled: boolean) => {
+    setAlwaysOnTop(enabled)
+    window.electronAPI?.window?.setAlwaysOnTop?.(enabled)
   }
 
   const handleSoundMuted = (muted: boolean) => {
@@ -74,32 +109,21 @@ export function SettingsPage() {
     setSoundVolume(vol)
   }
 
-  const handleShortcuts = (enabled: boolean) => {
-    setShortcutsEnabled(enabled)
-    localStorage.setItem('grindly_shortcuts_enabled', String(enabled))
-  }
-
   const handleNotifications = (enabled: boolean) => {
     setNotificationsEnabled(enabled)
-    localStorage.setItem('grindly_notifications_enabled', String(enabled))
-    // Sync to DB so main process can read it without executeJavaScript
-    window.electronAPI?.db?.setLocalStat('grindly_notifications_enabled', String(enabled))
+    saveBool('grindly_notifications_enabled', enabled, true)
   }
 
-  const handleNotifToggle = (key: string, setter: (v: boolean) => void) => (enabled: boolean) => {
+  const makeToggle = (key: string, setter: (v: boolean) => void, syncDb = false) => (enabled: boolean) => {
     setter(enabled)
-    localStorage.setItem(key, String(enabled))
-    // Sync to DB so main process can read it without executeJavaScript
-    window.electronAPI?.db?.setLocalStat(key, String(enabled))
+    saveBool(key, enabled, syncDb)
   }
 
   const handleExport = async (format: 'csv' | 'json') => {
     if (!window.electronAPI?.data?.exportSessions) return
     try {
       const result = await window.electronAPI.data.exportSessions(format)
-      if (result) {
-        setMessage({ type: 'ok', text: `Exported to ${result}` })
-      }
+      if (result) setMessage({ type: 'ok', text: `Exported to ${result}` })
     } catch {
       setMessage({ type: 'err', text: 'Export failed.' })
     }
@@ -110,110 +134,162 @@ export function SettingsPage() {
       initial={MOTION.page.initial}
       animate={MOTION.page.animate}
       exit={MOTION.page.exit}
-      className="p-4 pb-2 space-y-4"
+      className="p-4 pb-2 space-y-3 overflow-y-auto"
+      style={{ maxHeight: 'calc(100vh - 60px)' }}
     >
       <PageHeader title="Settings" />
 
-      {/* Sound Settings */}
-      <Section id="sound" title="sound" open={openSections.has('sound')} onToggle={toggleSection}>
+      {/* ─── SOUND ──────────────────────────────────────────── */}
+      <Section id="sound" title="Sound & Audio" icon="volume" open={openSections.has('sound')} onToggle={toggleSection}>
         <ToggleRow
           label="Sound effects"
+          sublabel="UI clicks, session sounds"
           enabled={!soundMuted}
           onChange={(v) => handleSoundMuted(!v)}
         />
-        {!soundMuted && (
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-400 w-14">Volume</span>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={soundVolume}
-              onChange={(e) => handleSoundVolume(parseFloat(e.target.value))}
-              className="flex-1 accent-cyber-neon h-1"
-            />
-            <span className="text-xs text-gray-500 w-8 text-right font-mono">
-              {Math.round(soundVolume * 100)}%
-            </span>
-          </div>
-        )}
+        <AnimatePresence initial={false}>
+          {!soundMuted && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="overflow-hidden"
+            >
+              <SliderRow
+                label="Volume"
+                value={soundVolume}
+                onChange={handleSoundVolume}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </Section>
 
-      {/* Preferences */}
-      <Section id="preferences" title="preferences" open={openSections.has('preferences')} onToggle={toggleSection}>
-        <ToggleRow
-          label="Keyboard shortcuts"
-          sublabel="Ctrl+S start/stop, Ctrl+P pause"
-          enabled={shortcutsEnabled}
-          onChange={handleShortcuts}
-        />
-        <ToggleRow
-          label="Desktop notifications"
-          sublabel="Achievements & streak milestones"
-          enabled={notificationsEnabled}
-          onChange={handleNotifications}
-        />
+      {/* ─── GENERAL ────────────────────────────────────────── */}
+      <Section id="general" title="General" icon="settings" open={openSections.has('general')} onToggle={toggleSection}>
         <ToggleRow
           label="Start with Windows"
           sublabel="Launch Grindly on PC boot"
           enabled={autoLaunch}
           onChange={handleAutoLaunch}
         />
+        <ToggleRow
+          label="Keyboard shortcuts"
+          sublabel="Ctrl+S start/stop, Ctrl+P pause"
+          enabled={shortcutsEnabled}
+          onChange={makeToggle('grindly_shortcuts_enabled', setShortcutsEnabled)}
+        />
+        <ToggleRow
+          label="Always on top"
+          sublabel="Keep Grindly above other windows"
+          enabled={alwaysOnTop}
+          onChange={handleAlwaysOnTop}
+        />
       </Section>
 
-      {/* Smart Notifications */}
-      <Section id="notifications" title="smart notifications" open={openSections.has('notifications')} onToggle={toggleSection}>
+      {/* ─── NOTIFICATIONS ──────────────────────────────────── */}
+      <Section id="notifications" title="Notifications" icon="bell" open={openSections.has('notifications')} onToggle={toggleSection}>
+        <ToggleRow
+          label="Desktop notifications"
+          sublabel="System-level toast popups"
+          enabled={notificationsEnabled}
+          onChange={handleNotifications}
+          accent
+        />
+        <AnimatePresence initial={false}>
+          {notificationsEnabled && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="overflow-hidden"
+            >
+              <div className="space-y-2 pl-3 border-l border-white/5">
+                <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono mt-1">Desktop popup per event</p>
+                <ToggleRow
+                  label="Level ups"
+                  sublabel="When a skill levels up"
+                  enabled={notifDesktopLevelUp}
+                  onChange={makeToggle('grindly_notif_desktop_level_up', setNotifDesktopLevelUp)}
+                  compact
+                />
+                <ToggleRow
+                  label="Achievements"
+                  sublabel="New achievement unlocked"
+                  enabled={notifDesktopAchievement}
+                  onChange={makeToggle('grindly_notif_desktop_achievement', setNotifDesktopAchievement)}
+                  compact
+                />
+                <ToggleRow
+                  label="Session milestones"
+                  sublabel="XP gains, streak info"
+                  enabled={notifDesktopProgression}
+                  onChange={makeToggle('grindly_notif_desktop_progression', setNotifDesktopProgression)}
+                  compact
+                />
+                <ToggleRow
+                  label="Friend activity"
+                  sublabel="When friends level up"
+                  enabled={notifDesktopFriend}
+                  onChange={makeToggle('grindly_notif_desktop_friend', setNotifDesktopFriend)}
+                  compact
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <Divider />
+
+        <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono">Smart reminders</p>
         <ToggleRow
           label="Grind reminder"
           sublabel="Nudge if no session today"
           enabled={notifGrindReminder}
-          onChange={handleNotifToggle('grindly_notif_grind_reminder', setNotifGrindReminder)}
+          onChange={makeToggle('grindly_notif_grind_reminder', setNotifGrindReminder, true)}
         />
         <ToggleRow
           label="Streak warning"
           sublabel="Alert when streak is at risk"
           enabled={notifStreakWarning}
-          onChange={handleNotifToggle('grindly_notif_streak_warning', setNotifStreakWarning)}
+          onChange={makeToggle('grindly_notif_streak_warning', setNotifStreakWarning, true)}
         />
         <ToggleRow
           label="Distraction alert"
           sublabel="Nudge when too much social/games"
           enabled={notifDistraction}
-          onChange={handleNotifToggle('grindly_notif_distraction', setNotifDistraction)}
+          onChange={makeToggle('grindly_notif_distraction', setNotifDistraction, true)}
         />
         <ToggleRow
           label="Focus praise"
           sublabel="Praise for sustained focus"
           enabled={notifPraise}
-          onChange={handleNotifToggle('grindly_notif_praise', setNotifPraise)}
+          onChange={makeToggle('grindly_notif_praise', setNotifPraise, true)}
         />
       </Section>
 
-      {/* Data & Friends */}
-      <Section id="data" title="data & friends" open={openSections.has('data')} onToggle={toggleSection}>
+      {/* ─── WINDOW BEHAVIOR ───────────────────────────────── */}
+      <Section id="window" title="Window Behavior" icon="window" open={openSections.has('window')} onToggle={toggleSection}>
+        <ToggleRow
+          label="Pop up on session end"
+          sublabel="Bring Grindly to front when session finishes"
+          enabled={showWindowOnSessionEnd}
+          onChange={makeToggle('grindly_show_window_on_session_end', setShowWindowOnSessionEnd)}
+        />
+      </Section>
+
+      {/* ─── DATA ───────────────────────────────────────────── */}
+      <Section id="data" title="Data & Export" icon="data" open={openSections.has('data')} onToggle={toggleSection}>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-400">Supabase (friends)</span>
-          <span className={supabase ? 'text-cyber-neon font-mono' : 'text-gray-500 font-mono'}>
-            {supabase ? 'connected' : 'not configured'}
-          </span>
+          <span className="text-gray-400">Cloud sync</span>
+          <StatusBadge connected={!!supabase} />
         </div>
-        <p className="text-xs text-gray-500">Download your grind history. Flex with data.</p>
+        <p className="text-xs text-gray-500 -mt-1">Download your grind history.</p>
         <div className="flex gap-2">
-          <motion.button
-            whileTap={MOTION.interactive.tap}
-            onClick={() => handleExport('json')}
-            className="flex-1 py-2 rounded-lg bg-discord-darker border border-white/10 text-sm text-white font-medium hover:border-white/20 transition-colors"
-          >
-            Export JSON
-          </motion.button>
-          <motion.button
-            whileTap={MOTION.interactive.tap}
-            onClick={() => handleExport('csv')}
-            className="flex-1 py-2 rounded-lg bg-discord-darker border border-white/10 text-sm text-white font-medium hover:border-white/20 transition-colors"
-          >
-            Export CSV
-          </motion.button>
+          <ActionButton label="Export JSON" onClick={() => handleExport('json')} />
+          <ActionButton label="Export CSV" onClick={() => handleExport('csv')} />
         </div>
         {message && (
           message.type === 'ok'
@@ -222,38 +298,53 @@ export function SettingsPage() {
         )}
       </Section>
 
-      {/* Sign Out */}
+      {/* ─── ACCOUNT ────────────────────────────────────────── */}
       {supabase && user && (
         <motion.button
           whileTap={MOTION.interactive.tap}
           onClick={() => signOut()}
-          className="w-full py-2.5 rounded-xl bg-discord-red/20 border border-discord-red/30 text-discord-red font-semibold text-sm hover:bg-discord-red/30 transition-colors"
+          className="w-full py-2.5 rounded-xl bg-discord-red/10 border border-discord-red/20 text-discord-red font-semibold text-sm hover:bg-discord-red/20 transition-colors"
         >
           Sign Out
         </motion.button>
       )}
 
-      <p className="text-center text-xs text-gray-600 pb-2">Grindly v0.1.0</p>
+      <p className="text-center text-[11px] text-gray-600 pb-2 font-mono">
+        Grindly v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}
+      </p>
     </motion.div>
   )
 }
 
-function Section({ id, title, open, onToggle, children }: {
+// ─── Section ────────────────────────────────────────────────
+const SECTION_ICONS: Record<string, string> = {
+  volume: '\u{1F50A}',
+  settings: '\u{2699}',
+  bell: '\u{1F514}',
+  window: '\u{1F5D4}',
+  data: '\u{1F4BE}',
+}
+
+function Section({ id, title, icon, open, onToggle, children }: {
   id: string
   title: string
+  icon?: string
   open: boolean
   onToggle: (id: string) => void
   children: React.ReactNode
 }) {
   return (
-    <div className="rounded-xl bg-discord-card/80 border border-white/10 overflow-hidden">
+    <div className="rounded-xl bg-discord-card/80 border border-white/[0.06] overflow-hidden">
       <button
         type="button"
         onClick={() => onToggle(id)}
-        className="w-full flex items-center justify-between p-4 text-left hover:bg-white/[0.02] transition-colors"
+        className="w-full flex items-center justify-between p-3.5 text-left hover:bg-white/[0.02] transition-colors"
       >
-        <p className="text-xs uppercase tracking-wider text-gray-400 font-mono">[ {title} ]</p>
-        <span className={`text-gray-600 text-xs transition-transform duration-200 ${open ? 'rotate-90' : ''}`}>›</span>
+        <div className="flex items-center gap-2.5">
+          {icon && <span className="text-sm opacity-60">{SECTION_ICONS[icon] ?? ''}</span>}
+          <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold">{title}</p>
+        </div>
+        <span className={`text-gray-600 text-xs transition-transform duration-200 ${open ? 'rotate-90' : ''}`}>&rsaquo;</span>
       </button>
       <AnimatePresence initial={false}>
         {open && (
@@ -264,7 +355,7 @@ function Section({ id, title, open, onToggle, children }: {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-4 space-y-3">
+            <div className="px-3.5 pb-3.5 space-y-2.5">
               {children}
             </div>
           </motion.div>
@@ -274,32 +365,86 @@ function Section({ id, title, open, onToggle, children }: {
   )
 }
 
-function ToggleRow({ label, sublabel, enabled, onChange }: {
+// ─── ToggleRow ──────────────────────────────────────────────
+function ToggleRow({ label, sublabel, enabled, onChange, compact, accent }: {
   label: string
   sublabel?: string
   enabled: boolean
   onChange: (v: boolean) => void
+  compact?: boolean
+  accent?: boolean
 }) {
   return (
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm text-white">{label}</p>
-        {sublabel && <p className="text-xs text-gray-500">{sublabel}</p>}
+    <div className={`flex items-center justify-between ${compact ? 'py-0.5' : ''}`}>
+      <div className="min-w-0 mr-3">
+        <p className={`text-white ${compact ? 'text-xs' : 'text-sm'} ${accent ? 'font-semibold' : ''} truncate`}>{label}</p>
+        {sublabel && <p className={`text-gray-500 truncate ${compact ? 'text-[10px]' : 'text-xs'}`}>{sublabel}</p>}
       </div>
       <button
         onClick={() => { onChange(!enabled); playClickSound() }}
-        className={`w-10 h-6 rounded-full relative transition-colors shrink-0 ${
+        className={`w-9 h-[22px] rounded-full relative transition-colors shrink-0 ${
           enabled ? 'bg-cyber-neon/40' : 'bg-discord-darker border border-white/10'
         }`}
       >
         <motion.div
-          animate={{ x: enabled ? 18 : 2 }}
+          animate={{ x: enabled ? 16 : 2 }}
           transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-          className={`absolute top-1 w-4 h-4 rounded-full shadow-sm ${
+          className={`absolute top-[3px] w-4 h-4 rounded-full shadow-sm ${
             enabled ? 'bg-cyber-neon' : 'bg-gray-500'
           }`}
         />
       </button>
     </div>
+  )
+}
+
+// ─── SliderRow ──────────────────────────────────────────────
+function SliderRow({ label, value, onChange }: {
+  label: string
+  value: number
+  onChange: (v: number) => void
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-xs text-gray-400 w-14">{label}</span>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.05}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="flex-1 accent-cyber-neon h-1"
+      />
+      <span className="text-xs text-gray-500 w-8 text-right font-mono">
+        {Math.round(value * 100)}%
+      </span>
+    </div>
+  )
+}
+
+// ─── Small Helpers ──────────────────────────────────────────
+function Divider() {
+  return <div className="border-t border-white/5 my-1" />
+}
+
+function StatusBadge({ connected }: { connected: boolean }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-mono ${connected ? 'text-cyber-neon' : 'text-gray-500'}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-cyber-neon' : 'bg-gray-600'}`} />
+      {connected ? 'connected' : 'offline'}
+    </span>
+  )
+}
+
+function ActionButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <motion.button
+      whileTap={MOTION.interactive.tap}
+      onClick={onClick}
+      className="flex-1 py-2 rounded-lg bg-discord-darker border border-white/[0.06] text-sm text-white font-medium hover:border-white/15 transition-colors"
+    >
+      {label}
+    </motion.button>
   )
 }

@@ -229,7 +229,7 @@ const ACHIEVEMENTS_BASE: AchievementDef[] = [
     description: '30 day streak',
     icon: '🌟',
     xpReward: 300,
-    reward: { type: 'avatar', value: '🌟', label: 'Star avatar unlocked' },
+    reward: { type: 'avatar', value: '🌟', label: 'Inferno frame + Star avatar' },
     category: 'streak',
   },
 
@@ -240,7 +240,7 @@ const ACHIEVEMENTS_BASE: AchievementDef[] = [
     description: 'Session after midnight',
     icon: '🦉',
     xpReward: 25,
-    reward: { type: 'avatar', value: '🦉', label: 'Owl avatar unlocked' },
+    reward: { type: 'avatar', value: '🦉', label: 'Night Owl badge + avatar' },
     category: 'special',
   },
   {
@@ -249,7 +249,7 @@ const ACHIEVEMENTS_BASE: AchievementDef[] = [
     description: 'Session before 7 AM',
     icon: '🐦',
     xpReward: 25,
-    reward: { type: 'avatar', value: '🐦', label: 'Bird avatar unlocked' },
+    reward: { type: 'avatar', value: '🐦', label: 'Early Bird badge + avatar' },
     category: 'special',
   },
 
@@ -278,7 +278,7 @@ const ACHIEVEMENTS_BASE: AchievementDef[] = [
     description: 'Have 10 friends',
     icon: '🦋',
     xpReward: 100,
-    reward: { type: 'avatar', value: '🦋', label: 'Butterfly avatar unlocked' },
+    reward: { type: 'avatar', value: '🦋', label: 'Social badge + Butterfly avatar' },
     category: 'social',
   },
 
