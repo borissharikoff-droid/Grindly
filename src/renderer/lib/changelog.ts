@@ -24,6 +24,21 @@ export const CHANGE_TYPE_META: Record<ChangeType, { label: string; color: string
 
 export const CHANGELOG: PatchNote[] = [
   {
+    version: '3.6.0',
+    date: '2026-03-14',
+    title: 'New arena zones & cooking polish',
+    items: [
+      { type: 'new', text: '4 new arena zones: Slime Dungeon, Wolf Forest, Troll Cavern, Dragon Lair' },
+      { type: 'new', text: 'Login with username (in addition to email)' },
+      { type: 'new', text: 'Escape key closes modals (arena result, streak, what\'s new)' },
+      { type: 'ui', text: 'Cooking: confetti, shake, golden flash & ring burn animations' },
+      { type: 'ui', text: 'Cooking: rarity-scaled completion sounds + error/discovery sounds' },
+      { type: 'ui', text: 'Auth screen: animated sign-in ↔ sign-up transition' },
+      { type: 'fix', text: 'Arena victory gold not being awarded in some cases' },
+      { type: 'fix', text: 'Navbar icons now display correctly when set via dashboard' },
+    ],
+  },
+  {
     version: '3.5.0',
     date: '2026-03-12',
     title: 'Cooking, DEF stat & QoL',
