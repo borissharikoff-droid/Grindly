@@ -362,7 +362,7 @@ export const CRAFT_RECIPES: CraftRecipe[] = [
     outputItemId: 'iron_bar',
     outputQty: 1,
     isIntermediate: true,
-    ingredients: [{ id: 'ore_iron', qty: 3 }],
+    ingredients: [{ id: 'ore_iron', qty: 5 }],
     levelRequired: 0,
     xpPerItem: 90,
     secPerItem: 8,
@@ -705,9 +705,9 @@ export function rollSessionMaterialDrops(
   const drops: SessionMaterialDrop[] = []
 
   if (durationHours >= 1.0) {
-    drops.push({ id: primaryId, name: MATERIAL_NAMES[primaryId], qty: 4 })
-  } else {
     drops.push({ id: primaryId, name: MATERIAL_NAMES[primaryId], qty: 2 })
+  } else if (Math.random() < 0.8) {
+    drops.push({ id: primaryId, name: MATERIAL_NAMES[primaryId], qty: 1 })
   }
 
   if (durationHours >= 2.0 && clearedZones.includes('zone3')) {
