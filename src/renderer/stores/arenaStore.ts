@@ -19,6 +19,8 @@ import { useInventoryStore } from './inventoryStore'
 import { track } from '../lib/analytics'
 import { recordDungeonComplete } from '../services/dailyActivityService'
 import { useAchievementStatsStore } from './achievementStatsStore'
+import { useWeeklyStore } from './weeklyStore'
+import { applyGuildTax } from '../services/guildService'
 
 export interface ActiveBattle {
   bossId: string
@@ -442,13 +444,24 @@ export const useArenaStore = create<ArenaState>()(
           const mob = activeBattle.mobDef
           if (state.victory) {
             get().recordKill(mob.id)
+            useWeeklyStore.getState().incrementKill()
             const hotZoneId = getHotZoneId()
             const isHotZone = activeBattle.dungeonZoneId === hotZoneId
             const goldMult = (isHotZone ? 2 : 1) * getFoodGoldMultiplier(activeBattle.foodLoadout)
             const dropMult = (isHotZone ? 2 : 1) * getFoodDropMultiplier(activeBattle.foodLoadout)
             const gold = randomGold(mob.goldMin, mob.goldMax, goldMult)
-            useGoldStore.getState().addGold(gold)
             const user = useAuthStore.getState().user
+            // Guild tax (fire-and-forget)
+            import('./guildStore').then(({ useGuildStore }) => {
+              const gs = useGuildStore.getState()
+              const taxPct = gs.myGuild?.tax_rate_pct ?? 0
+              if (taxPct > 0 && user && gs.myGuild) {
+                applyGuildTax(user.id, gs.myGuild.id, gold, taxPct).then((taxed) => {
+                  if (taxed > 0) useGoldStore.getState().addGold(-taxed)
+                }).catch(() => {})
+              }
+            }).catch(() => {})
+            useGoldStore.getState().addGold(gold)
             if (user) useGoldStore.getState().syncToSupabase(user.id)
 
             void grantWarriorXP(mob.xpReward)
@@ -488,6 +501,7 @@ export const useArenaStore = create<ArenaState>()(
           // Boss battle
           if (state.victory) {
             get().recordKill(activeBattle.bossSnapshot.id)
+            useWeeklyStore.getState().incrementKill()
             const bossForChest = activeBattle.bossSnapshot as BossDef
             const hotZoneId2 = getHotZoneId()
             const isBossHotZone = activeBattle.dungeonZoneId === hotZoneId2
