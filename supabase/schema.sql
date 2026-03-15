@@ -421,8 +421,10 @@ ALTER TABLE public.raid_participants ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "raid_participants_select" ON public.raid_participants
   FOR SELECT USING (
-    auth.uid() IN (
-      SELECT user_id FROM public.raid_participants rp2 WHERE rp2.raid_id = raid_id
+    auth.uid() = user_id
+    OR EXISTS (
+      SELECT 1 FROM public.raids r
+      WHERE r.id = raid_id AND r.leader_id = auth.uid()
     )
   );
 
