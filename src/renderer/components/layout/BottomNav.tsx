@@ -33,11 +33,11 @@ const TAB_LUCIDE_ICONS: Partial<Record<TabId, ReactNode>> = {
   settings:    <Settings className="w-[18px] h-[18px]" />,
 }
 
-const PRIMARY_TABS_DEFAULT: { id: TabId; icon: string }[] = [
-  { id: 'home',    icon: '⏱' },
-  { id: 'skills',  icon: '⚡' },
-  { id: 'friends', icon: '👥' },
-  { id: 'stats',   icon: '📊' },
+const PRIMARY_TABS_DEFAULT: { id: TabId; icon: string; label: string }[] = [
+  { id: 'home',    icon: '⏱',  label: 'Home'    },
+  { id: 'skills',  icon: '⚡',  label: 'Skills'  },
+  { id: 'friends', icon: '👥',  label: 'Friends' },
+  { id: 'stats',   icon: '📊',  label: 'Stats'   },
 ]
 
 const SECONDARY_TABS_DEFAULT: { id: TabId; icon: string; label: string }[] = [
@@ -181,8 +181,8 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
       </AnimatePresence>
 
       {/* ── Bottom nav ─────────────────────────────────────────────────────── */}
-      <div className="shrink-0 flex justify-center pb-3 pt-1">
-        <nav className="flex items-center gap-3 rounded-full bg-discord-nav border border-white/[0.07] px-3 py-1.5 shadow-nav">
+      <div className="shrink-0 flex justify-center pb-3 pt-1 px-2">
+        <nav className="flex items-stretch gap-0.5 rounded-2xl bg-discord-nav border border-white/[0.07] px-1.5 py-1.5 shadow-nav w-full max-w-xs">
           {/* Primary tabs */}
           {PRIMARY_TABS.map((tab) => {
             const active = activeTab === tab.id
@@ -196,16 +196,17 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                 key={tab.id}
                 whileTap={MOTION.interactive.tap}
                 onClick={() => navigate(tab.id)}
-                className={`relative w-9 h-9 flex items-center justify-center rounded-full text-sm transition-all duration-200 ${
+                className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-all duration-200 ${
                   active
                     ? 'bg-cyber-neon/15 text-cyber-neon shadow-glow-sm'
-                    : 'text-gray-500 hover:text-gray-300 hover:bg-white/5 hover:-translate-y-[1px]'
+                    : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
                 }`}
               >
-                <span className="grindly-tab-icon" aria-hidden><NavIcon tabId={tab.id} adminIcon={tab.icon} /></span>
+                <span className="grindly-tab-icon leading-none" aria-hidden><NavIcon tabId={tab.id} adminIcon={tab.icon} /></span>
+                <span className="text-[9px] font-mono leading-none tracking-wide">{tab.label}</span>
                 {badgeCount > 0 && (
                   <span
-                    className={`absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-1 flex items-center justify-center rounded-full text-[10px] font-bold text-white border-2 border-discord-nav ${
+                    className={`absolute -top-0.5 right-1 min-w-[14px] h-[14px] px-1 flex items-center justify-center rounded-full text-[10px] font-bold text-white border-2 border-discord-nav ${
                       isLootBadge ? 'bg-orange-500' : 'bg-discord-red'
                     }`}
                     aria-label={`${badgeCount} new`}
@@ -221,18 +222,19 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
           <motion.button
             whileTap={MOTION.interactive.tap}
             onClick={() => { playClickSound(); setMoreOpen((o) => !o) }}
-            className={`relative w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 ${
+            className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-all duration-200 ${
               moreOpen || secondaryIsActive
                 ? 'bg-cyber-neon/15 text-cyber-neon shadow-glow-sm'
-                : 'text-gray-500 hover:text-gray-300 hover:bg-white/5 hover:-translate-y-[1px]'
+                : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
             }`}
             aria-label="More"
             aria-expanded={moreOpen}
           >
             <MoreHorizontal className="w-[18px] h-[18px]" aria-hidden />
+            <span className="text-[9px] font-mono leading-none tracking-wide">More</span>
             {/* Badge dot when secondary tabs have activity */}
             {secondaryHasBadge && !moreOpen && (
-              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-discord-nav bg-lime-500" />
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full border border-discord-nav bg-lime-500" />
             )}
           </motion.button>
         </nav>
