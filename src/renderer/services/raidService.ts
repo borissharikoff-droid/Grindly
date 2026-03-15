@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { LootRarity } from '../lib/loot'
+import { skillLevelFromXP } from '../lib/skills'
 
 export type RaidTierId = 'ancient' | 'mythic' | 'eternal'
 export type RaidStatus = 'forming' | 'active' | 'won' | 'failed'
@@ -28,6 +29,7 @@ export interface Raid {
   ends_at: string | null
   tribute_items: TributeItem[]
   created_at: string
+  current_phase: number
 }
 
 export interface RaidParticipant {
@@ -55,6 +57,9 @@ export const RAID_TIER_CONFIGS = {
     icon: '🗿',
     boss_hp: 1_000_000,
     contribution_per_win: 150_000,
+    warrior_level_req: 50,
+    skill_level_req: 40,
+    party_min: 2,
     /** The combat encounter boss for daily attack sessions */
     encounter: {
       id: 'ancient_golem',
@@ -66,11 +71,11 @@ export const RAID_TIER_CONFIGS = {
       atkSpread: 0.3,
       rewards: { chestTier: 'epic_chest' as const },
     },
-    tribute_min_rarity: 'rare' as LootRarity,
-    tribute_count: 2,
+    tribute_min_rarity: 'epic' as LootRarity,
+    tribute_count: 3,
     reward_chest: 'epic_chest' as const,
     legendary_bonus_chance: 0.15,
-    description: 'A 2-day battle against a guardian of old. Demands rare tribute.',
+    description: 'A 2-day battle against a guardian of old. Demands epic tribute.',
     lore: 'The Ancient Golem stirs from centuries of slumber.',
   },
   mythic: {
@@ -80,6 +85,9 @@ export const RAID_TIER_CONFIGS = {
     icon: '🐲',
     boss_hp: 5_000_000,
     contribution_per_win: 400_000,
+    warrior_level_req: 65,
+    skill_level_req: 55,
+    party_min: 2,
     encounter: {
       id: 'mythic_hydra',
       name: 'Mythic Hydra',
@@ -90,11 +98,11 @@ export const RAID_TIER_CONFIGS = {
       atkSpread: 0.3,
       rewards: { chestTier: 'legendary_chest' as const },
     },
-    tribute_min_rarity: 'epic' as LootRarity,
-    tribute_count: 2,
+    tribute_min_rarity: 'legendary' as LootRarity,
+    tribute_count: 3,
     reward_chest: 'legendary_chest' as const,
     legendary_bonus_chance: 1.0,
-    description: 'A 4-day hunt for the mythic hydra. Demands epic tribute.',
+    description: 'A 4-day hunt for the mythic hydra. Demands legendary tribute.',
     lore: 'Seven heads. Seven deaths. A prize unlike any other.',
   },
   eternal: {
@@ -104,6 +112,9 @@ export const RAID_TIER_CONFIGS = {
     icon: '⚡',
     boss_hp: 20_000_000,
     contribution_per_win: 800_000,
+    warrior_level_req: 80,
+    skill_level_req: 70,
+    party_min: 3,
     encounter: {
       id: 'eternal_titan',
       name: 'Eternal Titan',
@@ -114,12 +125,11 @@ export const RAID_TIER_CONFIGS = {
       atkSpread: 0.35,
       rewards: { chestTier: 'legendary_chest' as const },
     },
-    tribute_min_rarity: 'legendary' as LootRarity,
+    tribute_min_rarity: 'mythic' as LootRarity,
     tribute_count: 2,
     reward_chest: 'legendary_chest' as const,
     legendary_bonus_chance: 1.0,
-    raid_medals: 10,
-    description: 'A 7-day clash with an eternal titan. Demands legendary tribute.',
+    description: 'A 7-day clash with an eternal titan. Demands mythic tribute.',
     lore: 'Before the world was named, the Titan ruled. It still does.',
   },
 } as const satisfies Record<RaidTierId, {
@@ -129,6 +139,9 @@ export const RAID_TIER_CONFIGS = {
   icon: string
   boss_hp: number
   contribution_per_win: number
+  warrior_level_req: number
+  skill_level_req: number
+  party_min: number
   encounter: {
     id: string; name: string; icon: string
     hp: number; atk: number; def: number; atkSpread: number
@@ -142,9 +155,137 @@ export const RAID_TIER_CONFIGS = {
   lore: string
 }>
 
+export const RAID_PHASE_ATK_MULT: Record<1 | 2 | 3, number> = { 1: 1.0, 2: 1.4, 3: 1.8 }
+
+export function getRaidPhase(hpRemaining: number, hpMax: number): 1 | 2 | 3 {
+  const pct = hpRemaining / hpMax
+  if (pct > 0.66) return 1
+  if (pct > 0.33) return 2
+  return 3
+}
+
+export const RAID_EXCLUSIVE_ITEM_IDS = ['raid_ancient_ring', 'raid_void_blade', 'raid_eternal_crown'] as const
+
+export interface RaidInvite {
+  id: string
+  from_user_id: string
+  to_user_id: string
+  tier: RaidTierId
+  raid_id: string
+  status: 'pending' | 'accepted' | 'declined'
+  created_at: string
+  from_username?: string | null
+}
+
 const RARITY_ORDER: LootRarity[] = ['common', 'rare', 'epic', 'legendary', 'mythic']
 export function rarityMeetsMin(rarity: LootRarity, minRarity: LootRarity): boolean {
   return RARITY_ORDER.indexOf(rarity) >= RARITY_ORDER.indexOf(minRarity)
+}
+
+export function checkRaidGates(
+  tier: RaidTierId,
+  clearedZoneIds: string[],
+  warriorLevel: number,
+  skillXp: Record<string, number>,
+  participantCount: number,
+): { ok: boolean; reason?: string } {
+  const cfg = RAID_TIER_CONFIGS[tier]
+
+  if (clearedZoneIds.length < 8) {
+    return { ok: false, reason: `Clear all 8 zones first (${clearedZoneIds.length}/8)` }
+  }
+
+  if (warriorLevel < cfg.warrior_level_req) {
+    return { ok: false, reason: `Warrior level ${warriorLevel}/${cfg.warrior_level_req} required` }
+  }
+
+  const qualifiedSkills = Object.values(skillXp).filter(
+    (xp) => skillLevelFromXP(xp) >= cfg.skill_level_req,
+  ).length
+  if (qualifiedSkills < 4) {
+    return { ok: false, reason: `Need 4+ skills at level ${cfg.skill_level_req} (${qualifiedSkills}/4)` }
+  }
+
+  if (participantCount < cfg.party_min) {
+    return { ok: false, reason: `Need ${cfg.party_min} party members (${participantCount}/${cfg.party_min})` }
+  }
+
+  return { ok: true }
+}
+
+export async function grantRaidVictoryLoot(tier: RaidTierId): Promise<string | null> {
+  const chances: Record<RaidTierId, { itemId: string; chance: number }> = {
+    ancient: { itemId: 'raid_ancient_ring', chance: 0.08 },
+    mythic: { itemId: 'raid_void_blade', chance: 0.12 },
+    eternal: { itemId: 'raid_eternal_crown', chance: 0.20 },
+  }
+  const entry = chances[tier]
+  if (Math.random() < entry.chance) return entry.itemId
+  return null
+}
+
+export async function createRaidInvite(
+  fromUserId: string,
+  toUserId: string,
+  tier: RaidTierId,
+  raidId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Supabase not configured' }
+  const { error } = await supabase.from('raid_invites').insert({
+    from_user_id: fromUserId,
+    to_user_id: toUserId,
+    tier,
+    raid_id: raidId,
+    status: 'pending',
+  })
+  return error ? { ok: false, error: error.message } : { ok: true }
+}
+
+export async function fetchPendingInvites(userId: string): Promise<RaidInvite[]> {
+  if (!supabase) return []
+  const { data } = await supabase
+    .from('raid_invites')
+    .select('*, profiles!from_user_id(username)')
+    .eq('to_user_id', userId)
+    .eq('status', 'pending')
+  if (!data) return []
+  return (data as Array<Record<string, unknown>>).map((row) => ({
+    id: row.id as string,
+    from_user_id: row.from_user_id as string,
+    to_user_id: row.to_user_id as string,
+    tier: row.tier as RaidTierId,
+    raid_id: row.raid_id as string,
+    status: row.status as 'pending' | 'accepted' | 'declined',
+    created_at: row.created_at as string,
+    from_username: (row.profiles as { username?: string } | null)?.username ?? null,
+  }))
+}
+
+export async function acceptRaidInvite(
+  inviteId: string,
+  userId: string,
+): Promise<{ ok: boolean; raidId?: string; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Supabase not configured' }
+  const { data: invite, error: fetchErr } = await supabase
+    .from('raid_invites')
+    .select('raid_id, tier')
+    .eq('id', inviteId)
+    .single()
+  if (fetchErr || !invite) return { ok: false, error: fetchErr?.message ?? 'Invite not found' }
+
+  await supabase.from('raid_invites').update({ status: 'accepted' }).eq('id', inviteId)
+
+  const raidId = (invite as { raid_id: string }).raid_id
+  const joinResult = await joinRaid(raidId, userId, null)
+  if (!joinResult.ok) return { ok: false, error: joinResult.error }
+
+  return { ok: true, raidId }
+}
+
+export async function declineRaidInvite(inviteId: string): Promise<{ ok: boolean }> {
+  if (!supabase) return { ok: false }
+  await supabase.from('raid_invites').update({ status: 'declined' }).eq('id', inviteId)
+  return { ok: true }
 }
 
 // ── Supabase CRUD ─────────────────────────────────────────────────────────────
@@ -177,12 +318,14 @@ export async function createRaid(
   if (error || !data) return { ok: false, error: error?.message ?? 'Failed to create raid' }
 
   // Add leader as first participant
-  await supabase.from('raid_participants').insert({
-    raid_id: (data as Raid).id,
-    user_id: leaderId,
-    tribute_paid: true,
-    daily_attacks: [],
-  }).then(() => {}).catch(() => {})
+  try {
+    await supabase.from('raid_participants').insert({
+      raid_id: (data as Raid).id,
+      user_id: leaderId,
+      tribute_paid: true,
+      daily_attacks: [],
+    })
+  } catch { /* non-critical */ }
 
   return { ok: true, raid: data as Raid }
 }

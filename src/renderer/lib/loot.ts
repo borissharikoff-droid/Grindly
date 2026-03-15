@@ -407,6 +407,17 @@ export const LOOT_ITEMS: LootItemDef[] = [
   { id: 'void_ring',      name: 'Void Ring',      slot: 'ring',   rarity: 'mythic', icon: '🌀', description: 'A ring forged from pure void energy.',             perkType: 'atk_boost', perkValue: 10, perkDescription: '+10 ATK',
     perks: [{ perkType: 'atk_boost', perkValue: 10, perkDescription: '+10 ATK' }, { perkType: 'hp_regen_boost', perkValue: 5, perkDescription: '+5 HP Regen' }, { perkType: 'xp_global_boost', perkValue: 0.08, perkDescription: '+8% Global XP' }] },
 
+  // Raid-exclusive mythic items (only drop from raid victories, tradeable)
+  { id: 'raid_ancient_ring', name: 'Ancient Relic Ring', slot: 'ring', rarity: 'mythic', icon: '💍', description: 'Forged in the fires of ancient raids. Untold gold flows to its bearer.',
+    perkType: 'atk_boost', perkValue: 22, perkDescription: '+22 ATK',
+    perks: [{ perkType: 'atk_boost', perkValue: 22, perkDescription: '+22 ATK' }, { perkType: 'hp_regen_boost', perkValue: 10, perkDescription: '+10 HP Regen' }] },
+  { id: 'raid_void_blade', name: 'Void Conqueror Blade', slot: 'weapon', rarity: 'mythic', icon: '🗡️', description: 'Wielded only by those who have faced the mythic hydra and lived.',
+    perkType: 'atk_boost', perkValue: 35, perkDescription: '+35 ATK',
+    perks: [{ perkType: 'atk_boost', perkValue: 35, perkDescription: '+35 ATK' }, { perkType: 'hp_regen_boost', perkValue: 15, perkDescription: '+15 HP Regen' }, { perkType: 'xp_global_boost', perkValue: 0.10, perkDescription: '+10% Global XP' }] },
+  { id: 'raid_eternal_crown', name: 'Eternal Crown', slot: 'head', rarity: 'mythic', icon: '👑', description: 'The crown of the eternal titan. Only the worthy shall wear it.',
+    perkType: 'atk_boost', perkValue: 28, perkDescription: '+28 ATK',
+    perks: [{ perkType: 'atk_boost', perkValue: 28, perkDescription: '+28 ATK' }, { perkType: 'hp_boost', perkValue: 180, perkDescription: '+180 HP' }, { perkType: 'xp_global_boost', perkValue: 0.15, perkDescription: '+15% Global XP' }, { perkType: 'def_boost', perkValue: 12, perkDescription: '+12 DEF' }] },
+
   // Intermediate crafting materials (smelted/refined from raw drops, used in gear recipes)
   ...CRAFT_INTERMEDIATE_ITEMS,
 

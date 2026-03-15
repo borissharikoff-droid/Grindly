@@ -1,21 +1,30 @@
 import { create } from 'zustand'
 import {
-  createRaid, fetchActiveRaid, joinRaid, submitDailyAttack, checkRaidExpiry,
+  createRaid, fetchActiveRaid, submitDailyAttack, checkRaidExpiry,
+  createRaidInvite, fetchPendingInvites, acceptRaidInvite, declineRaidInvite,
+  grantRaidVictoryLoot,
   RAID_TIER_CONFIGS,
-  type Raid, type RaidParticipant, type RaidTierId, type TributeItem,
+  type Raid, type RaidParticipant, type RaidTierId, type TributeItem, type RaidInvite,
 } from '../services/raidService'
 import { useAuthStore } from './authStore'
 import { useInventoryStore } from './inventoryStore'
+
+export type { RaidInvite }
 
 interface RaidState {
   activeRaid: Raid | null
   participants: RaidParticipant[]
   isLoading: boolean
   error: string | null
+  pendingInvites: RaidInvite[]
 
   fetchRaid: () => Promise<void>
   startRaid: (tier: RaidTierId, tributeItems: TributeItem[]) => Promise<{ ok: boolean; error?: string }>
-  attackBoss: (damageDealt: number, wonFight: boolean) => Promise<{ ok: boolean; raidWon: boolean; error?: string }>
+  attackBoss: (damageDealt: number, wonFight: boolean) => Promise<{ ok: boolean; raidWon: boolean; lootItemId?: string; error?: string }>
+  fetchInvites: () => Promise<void>
+  sendInvite: (toUserId: string, toUsername: string) => Promise<{ ok: boolean; error?: string }>
+  acceptInvite: (inviteId: string) => Promise<{ ok: boolean; error?: string }>
+  declineInvite: (inviteId: string) => Promise<{ ok: boolean }>
   /** Clear error */
   clearError: () => void
 }
@@ -25,6 +34,7 @@ export const useRaidStore = create<RaidState>()((set, get) => ({
   participants: [],
   isLoading: false,
   error: null,
+  pendingInvites: [],
 
   clearError: () => set({ error: null }),
 
@@ -116,11 +126,52 @@ export const useRaidStore = create<RaidState>()((set, get) => ({
         await get().fetchRaid()
       }
 
-      return result
+      let lootItemId: string | undefined
+      if (result.ok && result.raidWon) {
+        const dropped = await grantRaidVictoryLoot(activeRaid.tier)
+        if (dropped) {
+          useInventoryStore.getState().addItem(dropped, 1)
+          lootItemId = dropped
+        }
+      }
+
+      return { ...result, lootItemId }
     } catch (err) {
       return { ok: false, raidWon: false, error: String(err) }
     } finally {
       set({ isLoading: false })
     }
+  },
+
+  async fetchInvites() {
+    const user = useAuthStore.getState().user
+    if (!user) return
+    const invites = await fetchPendingInvites(user.id)
+    set({ pendingInvites: invites })
+  },
+
+  async sendInvite(toUserId, _toUsername) {
+    const user = useAuthStore.getState().user
+    const { activeRaid } = get()
+    if (!user) return { ok: false, error: 'Not logged in' }
+    if (!activeRaid) return { ok: false, error: 'No active raid' }
+    return createRaidInvite(user.id, toUserId, activeRaid.tier, activeRaid.id)
+  },
+
+  async acceptInvite(inviteId) {
+    const user = useAuthStore.getState().user
+    if (!user) return { ok: false, error: 'Not logged in' }
+    const result = await acceptRaidInvite(inviteId, user.id)
+    if (result.ok) {
+      set((s) => ({ pendingInvites: s.pendingInvites.filter((i) => i.id !== inviteId) }))
+      await get().fetchRaid()
+    }
+    return result
+  },
+
+  async declineInvite(inviteId) {
+    const result = await declineRaidInvite(inviteId)
+    set((s) => ({ pendingInvites: s.pendingInvites.filter((i) => i.id !== inviteId) }))
+    return result
   },
 }))
