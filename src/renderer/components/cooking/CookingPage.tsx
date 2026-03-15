@@ -38,6 +38,7 @@ import {
   playCookDiscoverySound,
 } from '../../lib/sounds'
 import { BackpackButton } from '../shared/BackpackButton'
+import { PageHeader } from '../shared/PageHeader'
 import { InventoryPage } from '../inventory/InventoryPage'
 import { syncInventoryToSupabase } from '../../services/supabaseSync'
 import { useAuthStore } from '../../stores/authStore'
@@ -67,109 +68,7 @@ function getItemDef(id: string) {
   return LOOT_ITEMS.find((x) => x.id === id) ?? null
 }
 
-// ── CSS ──────────────────────────────────────────────────────────────────────
-const STYLE_ID = 'kitchen-v12-css'
-function ensureStyles() {
-  if (document.getElementById(STYLE_ID)) return
-  for (let i = 4; i <= 11; i++) document.getElementById(`kitchen-v${i}-css`)?.remove()
-  const s = document.createElement('style')
-  s.id = STYLE_ID
-  s.textContent = `
-    .kv-scroll { -ms-overflow-style:none; scrollbar-width:none; }
-    .kv-scroll::-webkit-scrollbar { display:none; }
-
-    /* Ember rise particles from active cooking */
-    .kv-ember-rise { animation: kv-ember-rise var(--dur,2s) ease-out infinite; }
-    @keyframes kv-ember-rise {
-      0%   { transform: translateY(0) scale(1); opacity: 0; }
-      15%  { opacity: .6; }
-      100% { transform: translateY(-40px) scale(.2); opacity: 0; }
-    }
-
-    /* Molten flow through connectors */
-    .kv-flow { animation: kv-flow 1.5s linear infinite; }
-    @keyframes kv-flow {
-      0%   { background-position: 0% 50%; }
-      100% { background-position: 200% 50%; }
-    }
-
-    /* Ember pulse glow for active instrument */
-    .ember-pulse { animation: ember-pulse 2s ease-in-out infinite; }
-    @keyframes ember-pulse {
-      0%,100% { box-shadow: 0 0 0 0 rgba(194,120,64,0); }
-      50% { box-shadow: 0 0 18px 5px rgba(194,120,64,.45), 0 0 36px 10px rgba(194,120,64,.15), 0 0 6px 2px rgba(226,176,82,.7); }
-    }
-
-    /* Active action icon bounce */
-    .kv-action-bounce { animation: kv-action-bounce .6s ease-in-out infinite; }
-    @keyframes kv-action-bounce {
-      0%,100% { transform: translateY(0) rotate(0deg); }
-      25% { transform: translateY(-4px) rotate(-8deg); }
-      75% { transform: translateY(-4px) rotate(8deg); }
-    }
-
-    /* Ring progress */
-    .kv-ring-bg { stroke: rgba(255,255,255,.06); }
-    .kv-ring-fg { stroke: url(#kv-pipe-grad); stroke-linecap: round; filter: drop-shadow(0 0 4px rgba(194,120,64,.4)); transition: none; }
-
-    .kv-ripple {
-      position: absolute; border-radius: 50%;
-      background: radial-gradient(circle, rgba(194,120,64,.2) 0%, transparent 70%);
-      transform: scale(0); animation: kv-ripple-go .5s ease-out forwards;
-      pointer-events: none;
-    }
-    @keyframes kv-ripple-go { to { transform: scale(2.5); opacity: 0; } }
-
-    /* Confetti particles */
-    .kv-confetti { animation: kv-confetti-fall var(--dur,1s) ease-out forwards; pointer-events: none; }
-    @keyframes kv-confetti-fall {
-      0% { transform: translateY(0) rotate(0) scale(1); opacity: 1; }
-      100% { transform: translateY(40px) rotate(var(--rot,180deg)) scale(.3); opacity: 0; }
-    }
-
-    /* Shake animation */
-    .kv-shake { animation: kv-shake .4s ease-in-out; }
-    @keyframes kv-shake {
-      0%,100% { transform: translateX(0); }
-      20% { transform: translateX(-4px); }
-      40% { transform: translateX(4px); }
-      60% { transform: translateX(-3px); }
-      80% { transform: translateX(3px); }
-    }
-
-    /* Golden flash overlay */
-    .kv-golden-flash {
-      animation: kv-golden-flash .6s ease-out forwards;
-      pointer-events: none;
-    }
-    @keyframes kv-golden-flash {
-      0% { opacity: .4; }
-      100% { opacity: 0; }
-    }
-
-    /* Ring burn flash */
-    .kv-ring-burn { animation: kv-ring-burn .5s ease-out; }
-    @keyframes kv-ring-burn {
-      0% { filter: drop-shadow(0 0 8px rgba(232,102,90,.8)); }
-      100% { filter: drop-shadow(0 0 4px rgba(194,120,64,.4)); }
-    }
-
-    /* Ring bonus flash */
-    .kv-ring-bonus { animation: kv-ring-bonus .5s ease-out; }
-    @keyframes kv-ring-bonus {
-      0% { filter: drop-shadow(0 0 8px rgba(155,143,239,.8)); }
-      100% { filter: drop-shadow(0 0 4px rgba(194,120,64,.4)); }
-    }
-
-    /* Pulse for cauldron nudge */
-    .kv-pulse { animation: kv-pulse 2s ease-in-out infinite; }
-    @keyframes kv-pulse {
-      0%,100% { opacity: .7; }
-      50% { opacity: 1; }
-    }
-  `
-  document.head.appendChild(s)
-}
+// CSS animations for cooking are defined in globals.css (kv-* classes)
 
 function spawnRipple(e: React.MouseEvent<HTMLElement>) {
   const el = e.currentTarget
@@ -209,6 +108,7 @@ function spawnConfetti(container: HTMLElement, count: number, colors: string[] =
 
 function CookingStation({ onCancel }: { onCancel: (id: string) => void }) {
   const activeJob = useCookingStore((s) => s.activeJob)
+  const queue = useCookingStore((s) => s.queue)
   const lastRoll = useCookingStore((s) => s.lastRoll)
 
   const [timer, setTimer] = useState('--')
@@ -218,8 +118,6 @@ function CookingStation({ onCancel }: { onCancel: (id: string) => void }) {
   const [itemPop, setItemPop] = useState(0)
   const [ringFlash, setRingFlash] = useState<'burn' | 'bonus' | null>(null)
   const prevRollRef = useRef<{ burned: number; bonus: number } | null>(null)
-
-  useEffect(() => { ensureStyles() }, [])
 
   useEffect(() => {
     if (!activeJob) { prevDoneRef.current = 0; return }
@@ -378,6 +276,22 @@ function CookingStation({ onCancel }: { onCancel: (id: string) => void }) {
             {lastRoll.burned > 0 && <span style={{ color: K.warn }}>Last item burned! </span>}
             {lastRoll.bonus > 0 && <span style={{ color: K.indigo }}>Bonus output! </span>}
           </p>
+        )}
+
+        {queue.length > 0 && (
+          <div className="mt-1.5 space-y-0.5 border-t pt-1.5" style={{ borderColor: K.faint }}>
+            {queue.map((job, i) => {
+              const qOut = FOOD_ITEM_MAP[job.outputItemId]
+              return (
+                <div key={job.id} className="flex items-center gap-1.5 px-1 py-0.5 text-[9px] font-mono" style={{ color: K.muted }}>
+                  <span style={{ color: `${K.muted}80` }}>{i + 1}.</span>
+                  {qOut?.icon && <span>{qOut.icon}</span>}
+                  <span className="truncate">{qOut?.name ?? job.outputItemId}</span>
+                  <span className="ml-auto shrink-0" style={{ color: `${K.muted}80` }}>×{job.totalQty}</span>
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
     </motion.div>
@@ -1679,7 +1593,7 @@ export function CookingPage() {
   const completionBannerRef = useRef<HTMLDivElement>(null)
   const prevJobIdRef = useRef<string | null>(null)
 
-  useEffect(() => { hydrate(); ensureStyles() }, [hydrate])
+  useEffect(() => { hydrate() }, [hydrate])
 
   // Welcome overlay on first visit
   useEffect(() => {
@@ -1811,35 +1725,32 @@ export function CookingPage() {
   if (showBP) return <InventoryPage onBack={() => setShowBP(false)} />
 
   return (
-    <div className="pb-24 min-h-full" style={{ background: K.pageBg }}>
+    <div className="pb-20 min-h-full" style={{ background: K.pageBg }}>
       <div className="absolute top-0 left-0 right-0 h-40 pointer-events-none"
         style={{ background: `radial-gradient(ellipse 80% 100% at 50% 0%, ${K.copper}04 0%, transparent 70%)` }} />
 
       {/* ── Header ── */}
       <div className="px-4 pt-4 pb-2 relative">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-              style={{ background: `${K.copper}0c`, border: `1px solid ${K.copper}18` }}>
-              🍳
+        <PageHeader
+          title="Cooking"
+          icon={<span className="text-base leading-none">🍳</span>}
+          titleSlot={
+            <div className="flex items-center gap-2 ml-1">
+              <span className="text-[10px]" style={{ color: K.muted }}>
+                Lv <span className="font-bold" style={{ color: K.copper }}>{chefLvl}</span>
+              </span>
+              <span className="text-[9px] font-mono" style={{ color: K.xp }}>{xpCur.toLocaleString()} XP</span>
             </div>
-            <div>
-              <h1 className="text-[15px] font-bold" style={{ color: K.cream }}>Cooking</h1>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[10px]" style={{ color: K.muted }}>
-                  Cooking Level <span className="font-bold" style={{ color: K.copper }}>{chefLvl}</span>
-                </span>
-                <span className="text-[9px] font-mono" style={{ color: K.xp }}>{xpCur.toLocaleString()} XP</span>
-              </div>
+          }
+          rightSlot={
+            <div className="flex items-center gap-2">
+              <button onClick={() => setShowGuide(true)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-[12px] font-bold"
+                style={{ color: K.muted, background: 'rgba(255,255,255,.03)', border: `1px solid ${K.faint}` }}>?</button>
+              <BackpackButton onClick={() => setShowBP(true)} />
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setShowGuide(true)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-[12px] font-bold"
-              style={{ color: K.muted, background: 'rgba(255,255,255,.03)', border: `1px solid ${K.faint}` }}>?</button>
-            <BackpackButton onClick={() => setShowBP(true)} />
-          </div>
-        </div>
+          }
+        />
 
         <div className="mt-2.5 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,.04)' }}>
           <div className="h-full rounded-full" style={{

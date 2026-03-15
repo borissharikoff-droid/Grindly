@@ -8,6 +8,8 @@ import { useCookingStore } from '../../stores/cookingStore'
 import { MOTION } from '../../lib/motion'
 import { SkeletonBlock } from '../shared/PageLoading'
 import { EmptyState } from '../shared/EmptyState'
+import { PageHeader } from '../shared/PageHeader'
+import { Zap } from '../../lib/icons'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -669,21 +671,17 @@ export function SkillsPage() {
       className="p-4 pb-20 max-w-lg mx-auto overflow-auto"
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyber-neon/20 to-cyber-neon/5 border border-cyber-neon/30 flex items-center justify-center">
-            <span className="text-cyber-neon text-sm">⚔</span>
+      <PageHeader
+        title="Skills"
+        icon={<Zap className="w-4 h-4 text-cyber-neon" />}
+        className="mb-5"
+        rightSlot={
+          <div className="text-right">
+            <p className="text-cyber-neon font-mono text-lg font-bold leading-tight">{totalLevel}</p>
+            <p className="text-[10px] text-gray-500 font-mono">TOTAL LVL</p>
           </div>
-          <div>
-            <h1 className="text-base font-bold text-white leading-tight">Skills</h1>
-            <p className="text-[10px] text-gray-500 font-mono">LEVEL UP YOUR CRAFT</p>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-cyber-neon font-mono text-lg font-bold leading-tight">{totalLevel}</p>
-          <p className="text-[10px] text-gray-500 font-mono">TOTAL LVL</p>
-        </div>
-      </div>
+        }
+      />
 
       {/* Empty state */}
       {!levelingSkillId && totalLevel <= 8 && skillData.length === 0 && (

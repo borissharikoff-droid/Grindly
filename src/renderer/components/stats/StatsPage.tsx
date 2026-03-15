@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
+import { getBestStreak } from '../../services/dailyActivityService'
 import { useEscapeHandler } from '../../hooks/useEscapeHandler'
 import { motion, AnimatePresence } from 'framer-motion'
 import { SessionDetail } from './SessionDetail'
@@ -10,6 +11,8 @@ import { CATEGORY_COLORS, CATEGORY_EMOJI, CATEGORY_LABELS } from '../../lib/uiCo
 import { PageLoading } from '../shared/PageLoading'
 import { EmptyState } from '../shared/EmptyState'
 import { SkeletonBlock } from '../shared/PageLoading'
+import { PageHeader } from '../shared/PageHeader'
+import { BarChart3, RefreshCw } from '../../lib/icons'
 
 export interface SessionRecord {
   id: string
@@ -496,28 +499,28 @@ export function StatsPage() {
           <div key="overview" className="space-y-4">
 
             {/* Header */}
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-[28px] leading-none font-semibold text-white">Activity Insights</h2>
+            <PageHeader
+              title="Activity Insights"
+              icon={<BarChart3 className="w-4 h-4 text-blue-400" />}
+              titleSlot={
                 <span className={`text-[11px] w-[62px] transition-opacity ${refreshing ? 'text-cyber-neon/80 opacity-100' : 'opacity-0'}`}>Updating...</span>
-                {totalSessions > 0 && (
-                  <div>
+              }
+              rightSlot={
+                <div className="flex items-center gap-2">
+                  {totalSessions > 0 && (
                     <button
                       type="button"
                       className="text-xs px-3 py-1.5 rounded-full bg-discord-card border border-white/10 text-gray-300 inline-flex items-center justify-center min-w-[148px]"
                     >
                       <span>Activity style: {persona.emoji} {persona.label}</span>
                     </button>
-                  </div>
-                )}
-              </div>
-              <button onClick={() => loadData(true)} className="w-7 h-7 rounded-lg bg-discord-card border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors" title="Refresh">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 2v6h-6" /><path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-                  <path d="M3 22v-6h6" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-                </svg>
-              </button>
-            </div>
+                  )}
+                  <button onClick={() => loadData(true)} className="w-7 h-7 rounded-lg bg-discord-card border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors" title="Refresh">
+                    <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+              }
+            />
 
             {/* Time filter */}
             <div className="space-y-2">
@@ -591,6 +594,32 @@ export function StatsPage() {
                 )}
               </div>
             </div>
+
+            {/* Personal Records */}
+            {(getBestStreak() > 0 || (distractionMetrics?.longest_focus_minutes ?? 0) > 0 || sessions.length > 0) && (() => {
+              const bestStreak = getBestStreak()
+              const longestFocus = distractionMetrics?.longest_focus_minutes ?? 0
+              const longestSession = sessions.length > 0 ? Math.max(...sessions.map((s) => s.duration_seconds)) : 0
+              return (
+                <div className="rounded-xl bg-discord-card/80 border border-white/10 p-3">
+                  <p className="text-xs font-semibold tracking-wide text-gray-300 mb-2">Personal Records</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-lg border border-white/8 bg-discord-darker/50 p-2.5 text-center">
+                      <p className="text-[10px] text-gray-500 font-mono mb-0.5">Best streak</p>
+                      <p className="text-cyber-neon font-mono font-bold text-base leading-none">{bestStreak}d</p>
+                    </div>
+                    <div className="rounded-lg border border-white/8 bg-discord-darker/50 p-2.5 text-center">
+                      <p className="text-[10px] text-gray-500 font-mono mb-0.5">Longest focus</p>
+                      <p className="text-discord-purple font-mono font-bold text-base leading-none">{longestFocus}m</p>
+                    </div>
+                    <div className="rounded-lg border border-white/8 bg-discord-darker/50 p-2.5 text-center">
+                      <p className="text-[10px] text-gray-500 font-mono mb-0.5">Longest session</p>
+                      <p className="text-amber-300 font-mono font-bold text-base leading-none">{longestSession > 0 ? formatDuration(longestSession) : '—'}</p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* 2/5 Habits & Risks */}
             {habitItems.length > 0 && (
