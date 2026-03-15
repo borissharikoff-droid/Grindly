@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } fro
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ZONES,
-  isZoneUnlocked, getMissingGateItems, canAffordEntry, getDailyBossId, effectiveBossDps, type ZoneDef,
+  isZoneUnlocked, canAffordEntry, getDailyBossId, effectiveBossDps, type ZoneDef,
 } from '../../lib/combat'
 
 const RaidsTab = lazy(() => import('./RaidsTab').then((m) => ({ default: m.RaidsTab })))
@@ -209,20 +209,6 @@ function ZoneCard({
   const currentEnemy = isActive ? (isBossFight ? zone.boss : zone.mobs[mobIndex]) : null
   const battleComplete = isActive && battleState?.isComplete === true
 
-  const reqTexts: string[] = []
-  if (zone.prevZoneId && !clearedZones.includes(zone.prevZoneId)) {
-    const prevZone = ZONES.find((z) => z.id === zone.prevZoneId)
-    reqTexts.push(`Clear ${prevZone?.name ?? zone.prevZoneId}`)
-  }
-  if (zone.warriorLevelRequired && (skillLevels['warrior'] ?? 0) < zone.warriorLevelRequired) {
-    reqTexts.push(`Warrior Lvl.${zone.warriorLevelRequired}`)
-  }
-  const missingGate = getMissingGateItems(zone, ownedItems)
-  for (const itemId of missingGate) {
-    const item = LOOT_ITEMS.find((x) => x.id === itemId)
-    reqTexts.push(`Need ${item?.icon ?? '📦'} ${item?.name ?? itemId}`)
-  }
-
   const affordable = canAffordEntry(zone, ownedItems)
   const tc = zone.themeColor
 
@@ -271,86 +257,83 @@ function ZoneCard({
 
   return (
     <div>
-      {/* Zone header */}
+      {/* Zone card */}
       <motion.div
-        initial={{ opacity: 0, y: 6 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: MOTION.duration.base, ease: MOTION.easing }}
-        className={`rounded-2xl border transition-all relative overflow-hidden ${
-          isActive ? 'rounded-b-none border-b-0' : ''
-        }`}
+        className={`rounded-2xl border overflow-hidden ${isActive ? 'rounded-b-none border-b-0' : ''}`}
         style={isActive ? {
           borderColor: `${tc}55`,
-          background: `linear-gradient(105deg, ${tc}22 0%, ${tc}08 45%, rgba(12,12,20,0.98) 100%)`,
+          background: `linear-gradient(160deg, ${tc}22 0%, rgba(13,13,26,0.97) 60%)`,
         } : unlocked ? {
           borderColor: `${tc}28`,
-          background: `linear-gradient(105deg, ${tc}14 0%, ${tc}05 45%, rgba(14,14,22,0.97) 100%)`,
+          background: `linear-gradient(160deg, ${tc}08 0%, rgba(13,13,26,0.97) 60%)`,
         } : {
           borderColor: 'rgba(255,255,255,0.08)',
           background: 'rgba(14,14,22,0.7)',
         }}
       >
-        {/* Left accent bar */}
-        <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-2xl"
-          style={{ background: unlocked ? `linear-gradient(180deg, ${tc}cc 0%, ${tc}33 100%)` : 'rgba(255,255,255,0.06)' }} />
-        <div className="p-3.5 pl-4">
-        <div className="flex gap-3">
-          {/* Boss portrait */}
-          <div
-            className="shrink-0 w-16 h-16 rounded-xl border flex items-center justify-center text-3xl relative overflow-hidden"
-            style={{
-              borderColor: isActive ? `${tc}65` : unlocked ? `${tc}38` : 'rgba(255,255,255,0.08)',
-              background: isActive
-                ? `radial-gradient(circle at 50% 65%, ${tc}35 0%, ${tc}0a 70%)`
-                : unlocked
-                  ? `radial-gradient(circle at 50% 65%, ${tc}25 0%, ${tc}07 70%)`
-                  : 'rgba(255,255,255,0.03)',
-              filter: !unlocked ? 'grayscale(0.85) brightness(0.4)' : undefined,
-            }}
-          >
-            {zone.boss.image
-              ? <img src={zone.boss.image} alt="" className="w-10 h-10 object-contain" />
-              : <span className="leading-none">{zone.boss.icon}</span>}
-            {cleared && !isActive && (
-              <span className="absolute bottom-0.5 right-1 text-[10px] leading-none opacity-70" style={{ color: tc }}>✓</span>
-            )}
-          </div>
+        {/* Header */}
+        <div className="px-4 pt-4 pb-3">
+          <div className="flex items-start gap-3">
+            {/* Zone icon with glow animation */}
+            <motion.div
+              animate={unlocked ? {
+                filter: [`drop-shadow(0 0 4px ${tc}40)`, `drop-shadow(0 0 10px ${tc}80)`, `drop-shadow(0 0 4px ${tc}40)`],
+              } : {}}
+              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+              className="text-4xl leading-none shrink-0"
+              style={{ filter: !unlocked ? 'grayscale(0.85) brightness(0.4)' : undefined }}
+            >
+              {zone.image
+                ? <img src={zone.image} alt="" className="w-10 h-10 object-contain" />
+                : zone.icon}
+            </motion.div>
 
-          {/* Zone info */}
-          <div className="min-w-0 flex-1 flex flex-col">
-            {/* Name + badges */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <p className={`text-[14px] font-bold leading-tight ${unlocked ? 'text-white' : 'text-gray-500'}`}>
-                {zone.name}
-              </p>
-              {cleared && !isActive && killCount > 0 && (
-                <span className="text-[8px] border border-amber-500/50 text-amber-400/80 font-mono px-1.5 py-0.5 rounded-md">×{killCount}</span>
-              )}
-              {isActive && (
-                <span className="text-[8px] font-semibold font-mono px-1.5 py-0.5 rounded-md animate-pulse"
-                  style={{ color: tc, border: `1px solid ${tc}40`, background: `${tc}15` }}>
-                  ● {isAutoMode ? 'AUTO' : 'ACTIVE'}
-                </span>
-              )}
-              {isHotZone && (
-                <span className="text-[8px] font-bold font-mono px-1.5 py-0.5 rounded-md border border-orange-500/60 text-orange-400 bg-orange-500/10 animate-pulse">
-                  🔥 HOT
-                </span>
-              )}
-            </div>
+            <div className="flex-1 min-w-0">
+              {/* Name + badges */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className={`text-[13px] font-bold ${unlocked ? 'text-white' : 'text-gray-500'}`}>
+                  {zone.name}
+                </p>
+                {cleared && !isActive && killCount > 0 && (
+                  <span className="text-[8px] font-mono px-1.5 py-0.5 rounded-full border border-amber-500/50 text-amber-400/80">×{killCount}</span>
+                )}
+                {isActive && (
+                  <span className="text-[8px] font-semibold font-mono px-1.5 py-0.5 rounded-full animate-pulse"
+                    style={{ color: tc, border: `1px solid ${tc}40`, background: `${tc}15` }}>
+                    ● {isAutoMode ? 'AUTO' : 'ACTIVE'}
+                  </span>
+                )}
+                {isHotZone && (
+                  <span className="text-[8px] font-bold font-mono px-1.5 py-0.5 rounded-full border border-orange-500/60 text-orange-400 bg-orange-500/10 animate-pulse">
+                    🔥 HOT
+                  </span>
+                )}
+              </div>
 
-            {/* Boss subtitle */}
-            {!isActive && (
-              <p className="text-[9px] font-mono mt-0.5" style={{ color: unlocked ? `${tc}99` : 'rgba(255,255,255,0.25)' }}>
+              {/* Boss name as lore text */}
+              <p className="text-[9px] text-gray-500 mt-0.5 leading-snug italic">
                 {zone.boss.name}
               </p>
-            )}
+            </div>
+          </div>
 
-            {/* Mob chain */}
-            <div className="flex items-center gap-0.5 mt-1.5">
+          {/* Stats row */}
+          {!isActive && (
+            <div className="flex gap-3 mt-3 text-[9px] font-mono text-gray-500">
+              <span>Boss HP <span className="text-white">{formatShort(zone.boss.hp)}</span></span>
+              <span>Reward <span className="text-amber-400">{zone.boss.rewards.chestTier.replace('_chest', '')}</span></span>
+              <span>Mobs <span className="text-white">{zone.mobs.length} + boss</span></span>
+            </div>
+          )}
+
+          {/* Mob chain progress (active only) */}
+          {isActive && (
+            <div className="flex items-center gap-0.5 mt-2">
               {zone.mobs.map((mob, i) => {
-                const done = isActive && i < mobIndex
-                const current = isActive && i === mobIndex && !isBossFight
+                const done = i < mobIndex
+                const current = i === mobIndex && !isBossFight
                 return (
                   <span key={mob.id}
                     className={`text-sm leading-none transition-all ${done ? 'opacity-30' : current ? '' : 'opacity-55'}`}
@@ -370,121 +353,149 @@ function ZoneCard({
                   : zone.boss.icon}
               </span>
             </div>
-
-            {/* Power bar + requirements + buttons (hidden during active battle) */}
-            {!isActive && (
-              <div className="mt-2 space-y-1.5">
-                {/* Power match bar */}
-                {playerAtk !== undefined && unlocked && (() => {
-                  const ratio = playerAtk / zone.boss.atk
-                  const barPct = Math.min((ratio / 1.5) * 100, 100)
-                  const barColor = ratio >= 1.2 ? '#4ade80' : ratio >= 0.85 ? '#fbbf24' : '#f87171'
-                  const label = ratio >= 1.2 ? 'Ready' : ratio >= 0.85 ? 'Caution' : 'Danger'
-                  return (
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                        <div className="h-full rounded-full transition-all duration-700"
-                          style={{ width: `${barPct}%`, background: barColor, boxShadow: `0 0 6px ${barColor}70` }} />
-                      </div>
-                      <span className="text-[9px] font-mono font-semibold shrink-0 w-12 text-right" style={{ color: barColor }}>{label}</span>
-                    </div>
-                  )
-                })()}
-
-                {/* Requirements chips */}
-                {(reqTexts.length > 0 || (zone.entryCost && zone.entryCost.length > 0)) && (
-                  <div className="flex items-center gap-1 flex-wrap">
-                    {reqTexts.map((txt) => (
-                      <span key={txt}
-                        className="inline-flex items-center text-[9px] font-mono px-1.5 py-0.5 rounded-md"
-                        style={{ color: '#f87171', background: 'rgba(248,113,113,0.10)', border: '1px solid rgba(248,113,113,0.18)' }}>
-                        {txt}
-                      </span>
-                    ))}
-                    {zone.entryCost?.map((c) => {
-                      const item = LOOT_ITEMS.find((x) => x.id === c.itemId)
-                      const owned = ownedItems[c.itemId] ?? 0
-                      const enough = owned >= c.quantity
-                      return (
-                        <span key={c.itemId}
-                          className="inline-flex items-center gap-0.5 text-[9px] font-mono px-1.5 py-0.5 rounded-md"
-                          style={{
-                            color: enough ? 'rgba(255,255,255,0.65)' : '#f87171',
-                            background: enough ? 'rgba(255,255,255,0.05)' : 'rgba(248,113,113,0.10)',
-                            border: `1px solid ${enough ? 'rgba(255,255,255,0.10)' : 'rgba(248,113,113,0.18)'}`,
-                          }}>
-                          {item?.icon ?? '📦'} {item?.name ?? c.itemId} ×{c.quantity}
-                          <span className="ml-0.5 opacity-55">({owned})</span>
-                        </span>
-                      )
-                    })}
-                  </div>
-                )}
-
-                {/* Enter / status row */}
-                {unlocked && !activeBattle && affordable ? (
-                  <div className="flex gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => { playClickSound(); onEnter(zone.id) }}
-                      className="flex-1 py-2 rounded-xl text-[12px] font-bold transition-all active:scale-[0.97]"
-                      style={{ color: '#fff', border: `1px solid ${tc}60`, background: `linear-gradient(135deg, ${tc}35 0%, ${tc}18 100%)`, textShadow: `0 0 10px ${tc}` }}
-                    >
-                      ⚔ Enter
-                    </button>
-                    {cleared && passCount > 0 && (
-                      <button
-                        type="button"
-                        title={`Auto-run ${passCount} dungeon pass${passCount === 1 ? '' : 'es'} — runs automatically without manual battles`}
-                        onClick={() => { playClickSound(); onAutoFarm(zone.id) }}
-                        className="px-3 py-2 rounded-xl text-[10px] font-semibold transition-all active:scale-[0.97]"
-                        style={{ color: '#fbbf24', border: '1px solid rgba(251,191,36,0.28)', background: 'rgba(251,191,36,0.08)' }}
-                      >
-                        🎫 ×{passCount}
-                      </button>
-                    )}
-                  </div>
-                ) : activeBattle ? (
-                  <div className="w-full py-1.5 rounded-xl text-[10px] font-mono text-center text-gray-500 border border-white/[0.06]">
-                    In battle...
-                  </div>
-                ) : !affordable ? (
-                  <div className="flex flex-wrap items-center gap-1.5 px-2 py-1.5 rounded-xl border border-white/[0.06]">
-                    <span className="text-[9px] text-gray-500 font-mono shrink-0">Entry cost:</span>
-                    {zone.entryCost?.map((c) => {
-                      const item = LOOT_ITEMS.find((x) => x.id === c.itemId)
-                      const owned = ownedItems[c.itemId] ?? 0
-                      const enough = owned >= c.quantity
-                      return (
-                        <span key={c.itemId}
-                          className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-md"
-                          style={{
-                            color: enough ? 'rgba(255,255,255,0.65)' : '#f87171',
-                            background: enough ? 'rgba(255,255,255,0.06)' : 'rgba(248,113,113,0.12)',
-                            border: `1px solid ${enough ? 'rgba(255,255,255,0.10)' : 'rgba(248,113,113,0.22)'}`,
-                          }}
-                        >
-                          <span>{item?.icon ?? '📦'}</span>
-                          <span>{item?.name ?? c.itemId}</span>
-                          <span className="opacity-70">×{c.quantity}</span>
-                          <span className="opacity-45">({owned})</span>
-                        </span>
-                      )
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
-        {/* Food loadout selector */}
-        {!isActive && unlocked && !activeBattle && foodSlots && onFoodChange && (
-          <div className="mt-2.5 pt-2 border-t border-white/[0.06]">
-            <FoodSelector slots={foodSlots} onChange={onFoodChange} ownedItems={ownedItems} />
-          </div>
+        {/* Power bar + Requirements + CTA (hidden while active battle) */}
+        {!isActive && (
+          <>
+            {/* Power match bar */}
+            {playerAtk !== undefined && unlocked && (() => {
+              const ratio = playerAtk / zone.boss.atk
+              const barPct = Math.min((ratio / 1.5) * 100, 100)
+              const barColor = ratio >= 1.2 ? '#4ade80' : ratio >= 0.85 ? '#fbbf24' : '#f87171'
+              const label = ratio >= 1.2 ? 'Ready' : ratio >= 0.85 ? 'Caution' : 'Danger'
+              return (
+                <div className="px-4 pb-2 flex items-center gap-2">
+                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                    <div className="h-full rounded-full transition-all duration-700"
+                      style={{ width: `${barPct}%`, background: barColor, boxShadow: `0 0 6px ${barColor}70` }} />
+                  </div>
+                  <span className="text-[9px] font-mono font-semibold shrink-0 w-12 text-right" style={{ color: barColor }}>{label}</span>
+                </div>
+              )
+            })()}
+
+            {/* Requirements section */}
+            <div className="px-4 pb-3 space-y-1.5 border-t" style={{ borderColor: `${tc}12` }}>
+              <p className="text-[8px] uppercase tracking-wider font-mono text-gray-600 mt-2.5">Requirements</p>
+
+              {/* Prev zone unlock */}
+              {zone.prevZoneId && (() => {
+                const prevZone = ZONES.find((z) => z.id === zone.prevZoneId)
+                const done = clearedZones.includes(zone.prevZoneId!)
+                return (
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] ${done ? 'text-green-400' : 'text-red-400'}`}>{done ? '✓' : '✗'}</span>
+                    <span className="text-[10px] text-gray-400">Clear {prevZone?.name ?? zone.prevZoneId}</span>
+                  </div>
+                )
+              })()}
+
+              {/* Warrior level */}
+              {zone.warriorLevelRequired && (() => {
+                const hasLevel = (skillLevels['warrior'] ?? 0) >= zone.warriorLevelRequired!
+                return (
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] ${hasLevel ? 'text-green-400' : 'text-red-400'}`}>{hasLevel ? '✓' : '✗'}</span>
+                    <span className="text-[10px] text-gray-400">Warrior Lvl.{zone.warriorLevelRequired}</span>
+                  </div>
+                )
+              })()}
+
+              {/* Gate items */}
+              {zone.gateItems?.map((gateItemId) => {
+                const item = LOOT_ITEMS.find((x) => x.id === gateItemId)
+                const has = (ownedItems[gateItemId] ?? 0) >= 1
+                return (
+                  <div key={gateItemId} className="flex items-center gap-2">
+                    <span className={`text-[10px] ${has ? 'text-green-400' : 'text-red-400'}`}>{has ? '✓' : '✗'}</span>
+                    <span className="text-[10px] text-gray-400">{item?.icon ?? '📦'} {item?.name ?? gateItemId}</span>
+                  </div>
+                )
+              })}
+
+              {/* Entry cost (per run) */}
+              {zone.entryCost?.map((c) => {
+                const item = LOOT_ITEMS.find((x) => x.id === c.itemId)
+                const owned = ownedItems[c.itemId] ?? 0
+                const enough = owned >= c.quantity
+                return (
+                  <div key={c.itemId} className="flex items-center gap-2">
+                    <span className={`text-[10px] ${enough ? 'text-green-400' : 'text-red-400'}`}>{enough ? '✓' : '✗'}</span>
+                    <span className="text-[10px] text-gray-400">
+                      {item?.icon ?? '📦'} {item?.name ?? c.itemId} ×{c.quantity}
+                    </span>
+                    <span className="ml-auto text-[9px] font-mono text-gray-600">
+                      {owned}/{c.quantity} available
+                    </span>
+                  </div>
+                )
+              })}
+
+              {/* No requirements */}
+              {!zone.prevZoneId && !zone.warriorLevelRequired && (!zone.gateItems?.length) && (!zone.entryCost?.length) && (
+                <p className="text-[9px] font-mono text-gray-600 italic">No requirements</p>
+              )}
+            </div>
+
+            {/* Food selector */}
+            {unlocked && !activeBattle && foodSlots && onFoodChange && (
+              <div className="px-4 pb-3">
+                <FoodSelector slots={foodSlots} onChange={onFoodChange} ownedItems={ownedItems} />
+              </div>
+            )}
+
+            {/* CTA */}
+            <div className="px-4 pb-4">
+              {unlocked && !activeBattle && affordable ? (
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => { playClickSound(); onEnter(zone.id) }}
+                    className="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all active:scale-[0.98]"
+                    style={{
+                      background: `linear-gradient(135deg, ${tc}30, ${tc}18)`,
+                      border: `1px solid ${tc}60`,
+                      color: '#fff',
+                      textShadow: `0 0 12px ${tc}`,
+                    }}
+                  >
+                    ⚔ Enter
+                  </button>
+                  {cleared && passCount > 0 && (
+                    <button
+                      type="button"
+                      title={`Auto-run ${passCount} dungeon pass${passCount === 1 ? '' : 'es'} — runs automatically without manual battles`}
+                      onClick={() => { playClickSound(); onAutoFarm(zone.id) }}
+                      className="px-3 py-2.5 rounded-xl text-[10px] font-semibold transition-all active:scale-[0.98]"
+                      style={{ color: '#fbbf24', border: '1px solid rgba(251,191,36,0.28)', background: 'rgba(251,191,36,0.08)' }}
+                    >
+                      🎫 ×{passCount}
+                    </button>
+                  )}
+                </div>
+              ) : activeBattle ? (
+                <div className="w-full py-2.5 rounded-xl text-[10px] font-mono text-center text-gray-500 border border-white/[0.06]">
+                  In battle...
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full py-2.5 rounded-xl text-[12px] font-bold disabled:opacity-35"
+                  style={{
+                    background: 'transparent',
+                    border: `1px solid ${tc}${unlocked ? '25' : '15'}`,
+                    color: unlocked ? tc : '#6b7280',
+                  }}
+                >
+                  {unlocked ? 'Insufficient entry cost' : '🔒 Locked'}
+                </button>
+              )}
+            </div>
+          </>
         )}
-        </div>{/* /p-3.5 pl-4 */}
       </motion.div>
 
       {/* Battle panel — attached below header */}
@@ -1220,7 +1231,7 @@ export function ArenaPage() {
             }
           }
           // Boss defeat — show death modal if dungeon
-          if (activeBattle.dungeonZoneId) {
+          if (!victory && activeBattle.dungeonZoneId) {
             const dz = ZONES.find((z) => z.id === activeBattle.dungeonZoneId)
             setDungeonDeathModal({
               zoneName: dz?.name ?? 'Dungeon',

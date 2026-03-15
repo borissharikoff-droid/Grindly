@@ -18,6 +18,8 @@ import { recordDeveloperXp, recordFocusSeconds, recordSessionWithoutAfk, recordW
 import { useChestDropStore } from './chestDropStore'
 import { getEquippedPerkRuntime } from '../lib/loot'
 import { track } from '../lib/analytics'
+import { getGuildXpMultiplier } from '../lib/guildBuffs'
+import { useGuildStore } from './guildStore'
 
 type SessionStatus = 'idle' | 'running' | 'paused'
 
@@ -235,6 +237,13 @@ function startXpTicking() {
     const cats = (currentActivity?.categories || [currentActivity?.category || 'other']).filter((c: string) => c !== 'idle')
     if (cats.length === 0) return
     const event = buildFocusTickEvent(cats, tickDurationMs / 1000)
+    // Apply guild XP buff (+5% if in guild)
+    const guildXpMult = getGuildXpMultiplier(!!useGuildStore.getState().myGuild)
+    if (guildXpMult !== 1) {
+      for (const key of Object.keys(event.skillXpDelta) as (keyof typeof event.skillXpDelta)[]) {
+        event.skillXpDelta[key] = Math.round((event.skillXpDelta[key] ?? 0) * guildXpMult)
+      }
+    }
     const totalSkillDelta = Object.values(event.skillXpDelta).reduce((sum, value) => sum + value, 0)
     if (totalSkillDelta <= 0) return
     recordFocusSeconds(Math.floor(tickDurationMs / 1000))
@@ -425,12 +434,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     const initialPerkRuntime = getEquippedPerkRuntime(useInventoryStore.getState().equippedBySlot)
     const streakShieldEvent = initialPerkRuntime.streakShield
       ? makeProgressionEvent({
+          reasonCode: 'focus_tick',
           title: 'Streak shield equipped',
           description: 'Your equipped loadout includes streak protection.',
           icon: '🛡️',
-          source: 'focus_tick',
           skillXpDelta: {},
-          focusSecondsDelta: 0,
+          globalXpDelta: 0,
+          rewards: [],
         })
       : null
     set({

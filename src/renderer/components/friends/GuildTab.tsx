@@ -6,37 +6,20 @@ import { useGoldStore } from '../../stores/goldStore'
 import { searchGuilds, fetchTopGuilds, type Guild } from '../../services/guildService'
 import { playClickSound } from '../../lib/sounds'
 import { useToastStore } from '../../stores/toastStore'
+import { GUILD_BUFFS } from '../../lib/guildBuffs'
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.floor(hours / 24)}d ago`
+/** Guild level derived from total member contributions. Lv.1 at 0g, ~Lv.10 at 81k, caps at 50. */
+function calcGuildLevel(totalContrib: number): number {
+  return Math.min(50, Math.floor(Math.sqrt(totalContrib / 1000)) + 1)
 }
 
-function countdownFrom(dateStr: string): string {
-  const ms = new Date(dateStr).getTime() - Date.now()
-  if (ms <= 0) return 'Ended'
-  const d = Math.floor(ms / 86400000)
-  const h = Math.floor((ms % 86400000) / 3600000)
-  const m = Math.floor((ms % 3600000) / 60000)
-  if (d > 0) return `${d}d ${h}h left`
-  if (h > 0) return `${h}h ${m}m left`
-  return `${m}m left`
-}
-
-function eventLabel(type: string, payload: Record<string, unknown>): string {
-  switch (type) {
-    case 'join': return 'joined the guild'
-    case 'leave': return 'left the guild'
-    case 'deposit_gold': return `donated ${payload.amount ?? '?'}🪙`
-    case 'goal_complete': return 'guild goal completed!'
-    default: return type
-  }
+/** XP needed to reach next level (for progress bar). */
+function guildLevelRange(level: number): [number, number] {
+  const lo = (level - 1) * (level - 1) * 1000
+  const hi = level * level * 1000
+  return [lo, hi]
 }
 
 // ── Create guild modal ────────────────────────────────────────────────────────
@@ -120,8 +103,8 @@ function DepositGoldModal({ maxGold, onClose }: { maxGold: number; onClose: () =
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
       <div className="w-[260px] bg-[#1a1a2e] border border-white/10 rounded-2xl p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <p className="text-sm font-semibold text-white mb-1">Donate Gold</p>
-        <p className="text-[10px] text-gray-500 mb-3">Available: {maxGold.toLocaleString()}🪙</p>
+        <p className="text-sm font-semibold text-white mb-1">Donate to Guild Chest</p>
+        <p className="text-[10px] text-gray-500 mb-3">Your gold: {maxGold.toLocaleString()}🪙</p>
         <div className="flex items-center gap-2 mb-3">
           <button type="button" onClick={() => setAmount((a) => Math.max(1, a - 100))} className="w-8 h-8 rounded-lg border border-white/15 text-gray-300 hover:bg-white/10 transition-colors">−</button>
           <input type="number" min={1} max={maxGold} value={amount}
@@ -134,14 +117,13 @@ function DepositGoldModal({ maxGold, onClose }: { maxGold: number; onClose: () =
           <button type="button" onClick={onClose} className="flex-1 py-2 rounded-xl border border-white/15 text-gray-400 text-[11px] hover:bg-white/5 transition-colors">Cancel</button>
           <button type="button" onClick={handleDeposit} disabled={isLoading || amount < 1 || amount > maxGold}
             className="flex-1 py-2 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[11px] font-semibold hover:bg-amber-500/30 disabled:opacity-50 transition-colors">
-            {isLoading ? '...' : `${amount}🪙`}
+            {isLoading ? '...' : `Donate ${amount}🪙`}
           </button>
         </div>
       </div>
     </div>
   )
 }
-
 
 // ── Browse guilds panel ───────────────────────────────────────────────────────
 
@@ -173,7 +155,7 @@ function BrowseGuilds({ onJoin }: { onJoin: (guildId: string) => void }) {
         <button type="button" onClick={handleSearch} className="px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] hover:bg-amber-500/25 transition-colors">Search</button>
       </div>
       {loading ? (
-        <p className="text-[10px] text-gray-600 text-center py-4">Loading...</p>
+        <p className="text-[10px] text-gray-600 text-center py-4">Loading…</p>
       ) : guilds.length === 0 ? (
         <p className="text-[10px] text-gray-600 text-center py-4">No guilds found</p>
       ) : (
@@ -185,7 +167,7 @@ function BrowseGuilds({ onJoin }: { onJoin: (guildId: string) => void }) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] font-semibold text-white truncate">{g.name}</p>
-                <p className="text-[9px] text-gray-500 font-mono">{g.member_count} members · 🪙{g.chest_gold.toLocaleString()}</p>
+                <p className="text-[9px] text-gray-500 font-mono">{g.member_count} members · Lv.{calcGuildLevel(g.chest_gold)}</p>
               </div>
               <button type="button" disabled={isLoading} onClick={() => { playClickSound(); onJoin(g.id) }}
                 className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-cyber-neon/15 border border-cyber-neon/30 text-cyber-neon hover:bg-cyber-neon/25 disabled:opacity-50 transition-colors">
@@ -201,8 +183,13 @@ function BrowseGuilds({ onJoin }: { onJoin: (guildId: string) => void }) {
 
 // ── Main GuildTab ─────────────────────────────────────────────────────────────
 
-export function GuildTab() {
-  const { myGuild, membership, members, activityLog, pendingInvites, isLoading, fetchMyGuild } = useGuildStore()
+interface GuildTabProps {
+  /** Called when user taps a member row — FriendsPage navigates to their profile. */
+  onSelectMember?: (userId: string) => void
+}
+
+export function GuildTab({ onSelectMember }: GuildTabProps) {
+  const { myGuild, membership, members, pendingInvites, isLoading, fetchMyGuild } = useGuildStore()
   const joinGuild = useGuildStore((s) => s.joinGuild)
   const leaveGuild = useGuildStore((s) => s.leaveGuild)
   const respondToInvite = useGuildStore((s) => s.respondToInvite)
@@ -222,6 +209,9 @@ export function GuildTab() {
   const [savingTax, setSavingTax] = useState(false)
   const [confirmKick, setConfirmKick] = useState<string | null>(null)
   const [membersExpanded, setMembersExpanded] = useState(false)
+  const [showBuffInfo, setShowBuffInfo] = useState(false)
+  const [showChest, setShowChest] = useState(false)
+  const [showTax, setShowTax] = useState(false)
 
   useEffect(() => {
     if (user) fetchMyGuild()
@@ -276,13 +266,19 @@ export function GuildTab() {
 
   if (!user) return <p className="text-[11px] text-gray-500 text-center py-6">Log in to use guilds</p>
 
-  return (
-    <div className="space-y-3">
+  // Derived guild stats
+  const totalContrib = members.reduce((s, m) => s + (m.contribution_gold ?? 0), 0)
+  const guildLevel = myGuild ? calcGuildLevel(totalContrib) : 1
+  const [lvLo, lvHi] = guildLevelRange(guildLevel)
+  const levelPct = lvHi > lvLo ? Math.round(((totalContrib - lvLo) / (lvHi - lvLo)) * 100) : 0
 
-      {/* Pending invites for me */}
+  return (
+    <div className="space-y-2.5">
+
+      {/* Pending invites */}
       {pendingInvites.length > 0 && !myGuild && (
-        <div className="space-y-2">
-          <p className="text-[10px] uppercase tracking-wider text-amber-400/80 font-mono">Guild Invites</p>
+        <div className="space-y-1.5">
+          <p className="text-[9px] uppercase tracking-widest text-amber-400/60 font-mono px-0.5">Guild Invites</p>
           {pendingInvites.map((inv) => (
             <div key={inv.id} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5">
               <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
@@ -294,20 +290,16 @@ export function GuildTab() {
               </div>
               <div className="flex gap-1">
                 <button type="button" onClick={() => handleRespondInvite(inv.id, 'accepted')}
-                  className="px-2 py-1 rounded-lg text-[9px] font-semibold bg-cyber-neon/15 border border-cyber-neon/30 text-cyber-neon hover:bg-cyber-neon/25 transition-colors">
-                  Accept
-                </button>
+                  className="px-2 py-1 rounded-lg text-[9px] font-semibold bg-cyber-neon/15 border border-cyber-neon/30 text-cyber-neon hover:bg-cyber-neon/25 transition-colors">Accept</button>
                 <button type="button" onClick={() => handleRespondInvite(inv.id, 'declined')}
-                  className="px-2 py-1 rounded-lg text-[9px] text-gray-500 border border-white/10 hover:bg-white/5 transition-colors">
-                  ✕
-                </button>
+                  className="px-2 py-1 rounded-lg text-[9px] text-gray-500 border border-white/10 hover:bg-white/5 transition-colors">✕</button>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* No guild: create / browse */}
+      {/* No guild */}
       {!myGuild && (
         <>
           <div className="flex gap-2">
@@ -321,85 +313,181 @@ export function GuildTab() {
             </button>
           </div>
           {view === 'browse' && <BrowseGuilds onJoin={handleJoin} />}
-          {isLoading && <p className="text-[10px] text-gray-600 text-center py-2">Loading...</p>}
+          {isLoading && <p className="text-[10px] text-gray-600 text-center py-2">Loading…</p>}
         </>
       )}
 
       {/* Has guild */}
       {myGuild && (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
 
-          {/* Guild header */}
-          <div className="rounded-xl border border-white/[0.10] bg-discord-card p-3">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
-                  <span className="text-[10px] font-bold font-mono text-amber-400">{myGuild.tag}</span>
+          {/* ── Guild identity card ── */}
+          <div className="rounded-xl border border-amber-500/20 bg-discord-card overflow-hidden">
+            <div className="h-[2px] bg-gradient-to-r from-amber-500/70 via-amber-400/25 to-transparent" />
+            <div className="p-3">
+              {/* Row 1: tag + name + actions */}
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-xl bg-amber-500/12 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-[0_0_16px_rgba(245,158,11,0.10)]">
+                  <span className="text-[11px] font-bold font-mono text-amber-400 tracking-widest">{myGuild.tag}</span>
                 </div>
-                <div>
-                  <p className="text-[13px] font-semibold text-white leading-tight">{myGuild.name}</p>
-                  <p className="text-[9px] text-gray-500 font-mono">{myGuild.member_count} member{myGuild.member_count !== 1 ? 's' : ''} · {isOwner ? '👑 Owner' : isOfficer ? '🔰 Officer' : 'Member'}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[15px] font-bold text-white leading-tight">{myGuild.name}</p>
+                  {myGuild.description && (
+                    <p className="text-[10px] text-gray-500 mt-0.5 leading-snug truncate">{myGuild.description}</p>
+                  )}
                 </div>
-              </div>
-              {confirmLeave ? (
-                <div className="flex items-center gap-1">
-                  <button type="button" onClick={handleLeave} disabled={isLoading} className="px-2 py-1 rounded-lg text-[9px] font-semibold border border-red-500/40 text-red-400 bg-red-500/15 hover:bg-red-500/25 transition-colors">Leave</button>
-                  <button type="button" onClick={() => setConfirmLeave(false)} className="px-2 py-1 rounded-lg text-[9px] text-gray-400 border border-white/10 hover:bg-white/5 transition-colors">Cancel</button>
-                </div>
-              ) : (
-                !isOwner && (
-                  <button type="button" onClick={() => { playClickSound(); setConfirmLeave(true) }} className="text-[9px] text-gray-600 hover:text-red-400 transition-colors font-mono">leave</button>
-                )
-              )}
-            </div>
-            {myGuild.description && (
-              <p className="text-[10px] text-gray-500 mt-2 leading-snug">{myGuild.description}</p>
-            )}
-          </div>
-
-          {/* Guild Chest + Tax */}
-          <div className="rounded-xl border border-white/[0.10] bg-discord-card p-3 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] uppercase tracking-wider text-amber-400/80 font-mono">Guild Chest</p>
-              <button type="button" onClick={() => { playClickSound(); setShowDeposit(true) }} disabled={gold <= 0}
-                className="px-2 py-0.5 rounded-md text-[9px] font-semibold border border-amber-500/30 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-40 transition-colors">
-                Donate
-              </button>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-base">🪙</span>
-              <span className="text-sm font-bold text-amber-400">{myGuild.chest_gold.toLocaleString()}g</span>
-            </div>
-            {/* Tax rate — owner only */}
-            {isOwner && (
-              <div className="border-t border-white/[0.06] pt-2.5 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <p className="text-[9px] text-gray-500 font-mono uppercase">Auto-tax on arena gold</p>
-                  <span className="text-[9px] text-amber-400 font-mono font-bold">{taxInput ?? 0}%</span>
-                </div>
-                <input type="range" min={0} max={15} step={1} value={taxInput ?? 0}
-                  onChange={(e) => setTaxInput(Number(e.target.value))}
-                  className="w-full h-1.5 accent-amber-400 cursor-pointer" />
-                <div className="flex items-center justify-between text-[9px] text-gray-600 font-mono">
-                  <span>0% (none)</span><span>15% (max)</span>
-                </div>
-                {(taxInput ?? 0) !== (myGuild.tax_rate_pct ?? 0) && (
-                  <button type="button" onClick={handleSaveTax} disabled={savingTax}
-                    className="w-full py-1 rounded-lg text-[9px] font-semibold border border-amber-500/30 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-50 transition-colors">
-                    {savingTax ? 'Saving...' : 'Save tax rate'}
+                <div className="flex items-center gap-1 shrink-0">
+                  {/* Buffs ? button */}
+                  <button type="button" onClick={() => { playClickSound(); setShowBuffInfo((v) => !v) }} title="Guild buffs"
+                    className={`w-5 h-5 rounded-full border text-[9px] font-bold transition-colors flex items-center justify-center ${showBuffInfo ? 'bg-amber-500/25 border-amber-500/50 text-amber-300' : 'border-white/20 text-gray-500 hover:border-amber-500/40 hover:text-amber-400'}`}>
+                    ?
                   </button>
-                )}
+                  {confirmLeave ? (
+                    <div className="flex items-center gap-1 ml-1">
+                      <button type="button" onClick={handleLeave} disabled={isLoading}
+                        className="px-2 py-0.5 rounded text-[9px] font-semibold border border-red-500/40 text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors">
+                        Confirm
+                      </button>
+                      <button type="button" onClick={() => setConfirmLeave(false)} className="text-[9px] text-gray-600 hover:text-gray-400 px-1">✕</button>
+                    </div>
+                  ) : (
+                    !isOwner && (
+                      <button type="button" onClick={() => { playClickSound(); setConfirmLeave(true) }}
+                        className="text-[9px] text-gray-600 hover:text-red-400 transition-colors font-mono ml-1">
+                        leave
+                      </button>
+                    )
+                  )}
+                </div>
               </div>
-            )}
-            {!isOwner && (myGuild.tax_rate_pct ?? 0) > 0 && (
-              <p className="text-[9px] text-gray-600 font-mono">Auto-tax: {myGuild.tax_rate_pct}% of arena gold → guild chest</p>
-            )}
+
+              {/* Row 2: guild level + XP bar */}
+              <div className="mt-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] font-mono text-amber-400/60 uppercase tracking-wider">Guild</span>
+                    <span className="text-[11px] font-bold text-amber-400 font-mono">Lv.{guildLevel}</span>
+                  </div>
+                  <span className="text-[9px] text-gray-600 font-mono">{totalContrib.toLocaleString()}g donated total</span>
+                </div>
+                <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                  <div className="h-full rounded-full bg-gradient-to-r from-amber-600 to-amber-400 transition-[width] duration-700"
+                    style={{ width: `${Math.max(2, levelPct)}%` }} />
+                </div>
+              </div>
+
+              {/* Row 3: stat chips */}
+              <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-white/[0.05]">
+                <div className="flex items-center gap-1 text-[10px]">
+                  <span>👥</span>
+                  <span className="font-semibold text-white">{myGuild.member_count}</span>
+                  <span className="text-gray-600">member{myGuild.member_count !== 1 ? 's' : ''}</span>
+                </div>
+                <span className="text-white/10">·</span>
+                <div className="flex items-center gap-1 text-[10px]">
+                  <span className={membership?.role === 'owner' ? 'text-amber-400' : membership?.role === 'officer' ? 'text-blue-400' : 'text-gray-400'}>
+                    {membership?.role === 'owner' ? '👑' : membership?.role === 'officer' ? '🔰' : '🛡️'}
+                  </span>
+                  <span className="text-gray-500 capitalize">{membership?.role ?? 'member'}</span>
+                </div>
+                {/* Chest gold as a tappable chip */}
+                <button type="button" onClick={() => { playClickSound(); setShowChest((v) => !v) }}
+                  className="ml-auto flex items-center gap-1 text-[10px] text-gray-600 hover:text-amber-400 transition-colors font-mono">
+                  <span>🪙</span>
+                  <span>{myGuild.chest_gold.toLocaleString()}g</span>
+                  <span className="text-[8px]">{showChest ? '▲' : '▼'}</span>
+                </button>
+              </div>
+            </div>
           </div>
 
-          {/* Weekly Goal */}
+          {/* ── Buffs panel ── */}
+          <AnimatePresence>
+            {showBuffInfo && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.15 }} className="overflow-hidden">
+                <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.05] p-3">
+                  <p className="text-[9px] uppercase tracking-widest text-amber-400/60 font-mono mb-2">Active while in a guild</p>
+                  <div className="space-y-2">
+                    {GUILD_BUFFS.map((buff) => (
+                      <div key={buff.id} className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-lg bg-amber-500/12 border border-amber-500/25 flex items-center justify-center shrink-0">
+                          <span className="text-[11px]">{buff.icon}</span>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-semibold text-amber-300 leading-tight">{buff.label}</p>
+                          <p className="text-[9px] text-gray-500">{buff.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ── Guild chest (collapsible) ── */}
+          <AnimatePresence>
+            {showChest && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.15 }} className="overflow-hidden">
+                <div className="rounded-xl border border-white/[0.08] bg-discord-card p-3 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[9px] uppercase tracking-widest text-gray-500 font-mono">Guild Chest</p>
+                      <p className="text-[20px] font-bold text-amber-400 leading-none mt-1">{myGuild.chest_gold.toLocaleString()}<span className="text-[12px] text-amber-500/60 ml-1 font-normal">g</span></p>
+                    </div>
+                    <button type="button" onClick={() => { playClickSound(); setShowDeposit(true) }} disabled={gold <= 0}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold border border-amber-500/30 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-40 transition-colors">
+                      🪙 Donate
+                    </button>
+                  </div>
+
+                  {/* Tax — owner only, secondary collapsible */}
+                  {isOwner && (
+                    <div className="border-t border-white/[0.05] pt-2">
+                      <button type="button" onClick={() => { playClickSound(); setShowTax((v) => !v) }}
+                        className="flex items-center justify-between w-full text-[9px] text-gray-600 hover:text-gray-400 font-mono transition-colors">
+                        <span>AUTO-TAX · {taxInput ?? 0}%</span>
+                        <span>{showTax ? '▲' : '▼'}</span>
+                      </button>
+                      <AnimatePresence>
+                        {showTax && (
+                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.12 }} className="overflow-hidden">
+                            <div className="pt-2 space-y-1.5">
+                              <input type="range" min={0} max={15} step={1} value={taxInput ?? 0}
+                                onChange={(e) => setTaxInput(Number(e.target.value))}
+                                className="w-full h-1 accent-amber-400 cursor-pointer" />
+                              <div className="flex justify-between text-[9px] text-gray-700 font-mono">
+                                <span>0% off</span><span className="text-amber-400 font-bold">{taxInput ?? 0}%</span><span>15% max</span>
+                              </div>
+                              {(taxInput ?? 0) !== (myGuild.tax_rate_pct ?? 0) && (
+                                <button type="button" onClick={handleSaveTax} disabled={savingTax}
+                                  className="w-full py-1 rounded-lg text-[9px] font-semibold border border-amber-500/30 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-50 transition-colors">
+                                  {savingTax ? 'Saving…' : 'Save'}
+                                </button>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
+                  {!isOwner && (myGuild.tax_rate_pct ?? 0) > 0 && (
+                    <p className="text-[9px] text-gray-600 font-mono border-t border-white/[0.05] pt-2">
+                      Auto-tax: {myGuild.tax_rate_pct}% of your arena gold → chest
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ── Weekly Goal ── */}
           {myGuild.weekly_goal_progress && Object.keys(myGuild.weekly_goal_progress).length > 0 && (
-            <div className="rounded-xl border border-white/[0.10] bg-discord-card p-3 space-y-2">
-              <p className="text-[10px] uppercase tracking-wider text-purple-400/80 font-mono">Weekly Goal</p>
+            <div className="rounded-xl border border-white/[0.08] bg-discord-card p-3 space-y-2.5">
+              <p className="text-[9px] uppercase tracking-widest text-purple-400/70 font-mono">Weekly Goal</p>
               {Object.entries(myGuild.weekly_goal_progress).map(([type, current]) => {
                 const targets: Record<string, number> = { craft: 200, kill: 500, farm: 300, gold: 10000 }
                 const target = targets[type] ?? 100
@@ -419,82 +507,109 @@ export function GuildTab() {
             </div>
           )}
 
-          {/* Members */}
-          <div className="rounded-xl border border-white/[0.10] bg-discord-card p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] uppercase tracking-wider text-gray-400 font-mono">Members ({members.length})</p>
+          {/* ── Members ── */}
+          <div className="rounded-xl border border-white/[0.08] bg-discord-card overflow-hidden">
+            <div className="px-3 pt-3 pb-2 flex items-center justify-between">
+              <p className="text-[9px] uppercase tracking-widest text-gray-500 font-mono">
+                Members <span className="text-gray-700 normal-case tracking-normal">({members.length})</span>
+              </p>
+              {totalContrib > 0 && (
+                <span className="text-[9px] text-gray-600 font-mono">{totalContrib.toLocaleString()}g contributed total</span>
+              )}
             </div>
-            <div className="space-y-1.5">
+
+            <div className="px-2 pb-2 space-y-0.5">
               {(membersExpanded ? members : members.slice(0, 12)).map((m) => {
                 const isMe = m.user_id === user?.id
                 const canKick = !isMe && m.role !== 'owner' && (isOwner || (isOfficer && m.role === 'member'))
                 const canPromote = isOwner && !isMe && m.role === 'member'
                 const canDemote = isOwner && !isMe && m.role === 'officer'
                 const confirmingKick = confirmKick === m.user_id
+
+                // Avatar background by role
+                const avatarCls = m.role === 'owner'
+                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                  : m.role === 'officer'
+                    ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
+                    : 'bg-white/[0.07] border-white/[0.10] text-gray-400'
+                const roleBadgeCls = m.role === 'owner'
+                  ? 'bg-amber-500/15 border-amber-500/30 text-amber-400'
+                  : m.role === 'officer'
+                    ? 'bg-blue-500/15 border-blue-500/30 text-blue-400'
+                    : 'bg-white/[0.03] border-white/[0.07] text-gray-600'
+
                 return (
-                  <div key={m.id} className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-white/[0.08] flex items-center justify-center text-[9px] text-gray-400 font-mono shrink-0">
+                  <div key={m.id} className="flex items-center gap-2 px-1 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors group">
+                    {/* Avatar */}
+                    <div className={`w-7 h-7 rounded-full border flex items-center justify-center text-[10px] font-semibold shrink-0 ${avatarCls}`}>
                       {(m.username ?? '?')[0].toUpperCase()}
                     </div>
-                    <p className="flex-1 text-[11px] text-white truncate min-w-0">{m.username ?? 'Unknown'}</p>
-                    <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border ${m.role === 'owner' ? 'text-amber-400 border-amber-500/30' : m.role === 'officer' ? 'text-blue-400 border-blue-500/30' : 'text-gray-500 border-white/[0.06]'}`}>
-                      {m.role}
+
+                    {/* Name — clickable if callback provided */}
+                    <button
+                      type="button"
+                      className="flex-1 text-left min-w-0 disabled:cursor-default"
+                      disabled={!onSelectMember}
+                      onClick={() => { if (onSelectMember) { playClickSound(); onSelectMember(m.user_id) } }}
+                    >
+                      <span className={`text-[11px] truncate block ${onSelectMember ? 'text-white group-hover:text-cyber-neon transition-colors' : 'text-white'}`}>
+                        {m.username ?? 'Unknown'}
+                        {isMe && <span className="text-[9px] text-gray-600 ml-1 font-mono">(you)</span>}
+                      </span>
+                    </button>
+
+                    {/* Role badge */}
+                    <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border shrink-0 ${roleBadgeCls}`}>
+                      {m.role === 'owner' ? '👑' : m.role === 'officer' ? '🔰' : ''}{m.role}
                     </span>
+
+                    {/* Contribution */}
                     {m.contribution_gold > 0 && (
-                      <span className="text-[9px] text-amber-400/70 font-mono shrink-0">+{m.contribution_gold >= 1000 ? `${(m.contribution_gold / 1000).toFixed(1)}k` : m.contribution_gold}🪙</span>
+                      <span className="text-[9px] text-amber-400/50 font-mono shrink-0">
+                        +{m.contribution_gold >= 1000 ? `${(m.contribution_gold / 1000).toFixed(1)}k` : m.contribution_gold}g
+                      </span>
                     )}
-                    {/* Promote/Demote buttons (owner only) */}
+
+                    {/* Promote/Demote */}
                     {canPromote && (
                       <button type="button" onClick={() => handlePromote(m.user_id)} title="Promote to officer"
-                        className="text-[9px] text-blue-400/70 hover:text-blue-400 font-mono px-1 transition-colors">↑</button>
+                        className="text-[10px] text-blue-400/50 hover:text-blue-400 px-0.5 transition-colors">↑</button>
                     )}
                     {canDemote && (
                       <button type="button" onClick={() => handleDemote(m.user_id)} title="Demote to member"
-                        className="text-[9px] text-gray-500 hover:text-gray-300 font-mono px-1 transition-colors">↓</button>
+                        className="text-[10px] text-gray-600 hover:text-gray-300 px-0.5 transition-colors">↓</button>
                     )}
-                    {/* Kick button */}
+
+                    {/* Kick */}
                     {canKick && (
                       confirmingKick ? (
                         <div className="flex items-center gap-1">
                           <span className="text-[8px] text-red-400 font-mono">Kick?</span>
                           <button type="button" onClick={() => handleKick(m.user_id)}
-                            className="text-[8px] px-1 py-0.5 rounded border border-red-500/40 text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors font-mono">✓</button>
+                            className="text-[8px] px-1 py-0.5 rounded border border-red-500/40 text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors">✓</button>
                           <button type="button" onClick={() => setConfirmKick(null)}
-                            className="text-[8px] px-1 py-0.5 rounded border border-white/10 text-gray-500 hover:bg-white/5 transition-colors font-mono">✕</button>
+                            className="text-[8px] px-1 py-0.5 rounded border border-white/10 text-gray-500 hover:bg-white/5 transition-colors">✕</button>
                         </div>
                       ) : (
                         <button type="button" onClick={() => setConfirmKick(m.user_id)} title="Kick member"
-                          className="text-[9px] text-red-500/50 hover:text-red-400 font-mono px-1 transition-colors">✕</button>
+                          className="text-[10px] text-red-500/30 hover:text-red-400 px-0.5 transition-colors opacity-0 group-hover:opacity-100">✕</button>
                       )
                     )}
                   </div>
                 )
               })}
             </div>
-            {/* Expand/collapse toggle */}
+
             {members.length > 12 && (
-              <button type="button" onClick={() => setMembersExpanded((v) => !v)}
-                className="text-[9px] text-gray-600 hover:text-gray-400 font-mono transition-colors">
-                {membersExpanded ? '▲ show less' : `+ ${members.length - 12} more`}
-              </button>
+              <div className="px-3 pb-2.5">
+                <button type="button" onClick={() => setMembersExpanded((v) => !v)}
+                  className="text-[9px] text-gray-600 hover:text-gray-400 font-mono transition-colors">
+                  {membersExpanded ? '▲ show less' : `+ ${members.length - 12} more`}
+                </button>
+              </div>
             )}
           </div>
 
-          {/* Activity Log */}
-          {activityLog.length > 0 && (
-            <div className="rounded-xl border border-white/[0.10] bg-discord-card p-3 space-y-2">
-              <p className="text-[10px] uppercase tracking-wider text-gray-400 font-mono">Activity</p>
-              <div className="space-y-1.5">
-                {activityLog.slice(0, 8).map((entry) => (
-                  <div key={entry.id} className="flex items-center gap-2 text-[10px]">
-                    <span className="text-gray-300 font-medium shrink-0">@{entry.username ?? 'Unknown'}</span>
-                    <span className="text-gray-500 truncate">{eventLabel(entry.event_type, entry.payload)}</span>
-                    <span className="text-gray-700 font-mono ml-auto shrink-0">{timeAgo(entry.created_at)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 

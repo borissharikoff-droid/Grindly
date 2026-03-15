@@ -72,7 +72,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
     const result = openChestAndGrantItem(chestType as ChestType, { source: 'session_complete' })
     useFarmStore.getState().rollSeedDrop(chestType as ChestType)
     dismiss(notifId)
-    if (result) setOpenedChest({ chestType: chestType as ChestType, itemId: result.itemId, goldDropped: result.goldDropped, bonusMaterials: result.bonusMaterials })
+    if (result && result.itemId) setOpenedChest({ chestType: chestType as ChestType, itemId: result.itemId, goldDropped: result.goldDropped, bonusMaterials: result.bonusMaterials })
   }
 
   useEffect(() => {

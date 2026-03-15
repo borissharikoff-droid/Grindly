@@ -21,6 +21,8 @@ import { recordDungeonComplete } from '../services/dailyActivityService'
 import { useAchievementStatsStore } from './achievementStatsStore'
 import { useWeeklyStore } from './weeklyStore'
 import { applyGuildTax } from '../services/guildService'
+import { useGuildStore } from './guildStore'
+import { getGuildGoldMultiplier } from '../lib/guildBuffs'
 
 export interface ActiveBattle {
   bossId: string
@@ -447,7 +449,7 @@ export const useArenaStore = create<ArenaState>()(
             useWeeklyStore.getState().incrementKill()
             const hotZoneId = getHotZoneId()
             const isHotZone = activeBattle.dungeonZoneId === hotZoneId
-            const goldMult = (isHotZone ? 2 : 1) * getFoodGoldMultiplier(activeBattle.foodLoadout)
+            const goldMult = (isHotZone ? 2 : 1) * getFoodGoldMultiplier(activeBattle.foodLoadout) * getGuildGoldMultiplier(!!useGuildStore.getState().myGuild)
             const dropMult = (isHotZone ? 2 : 1) * getFoodDropMultiplier(activeBattle.foodLoadout)
             const gold = randomGold(mob.goldMin, mob.goldMax, goldMult)
             const user = useAuthStore.getState().user

@@ -71,29 +71,36 @@ function getSellableQty(itemId: string, rawQty: number): number {
   return isEquipped ? Math.max(0, rawQty - 1) : rawQty
 }
 
-// ─── Order-book row: stacked listings for same item+price ─────────────────────
+// ─── Order-book: one row per item, multiple price-level offers inside ─────────
 
-interface OrderBookRow {
-  itemId: string
+interface OrderBookOffer {
   pricePerUnit: number
   totalQty: number
   listings: ListingWithSeller[]
   sellers: string[]
 }
 
+interface OrderBookRow {
+  itemId: string
+  floorPrice: number
+  totalQty: number
+  offers: OrderBookOffer[]  // sorted cheapest first
+}
+
 function buildOrderBook(listings: ListingWithSeller[]): OrderBookRow[] {
-  const map = new Map<string, OrderBookRow>()
+  // Step 1: group by itemId → pricePerUnit
+  const byItem = new Map<string, Map<number, OrderBookOffer>>()
   for (const l of listings) {
-    const key = `${l.item_id}::${l.price_gold}`
-    const existing = map.get(key)
+    if (!byItem.has(l.item_id)) byItem.set(l.item_id, new Map())
+    const byPrice = byItem.get(l.item_id)!
+    const existing = byPrice.get(l.price_gold)
     if (existing) {
       existing.totalQty += l.quantity
       existing.listings.push(l)
       if (!existing.sellers.includes(l.seller_username ?? 'Anon'))
         existing.sellers.push(l.seller_username ?? 'Anon')
     } else {
-      map.set(key, {
-        itemId: l.item_id,
+      byPrice.set(l.price_gold, {
         pricePerUnit: l.price_gold,
         totalQty: l.quantity,
         listings: [l],
@@ -101,22 +108,29 @@ function buildOrderBook(listings: ListingWithSeller[]): OrderBookRow[] {
       })
     }
   }
-  return Array.from(map.values())
+  // Step 2: build rows sorted by floor price (cheapest first per item)
+  const rows: OrderBookRow[] = []
+  for (const [itemId, byPrice] of byItem) {
+    const offers = Array.from(byPrice.values()).sort((a, b) => a.pricePerUnit - b.pricePerUnit)
+    const totalQty = offers.reduce((s, o) => s + o.totalQty, 0)
+    rows.push({ itemId, floorPrice: offers[0].pricePerUnit, totalQty, offers })
+  }
+  return rows
 }
 
-// ─── Compact listing tile ────────────────────────────────────────────────────
+// ─── Compact listing tile (one row per item) ─────────────────────────────────
 
-function OrderBookTile({ row, onBuy, index, floorPrice }: { row: OrderBookRow; onBuy: (row: OrderBookRow) => void; index: number; floorPrice?: number }) {
+function OrderBookTile({ row, onOpenOffers, index }: { row: OrderBookRow; onOpenOffers: (row: OrderBookRow) => void; index: number }) {
   const meta = getItemMeta(row.itemId)
   const theme = getRarityTheme(meta.rarity)
-  const isFloor = floorPrice !== undefined && row.pricePerUnit === floorPrice
+  const allSellers = Array.from(new Set(row.offers.flatMap((o) => o.sellers)))
   return (
     <motion.button
       {...LIST_ITEM}
       transition={{ duration: 0.2, delay: Math.min(index * 0.03, 0.3) }}
       layout
       type="button"
-      onClick={() => onBuy(row)}
+      onClick={() => onOpenOffers(row)}
       className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-colors hover:border-white/20 text-left group"
       style={{ borderColor: theme.border, backgroundColor: `${theme.color}06` }}
     >
@@ -149,20 +163,18 @@ function OrderBookTile({ row, onBuy, index, floorPrice }: { row: OrderBookRow; o
             <span className="text-[9px] text-gray-500">IP {getItemPower(meta.item)}</span>
           )}
           <span className="text-[9px] text-gray-600 truncate">
-            {row.sellers.length === 1 ? row.sellers[0] : `${row.sellers.length} sellers`}
+            {row.offers.length > 1
+              ? `${row.offers.length} offers · ${allSellers.length === 1 ? allSellers[0] : `${allSellers.length} sellers`}`
+              : (allSellers[0] ?? 'Unknown')}
           </span>
         </div>
       </div>
-      {/* price chip — green tint when floor */}
+      {/* floor price chip (always green since it's the cheapest offer) */}
       <div className="shrink-0">
-        <div className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border transition-colors ${
-          isFloor
-            ? 'bg-green-500/10 border-green-500/25 group-hover:bg-green-500/16'
-            : 'bg-amber-500/10 border-amber-500/20 group-hover:bg-amber-500/15'
-        }`}>
-          <span className={`text-[10px] ${isFloor ? 'text-green-400' : 'text-amber-400'}`}>🪙</span>
-          <span className={`font-bold text-[11px] tabular-nums ${isFloor ? 'text-green-400' : 'text-amber-400'}`}>{row.pricePerUnit}</span>
-          {isFloor && <span className="text-[7px] font-mono text-green-400/55 ml-0.5 tracking-wide">floor</span>}
+        <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border transition-colors bg-green-500/10 border-green-500/25 group-hover:bg-green-500/16">
+          <span className="text-[10px] text-green-400">🪙</span>
+          <span className="font-bold text-[11px] tabular-nums text-green-400">{row.floorPrice.toLocaleString()}</span>
+          <span className="text-[7px] font-mono text-green-400/55 ml-0.5 tracking-wide">floor</span>
         </div>
       </div>
     </motion.button>
@@ -609,7 +621,8 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
   const [loading, setLoading] = useState(true)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>('listings')
-  const [buyTarget, setBuyTarget] = useState<OrderBookRow | null>(null)
+  const [offersTarget, setOffersTarget] = useState<OrderBookRow | null>(null)
+  const [buyTarget, setBuyTarget] = useState<{ itemId: string; offer: OrderBookOffer } | null>(null)
   const [buyQty, setBuyQty] = useState(1)
   const [buying, setBuying] = useState(false)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
@@ -642,10 +655,18 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
   useEffect(() => {
     setBuyQty(1)
     setPriceHistory([])
-    if (buyTarget) {
-      fetchPriceHistory(buyTarget.itemId, 10).then(setPriceHistory).catch(() => {})
+    const itemId = buyTarget?.itemId ?? offersTarget?.itemId
+    if (itemId) {
+      fetchPriceHistory(itemId, 10).then(setPriceHistory).catch(() => {})
     }
-  }, [buyTarget])
+  }, [buyTarget, offersTarget])
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && offersTarget) { e.stopImmediatePropagation(); setOffersTarget(null) }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [offersTarget])
   useEffect(() => { useNavBadgeStore.getState().clearMarketplaceSale() }, [])
 
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
@@ -699,7 +720,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [buyTarget, cancelTarget])
+  }, [buyTarget, cancelTarget])  // offersTarget escape is handled by its own effect above
 
   // ─── Filtering ──────────────────────────────────────────────────────────────
 
@@ -805,24 +826,26 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
     }
   }
 
-  const handleBuyClick = (row: OrderBookRow) => {
+  const handleBuyClick = (itemId: string, offer: OrderBookOffer) => {
     if (!user) return
-    if ((gold ?? 0) < row.pricePerUnit) {
-      const deficit = row.pricePerUnit - (gold ?? 0)
+    if ((gold ?? 0) < offer.pricePerUnit) {
+      const deficit = offer.pricePerUnit - (gold ?? 0)
       showToast(`Need ${deficit} more gold`, 'error')
       return
     }
     setBuyQty(1)
-    setBuyTarget(row)
+    setBuyTarget({ itemId, offer })
   }
 
-  const handleBuy = async (row: OrderBookRow, qty: number) => {
+  const handleBuy = async (qty: number) => {
+    if (!buyTarget) return
     setBuying(true)
     if (!user) { setBuying(false); return }
+    const { itemId, offer } = buyTarget
 
     let remaining = qty
     let totalBought = 0
-    const sorted = [...row.listings].sort((a, b) => a.price_gold - b.price_gold)
+    const sorted = [...offer.listings].sort((a, b) => a.price_gold - b.price_gold)
 
     for (const listing of sorted) {
       if (remaining <= 0) break
@@ -862,7 +885,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
       setBuyTarget(null)
       if (totalBought > 0) {
         playClickSound()
-        showToast(`Bought ${totalBought}× ${getItemName(row.itemId)}`, 'success')
+        showToast(`Bought ${totalBought}× ${getItemName(itemId)}`, 'success')
       } else {
         showToast('Purchase failed — listing may have sold out', 'error')
       }
@@ -956,7 +979,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                   <ul className="space-y-1.5">
                     {[
                       'Buy and sell items with other players.',
-                      'Identical items at the same price are stacked.',
+                      'Each item shows the floor price — tap to see all offers.',
                       '5% commission charged on listing.',
                       'Listings expire after 7 days.',
                     ].map((tip) => (
@@ -1205,7 +1228,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
             ) : (
               <div className="space-y-1.5">
                 {orderBook.map((row, i) => (
-                  <OrderBookTile key={`${row.itemId}::${row.pricePerUnit}`} row={row} onBuy={handleBuyClick} index={i} floorPrice={floorPriceMap.get(row.itemId)} />
+                  <OrderBookTile key={row.itemId} row={row} onOpenOffers={(r) => { playClickSound(); setOffersTarget(r) }} index={i} />
                 ))}
               </div>
             )}
@@ -1304,6 +1327,106 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
         )}
       </AnimatePresence>
 
+      {/* ─── Offers modal (all price tiers for an item) ─────────────────────── */}
+      {createPortal(
+        <AnimatePresence>
+          {offersTarget && (
+            <motion.div
+              key="offers-overlay"
+              {...MODAL_OVERLAY}
+              className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-4"
+              onClick={() => setOffersTarget(null)}
+            >
+              <motion.div
+                {...MODAL_CARD}
+                className="w-[320px] rounded-2xl bg-[#1a1a2e] border border-white/10 p-4 flex flex-col shadow-2xl max-h-[80vh] overflow-y-auto"
+                style={{ boxShadow: '0 0 60px rgba(0,0,0,0.5)' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {(() => {
+                  const meta = getItemMeta(offersTarget.itemId)
+                  const theme = RARITY_THEME[normalizeRarity(meta.rarity)] ?? RARITY_THEME.common
+                  return (
+                    <>
+                      {/* Header */}
+                      <div className="flex items-center gap-3 mb-4">
+                        <div
+                          className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: `${theme.color}18`, border: `1px solid ${theme.border}`, boxShadow: `0 0 16px ${theme.glow}` }}
+                        >
+                          <LootVisualShared icon={meta.icon} image={meta.image} className="w-7 h-7 object-contain" scale={meta.scale} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-white truncate">{meta.name}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span
+                              className="text-[8px] font-medium px-1.5 py-px rounded capitalize"
+                              style={{ color: theme.color, backgroundColor: `${theme.color}18` }}
+                            >{meta.rarity}</span>
+                            <span className="text-[9px] text-gray-500">{offersTarget.offers.length} offer{offersTarget.offers.length !== 1 ? 's' : ''} · {offersTarget.totalQty} total</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setOffersTarget(null)}
+                          className="w-6 h-6 flex items-center justify-center rounded-md border border-white/10 text-gray-500 hover:text-gray-300 hover:border-white/20 text-xs shrink-0 transition-colors"
+                        >✕</button>
+                      </div>
+
+                      {/* Price history sparkline */}
+                      {priceHistory.length >= 2 && (
+                        <div className="flex flex-col items-center gap-1 mb-3 pb-3 border-b border-white/[0.06]">
+                          <PriceSparkline prices={priceHistory.map((p) => p.price_gold)} width={120} height={28} />
+                          <p className="text-[8px] text-gray-600 font-mono">last {priceHistory.length} sales</p>
+                        </div>
+                      )}
+
+                      {/* Offer rows */}
+                      <div className="space-y-1.5">
+                        {offersTarget.offers.map((offer, i) => {
+                          const canAfford = (gold ?? 0) >= offer.pricePerUnit
+                          const isFloor = i === 0
+                          return (
+                            <div
+                              key={offer.pricePerUnit}
+                              className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg border border-white/[0.07] bg-white/[0.02]"
+                            >
+                              {/* Price */}
+                              <div className={`flex items-center gap-1 px-2 py-1 rounded-md border shrink-0 ${isFloor ? 'bg-green-500/10 border-green-500/25' : 'bg-amber-500/8 border-amber-500/15'}`}>
+                                <span className={`text-[10px] ${isFloor ? 'text-green-400' : 'text-amber-400'}`}>🪙</span>
+                                <span className={`font-bold text-[11px] tabular-nums ${isFloor ? 'text-green-400' : 'text-amber-400'}`}>{offer.pricePerUnit.toLocaleString()}</span>
+                                {isFloor && <span className="text-[7px] font-mono text-green-400/55 ml-0.5">floor</span>}
+                              </div>
+                              {/* Info */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[10px] text-gray-300 truncate">
+                                  {offer.sellers.length === 1 ? offer.sellers[0] : `${offer.sellers.length} sellers`}
+                                </p>
+                                <p className="text-[9px] text-gray-600">×{offer.totalQty} available</p>
+                              </div>
+                              {/* Buy button */}
+                              <button
+                                type="button"
+                                onClick={() => { setOffersTarget(null); handleBuyClick(offersTarget.itemId, offer) }}
+                                disabled={!canAfford}
+                                className="px-2.5 py-1.5 rounded-lg border text-[10px] font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shrink-0 bg-cyber-neon/15 border-cyber-neon/35 text-cyber-neon hover:bg-cyber-neon/25"
+                              >
+                                {canAfford ? 'Buy' : 'Can\'t afford'}
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </>
+                  )
+                })()}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
+
       {/* ─── Buy confirmation modal ────────────────────────────────────────── */}
       {createPortal(
         <AnimatePresence>
@@ -1311,7 +1434,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
             <motion.div
               key="buy-overlay"
               {...MODAL_OVERLAY}
-              className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-4"
+              className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-4"
               onClick={() => { if (!buying) setBuyTarget(null) }}
             >
               <motion.div
@@ -1321,11 +1444,12 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                 onClick={(e) => e.stopPropagation()}
               >
                 {(() => {
-                  const meta = getItemMeta(buyTarget.itemId)
+                  const { itemId, offer } = buyTarget
+                  const meta = getItemMeta(itemId)
                   const theme = RARITY_THEME[normalizeRarity(meta.rarity)] ?? RARITY_THEME.common
-                  const maxQty = buyTarget.totalQty
+                  const maxQty = offer.totalQty
                   const clampedBuyQty = Math.max(1, Math.min(maxQty, buyQty))
-                  const buyCost = buyTarget.pricePerUnit * clampedBuyQty
+                  const buyCost = offer.pricePerUnit * clampedBuyQty
                   const canAfford = (gold ?? 0) >= buyCost
                   return (
                     <>
@@ -1358,7 +1482,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                       {maxQty > 1 && (
                         <div className="mb-3 rounded-xl bg-black/20 border border-white/[0.06] p-3">
                           <p className="text-[10px] text-gray-500 font-mono mb-2.5 text-center">
-                            Available: {maxQty} · {buyTarget.pricePerUnit} 🪙 each
+                            Available: {maxQty} · {offer.pricePerUnit} 🪙 each
                           </p>
                           <div className="flex items-center justify-center gap-2">
                             <button
@@ -1399,7 +1523,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                         </div>
                         {clampedBuyQty > 1 && (
                           <p className="text-[10px] text-gray-500 font-mono">
-                            {clampedBuyQty} × {buyTarget.pricePerUnit} 🪙
+                            {clampedBuyQty} × {offer.pricePerUnit} 🪙
                           </p>
                         )}
                       </div>
@@ -1413,7 +1537,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                         >Cancel</button>
                         <button
                           type="button"
-                          onClick={() => handleBuy(buyTarget, clampedBuyQty)}
+                          onClick={() => handleBuy(clampedBuyQty)}
                           disabled={!canAfford || buying}
                           className="flex-1 py-2.5 rounded-xl bg-cyber-neon/20 border border-cyber-neon/40 text-cyber-neon text-xs font-semibold hover:bg-cyber-neon/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.97]"
                         >

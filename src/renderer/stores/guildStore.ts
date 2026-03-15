@@ -12,12 +12,20 @@ import { useGoldStore } from './goldStore'
 import { useAuthStore } from './authStore'
 import { supabase } from '../lib/supabase'
 
+interface GuildRaidGoal { current: number; target: number }
+interface GuildRaid {
+  id: string
+  status: 'active' | 'completed' | 'failed'
+  goals: Partial<Record<string, GuildRaidGoal>>
+}
+
 interface GuildState {
   myGuild: Guild | null
   membership: GuildMember | null
   members: GuildMember[]
   activityLog: GuildActivityLogEntry[]
   pendingInvites: GuildInvite[]
+  activeRaid: GuildRaid | null
   isLoading: boolean
   error: string | null
 
@@ -32,6 +40,8 @@ interface GuildState {
   kickMember: (memberId: string) => Promise<{ ok: boolean; error?: string }>
   promoteMember: (memberId: string) => Promise<{ ok: boolean; error?: string }>
   demoteMember: (memberId: string) => Promise<{ ok: boolean; error?: string }>
+  launchRaid: (raidType: string) => Promise<{ ok: boolean; error?: string }>
+  incrementRaidProgress: (type: string, delta: number) => void
 }
 
 export const useGuildStore = create<GuildState>()((set, get) => ({
@@ -40,6 +50,7 @@ export const useGuildStore = create<GuildState>()((set, get) => ({
   members: [],
   activityLog: [],
   pendingInvites: [],
+  activeRaid: null,
   isLoading: false,
   error: null,
 
@@ -141,41 +152,22 @@ export const useGuildStore = create<GuildState>()((set, get) => ({
     return result
   },
 
-  async launchRaid(raidType) {
-    const user = useAuthStore.getState().user
-    const { myGuild, membership } = get()
-    if (!user || !myGuild) return { ok: false, error: 'Not in a guild' }
-    if (membership?.role !== 'owner') return { ok: false, error: 'Only owner can launch raids' }
-    if (get().activeRaid) return { ok: false, error: 'A raid is already active' }
-    set({ isLoading: true })
-    try {
-      const result = await apiLaunchRaid(myGuild.id, user.id, raidType)
-      if (result.ok && result.raid) set({ activeRaid: result.raid })
-      return result.ok ? { ok: true } : { ok: false, error: result.error }
-    } catch (err) {
-      return { ok: false, error: String(err) }
-    } finally {
-      set({ isLoading: false })
-    }
+  async launchRaid(_raidType) {
+    // Guild async raids — not yet wired to backend
+    return { ok: false, error: 'Guild raids coming soon' }
   },
 
   incrementRaidProgress(type, delta) {
-    const user = useAuthStore.getState().user
     const { activeRaid } = get()
     if (!activeRaid || activeRaid.status !== 'active' || !activeRaid.goals[type] || delta <= 0) return
-    // Optimistic local update
     set((s) => {
       if (!s.activeRaid) return s
       const goals = { ...s.activeRaid.goals }
       if (!goals[type]) return s
-      goals[type] = { ...goals[type], current: goals[type].current + delta }
-      const allDone = Object.values(goals).every((g) => g.current >= g.target)
+      goals[type] = { ...goals[type]!, current: goals[type]!.current + delta }
+      const allDone = Object.values(goals).every((g) => g && g.current >= g.target)
       return { activeRaid: { ...s.activeRaid, goals, status: allDone ? 'completed' : 'active' } }
     })
-    // Fire-and-forget to Supabase
-    if (user) {
-      apiIncrementRaid(activeRaid.id, user.id, type, delta).catch(() => {})
-    }
   },
 
   async updateTaxRate(rate) {
