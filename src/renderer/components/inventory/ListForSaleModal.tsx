@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { LOOT_ITEMS, MARKETPLACE_BLOCKED_ITEMS } from '../../lib/loot'
