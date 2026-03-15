@@ -10,6 +10,7 @@ import { syncInventoryToSupabase } from '../services/supabaseSync'
 import { useAuthStore } from '../stores/authStore'
 import { recordCookComplete } from '../services/dailyActivityService'
 import { useBountyStore } from '../stores/bountyStore'
+import { useWeeklyStore } from '../stores/weeklyStore'
 import { useFarmStore } from '../stores/farmStore'
 import { supabase } from '../lib/supabase'
 import { stepToInstrument, FOOD_ITEM_MAP } from '../lib/cooking'
@@ -102,6 +103,8 @@ export function useCookingTick() {
             if (isCookingTabActive()) playCookCompleteSound(foodDef?.rarity ?? 'common')
             recordCookComplete()
             useBountyStore.getState().incrementCook(batch.qty)
+            useWeeklyStore.getState().incrementCook(batch.qty)
+            import('../stores/guildStore').then(({ useGuildStore }) => useGuildStore.getState().incrementRaidProgress('cook', batch.qty)).catch(() => {})
 
             // Show quality/burn info from last roll
             const lastRoll = useCookingStore.getState().lastRoll

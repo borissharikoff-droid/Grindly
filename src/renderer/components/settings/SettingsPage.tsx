@@ -51,13 +51,20 @@ export function SettingsPage() {
   // Window behavior
   const [showWindowOnSessionEnd, setShowWindowOnSessionEnd] = useState(true)
 
-  // Accordion
-  const [openSections, setOpenSections] = useState<Set<string>>(new Set(['links', 'general', 'notifications']))
+  // Accordion — persisted
+  const [openSections, setOpenSections] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('grindly_settings_open_sections')
+      if (saved) return new Set(JSON.parse(saved) as string[])
+    } catch { /* ignore */ }
+    return new Set(['links', 'general', 'notifications'])
+  })
   const toggleSection = useCallback((id: string) => {
     setOpenSections((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
+      try { localStorage.setItem('grindly_settings_open_sections', JSON.stringify([...next])) } catch { /* ignore */ }
       return next
     })
   }, [])

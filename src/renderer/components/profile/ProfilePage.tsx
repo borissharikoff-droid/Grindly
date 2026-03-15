@@ -142,7 +142,6 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
         setUnlockedIds(ids)
         ensureCosmeticsForUnlockedAchievements(ids)
         // Refresh cosmetic state after migration
-        setUnlockedBadgeIds(getUnlockedBadges())
         setUnlockedFrameIds(getUnlockedFrames())
       })
       // Load progress context for "Next Unlock" tracker
@@ -285,7 +284,6 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
     localStorage.setItem('grindly_claimed_achievements', JSON.stringify(updated))
     // Ensure cosmetics are granted (safety net for pre-fix achievements)
     unlockCosmeticsFromAchievement(def.id)
-    setUnlockedBadgeIds(getUnlockedBadges())
     setUnlockedFrameIds(getUnlockedFrames())
     pushAlert(def)
   }
@@ -996,7 +994,7 @@ function FlexCard({ avatar, username, frameId, equippedLootItems, unlockedCount,
       </div>
 
       {/* Stat grid */}
-      <div className="grid grid-cols-4 gap-px bg-white/[0.04] mx-4 mb-4 rounded-xl overflow-hidden">
+      <div className="grid grid-cols-3 gap-px bg-white/[0.04] mx-4 mb-4 rounded-xl overflow-hidden">
         <StatCell icon={'\u26A1'} value={String(totalSkillLevel)} label="Skill LVL" color="#00FF88" />
         <StatCell icon={'\uD83C\uDFC6'} value={`${unlockedCount}/${ACHIEVEMENTS.length}`} label="Achieves" color="#FACC15" />
         <StatCell icon={'\uD83D\uDD25'} value={grindStats.streak > 0 ? `${grindStats.streak}d` : '-'} label={grindStats.bestStreak > 0 ? `Best ${grindStats.bestStreak}d` : 'Streak'} color="#FF6B35" />

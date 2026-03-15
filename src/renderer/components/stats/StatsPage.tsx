@@ -206,18 +206,20 @@ function buildHabitItems(params: {
   const items: HabitItem[] = []
   const switchesPerSession = params.totalSessions > 0 ? params.contextSwitches / params.totalSessions : 0
 
-  if (params.focusScore >= 70) {
-    items.push({
-      type: 'good',
-      title: 'Strong focus quality',
-      detail: `${params.focusScore}% of tracked time is focused work.`,
-    })
-  } else {
-    items.push({
-      type: 'risk',
-      title: 'Focus quality is low',
-      detail: `${params.focusScore}% focus suggests frequent interruptions.`,
-    })
+  if (params.totalSessions > 0) {
+    if (params.focusScore >= 70) {
+      items.push({
+        type: 'good',
+        title: 'Strong focus quality',
+        detail: `${params.focusScore}% of tracked time is focused work.`,
+      })
+    } else {
+      items.push({
+        type: 'risk',
+        title: 'Focus quality is low',
+        detail: `${params.focusScore}% focus suggests frequent interruptions.`,
+      })
+    }
   }
 
   if (switchesPerSession > 12) {
@@ -565,17 +567,35 @@ export function StatsPage() {
                 </div>
                 <div className="rounded-xl border border-white/10 bg-discord-darker/60 p-3">
                   <p className="text-[11px] text-gray-400">Focus quality</p>
-                  <p className={`text-base font-semibold ${
-                    focusVisualTone === 'good' ? 'text-cyber-neon' : focusVisualTone === 'warn' ? 'text-amber-300' : 'text-rose-300'
-                  }`}>{focusScore}%</p>
-                  <p className="text-[10px] text-gray-500 mt-1">{focusStatus.text}</p>
+                  {trackableSeconds > 0 ? (
+                    <>
+                      <p className={`text-base font-semibold ${
+                        focusVisualTone === 'good' ? 'text-cyber-neon' : focusVisualTone === 'warn' ? 'text-amber-300' : 'text-rose-300'
+                      }`}>{focusScore}%</p>
+                      <p className="text-[10px] text-gray-500 mt-1">{focusStatus.text}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-base font-semibold text-gray-500">—</p>
+                      <p className="text-[10px] text-gray-600 mt-1">No data yet</p>
+                    </>
+                  )}
                 </div>
                 <div className="rounded-xl border border-white/10 bg-discord-darker/60 p-3">
                   <p className="text-[11px] text-gray-400">Distraction share</p>
-                  <p className={`text-base font-semibold ${
-                    distractionVisualTone === 'good' ? 'text-cyber-neon' : distractionVisualTone === 'warn' ? 'text-amber-300' : 'text-rose-300'
-                  }`}>{distractionScore}%</p>
-                  <p className="text-[10px] text-gray-500 mt-1">{distractionStatus.text}</p>
+                  {trackableSeconds > 0 ? (
+                    <>
+                      <p className={`text-base font-semibold ${
+                        distractionVisualTone === 'good' ? 'text-cyber-neon' : distractionVisualTone === 'warn' ? 'text-amber-300' : 'text-rose-300'
+                      }`}>{distractionScore}%</p>
+                      <p className="text-[10px] text-gray-500 mt-1">{distractionStatus.text}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-base font-semibold text-gray-500">—</p>
+                      <p className="text-[10px] text-gray-600 mt-1">No data yet</p>
+                    </>
+                  )}
                 </div>
                 <div className="rounded-xl border border-white/10 bg-discord-darker/60 p-3">
                   <p className="text-[11px] text-gray-400">Context switches</p>

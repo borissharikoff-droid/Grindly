@@ -1995,7 +1995,7 @@ export function CookingPage() {
 
                 <button onClick={() => { setShowWelcome(false); localStorage.setItem('grindly_kitchen_welcomed', '1'); playClickSound() }}
                   className="w-full py-2.5 rounded-xl text-[13px] font-bold"
-                  style={{ color: '#fff', background: `linear-gradient(135deg, ${K.copper}, ${K.clay})` }}>
+                  style={{ color: '#000', background: 'linear-gradient(135deg, #00FF88, #00CC66)' }}>
                   Got it!
                 </button>
               </div>

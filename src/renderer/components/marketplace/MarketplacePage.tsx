@@ -153,15 +153,17 @@ function OrderBookTile({ row, onBuy, index, floorPrice }: { row: OrderBookRow; o
           </span>
         </div>
       </div>
-      {/* price + floor badge */}
-      <div className="flex flex-col items-end gap-0.5 shrink-0">
-        <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 group-hover:bg-amber-500/15 transition-colors">
-          <span className="text-amber-400 text-[10px]">🪙</span>
-          <span className="text-amber-400 font-bold text-[11px] tabular-nums">{row.pricePerUnit}</span>
+      {/* price chip — green tint when floor */}
+      <div className="shrink-0">
+        <div className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border transition-colors ${
+          isFloor
+            ? 'bg-green-500/10 border-green-500/25 group-hover:bg-green-500/16'
+            : 'bg-amber-500/10 border-amber-500/20 group-hover:bg-amber-500/15'
+        }`}>
+          <span className={`text-[10px] ${isFloor ? 'text-green-400' : 'text-amber-400'}`}>🪙</span>
+          <span className={`font-bold text-[11px] tabular-nums ${isFloor ? 'text-green-400' : 'text-amber-400'}`}>{row.pricePerUnit}</span>
+          {isFloor && <span className="text-[7px] font-mono text-green-400/55 ml-0.5 tracking-wide">floor</span>}
         </div>
-        {isFloor && (
-          <span className="text-[8px] font-mono text-green-400/70 px-1">🏷 floor</span>
-        )}
       </div>
     </motion.button>
   )
@@ -323,11 +325,12 @@ function sellItemCategory(id: string): SellFilterId {
   return 'materials'
 }
 
-function SellTab({ onListed, onToast }: { onListed: () => void; onToast: (message: string, type: 'success' | 'error') => void }) {
+function SellTab({ onListed, onToast, floorPriceMap }: { onListed: () => void; onToast: (message: string, type: 'success' | 'error') => void; floorPriceMap: Map<string, number> }) {
   const items = useInventoryStore((s) => s.items)
   const seeds = useFarmStore((s) => s.seeds)
   const seedZips = useFarmStore((s) => s.seedZips)
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
+  const [quickListPrice, setQuickListPrice] = useState<number | undefined>(undefined)
   useEscapeHandler(() => setSelectedItem(null), selectedItem !== null)
   const [sellSearch, setSellSearch] = useState('')
   const [filterBy, setFilterBy] = useState<SellFilterId>('all')
@@ -415,42 +418,67 @@ function SellTab({ onListed, onToast }: { onListed: () => void; onToast: (messag
     }
   }, [selectedItem]) // eslint-disable-line react-hooks/exhaustive-deps -- snapshot qty at open, not when sellable changes
 
+  const handleQuickList = (e: React.MouseEvent, entry: { id: string; qty: number }) => {
+    e.stopPropagation()
+    playClickSound()
+    // Use active listing floor (undercut by 1g) — no async needed
+    const activeFloor = floorPriceMap.get(entry.id)
+    setQuickListPrice(activeFloor !== undefined ? Math.max(1, activeFloor - 1) : undefined)
+    setSelectedItem(entry.id)
+  }
+
   const renderSellCard = (entry: { id: string; qty: number }, i: number) => {
     const meta = getItemMeta(entry.id)
     const theme = RARITY_THEME[normalizeRarity(meta.rarity)] ?? RARITY_THEME.common
     const lootItem = LOOT_ITEMS.find((x) => x.id === entry.id)
     const perkChip = lootItem && lootItem.perkType !== 'cosmetic' && lootItem.slot !== 'consumable' && lootItem.slot !== 'plant'
       ? getItemPerkDescription(lootItem) : null
+    const activeFloor = floorPriceMap.get(entry.id)
     return (
-      <motion.button
+      <motion.div
         key={entry.id}
         {...LIST_ITEM}
         transition={{ duration: 0.15, delay: Math.min(i * 0.02, 0.25) }}
-        type="button"
-        onClick={() => { playClickSound(); setSelectedItem(entry.id) }}
-        className="relative flex items-center gap-2 p-2 rounded-lg border border-white/[0.06] bg-discord-darker/50 hover:bg-discord-darker/80 active:scale-[0.98] transition-all text-left overflow-hidden group"
+        className="relative"
       >
-        {/* Left rarity accent */}
-        <div className="absolute left-0 top-1 bottom-1 w-[2px] rounded-full" style={{ background: theme.color, opacity: normalizeRarity(meta.rarity) === 'common' ? 0.3 : 0.7 }} />
-        {/* Icon box */}
-        <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 overflow-hidden transition-transform group-hover:scale-105"
-          style={{ background: '#0a0a14', border: `1px solid ${theme.color}30` }}
+        <button
+          type="button"
+          onClick={() => { playClickSound(); setQuickListPrice(undefined); setSelectedItem(entry.id) }}
+          className="relative w-full flex items-center gap-2 p-2 rounded-lg border border-white/[0.06] bg-discord-darker/50 hover:bg-discord-darker/80 active:scale-[0.98] transition-all text-left overflow-hidden group"
         >
-          <LootVisualShared icon={meta.icon} image={meta.image} className="w-6 h-6 object-contain" scale={meta.scale} />
-        </div>
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-semibold text-gray-100 leading-tight truncate">{meta.name}</p>
-          <div className="flex items-center gap-1 mt-0.5">
-            <span className="text-[8px] font-mono uppercase" style={{ color: theme.color }}>{meta.rarity}</span>
+          {/* Left rarity accent */}
+          <div className="absolute left-0 top-1 bottom-1 w-[2px] rounded-full" style={{ background: theme.color, opacity: normalizeRarity(meta.rarity) === 'common' ? 0.3 : 0.7 }} />
+          {/* Icon box */}
+          <div
+            className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 overflow-hidden transition-transform group-hover:scale-105"
+            style={{ background: '#0a0a14', border: `1px solid ${theme.color}30` }}
+          >
+            <LootVisualShared icon={meta.icon} image={meta.image} className="w-6 h-6 object-contain" scale={meta.scale} />
           </div>
-          {perkChip && <p className="text-[8px] text-gray-500 truncate mt-0.5">{perkChip}</p>}
-        </div>
-        {/* Qty + Sell label */}
-        {entry.qty > 1 && <span className="text-[9px] font-mono font-bold shrink-0" style={{ color: theme.color }}>×{entry.qty}</span>}
-        <span className="text-[10px] text-amber-400/70 font-medium shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">Sell</span>
-      </motion.button>
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-semibold text-gray-100 leading-tight truncate">{meta.name}</p>
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className="text-[8px] font-mono uppercase" style={{ color: theme.color }}>{meta.rarity}</span>
+            </div>
+            {perkChip && <p className="text-[8px] text-gray-500 truncate mt-0.5">{perkChip}</p>}
+          </div>
+          {/* Qty + Sell label */}
+          {entry.qty > 1 && <span className="text-[9px] font-mono font-bold shrink-0" style={{ color: theme.color }}>×{entry.qty}</span>}
+          <span className="text-[10px] text-amber-400/70 font-medium shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">Sell</span>
+        </button>
+        {/* Quick List button — only shown when active floor exists */}
+        {activeFloor !== undefined && (
+          <button
+            type="button"
+            onClick={(e) => handleQuickList(e, entry)}
+            title={`Quick list at ${activeFloor - 1}g (floor − 1)`}
+            className="absolute top-0.5 right-0.5 px-1 py-0.5 rounded text-[8px] font-bold border text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 transition-colors leading-none z-10"
+          >
+            ⚡
+          </button>
+        )}
+      </motion.div>
     )
   }
 
@@ -541,10 +569,13 @@ function SellTab({ onListed, onToast }: { onListed: () => void; onToast: (messag
           key={selectedItem}
           itemId={selectedItem}
           maxQty={modalMaxQty}
-          onClose={() => setSelectedItem(null)}
+          suggestedPrice={quickListPrice}
+          activeFloorPrice={floorPriceMap.get(selectedItem)}
+          onClose={() => { setSelectedItem(null); setQuickListPrice(undefined) }}
           onListed={() => {
             const name = getItemMeta(selectedItem).name
             setSelectedItem(null)
+            setQuickListPrice(undefined)
             onListedRef.current()
             onToastRef.current(`Listed ${name} on marketplace`, 'success')
           }}
@@ -1182,7 +1213,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
         )}
 
         {activeTab === 'sell' && (
-          <SellTab onListed={loadListings} onToast={showToast} />
+          <SellTab onListed={loadListings} onToast={showToast} floorPriceMap={floorPriceMap} />
         )}
 
         {activeTab === 'my_listings' && (

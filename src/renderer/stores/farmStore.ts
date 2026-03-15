@@ -28,6 +28,7 @@ import { useGoldStore } from './goldStore'
 import { useInventoryStore } from './inventoryStore'
 import { useAuthStore } from './authStore'
 import { useBountyStore } from './bountyStore'
+import { useWeeklyStore } from './weeklyStore'
 
 export interface PlantedSlot {
   seedId: string
@@ -290,6 +291,8 @@ export const useFarmStore = create<FarmState>()(
 
         recordHarvest(1)
         useBountyStore.getState().incrementFarm(1)
+        useWeeklyStore.getState().incrementFarm(1)
+        import('./guildStore').then(({ useGuildStore }) => useGuildStore.getState().incrementRaidProgress('farm', 1)).catch(() => {})
         return { yieldPlantId: seed.yieldPlantId, qty, xpGained: xp, seedZipTier, composted: isComposted, compostDrop }
       },
 
@@ -331,6 +334,8 @@ export const useFarmStore = create<FarmState>()(
         if (results.length > 0) {
           recordHarvest(results.length)
           useBountyStore.getState().incrementFarm(results.length)
+          useWeeklyStore.getState().incrementFarm(results.length)
+          import('./guildStore').then(({ useGuildStore }) => useGuildStore.getState().incrementRaidProgress('farm', results.length)).catch(() => {})
         }
         return results
       },

@@ -7,6 +7,8 @@ interface NavigationStore {
   setNavigateTo: (fn: (tab: TabId) => void) => void
   currentTab: TabId
   setCurrentTab: (tab: TabId) => void
+  profileInitialTab: string | null
+  setProfileInitialTab: (tab: string | null) => void
 }
 
 export const useNavigationStore = create<NavigationStore>((set) => ({
@@ -14,4 +16,6 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
   setNavigateTo: (fn) => set({ navigateTo: fn }),
   currentTab: 'home',
   setCurrentTab: (tab) => set({ currentTab: tab }),
+  profileInitialTab: null,
+  setProfileInitialTab: (tab) => set({ profileInitialTab: tab }),
 }))

@@ -5,6 +5,7 @@ import { recordCraftComplete } from '../services/dailyActivityService'
 import { useAchievementStatsStore } from './achievementStatsStore'
 import { useGoldStore } from './goldStore'
 import { useBountyStore } from './bountyStore'
+import { useWeeklyStore } from './weeklyStore'
 
 const STORAGE_KEY = 'grindly_crafting_v2'
 
@@ -186,6 +187,8 @@ export const useCraftingStore = create<CraftingState>((set, get) => ({
       recordCraftComplete()
       useAchievementStatsStore.getState().incrementCrafts()
       useBountyStore.getState().incrementCraft(completable)
+      useWeeklyStore.getState().incrementCraft(completable)
+      import('./guildStore').then(({ useGuildStore }) => useGuildStore.getState().incrementRaidProgress('craft', completable)).catch(() => {})
       const next = newQueue.shift() ?? null
       newActiveJob = next ? { ...next, startedAt: now, doneQty: 0 } : null
     } else {

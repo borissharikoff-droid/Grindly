@@ -111,6 +111,23 @@ function makeScaleFrames(count: number): number[] {
   return frames // length: count + 2 — matches makeShakeFrames
 }
 
+// ─── Animated loading dots ───────────────────────────────────────────────────
+function LoadingDots({ color }: { color: string }) {
+  return (
+    <span className="inline-flex items-center gap-[3px] ml-1 translate-y-[1px]">
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          className="w-[3px] h-[3px] rounded-full inline-block"
+          style={{ background: color }}
+          animate={{ opacity: [0.3, 1, 0.3], y: [0, -2, 0] }}
+          transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.18, ease: 'easeInOut' }}
+        />
+      ))}
+    </span>
+  )
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 interface ChestOpenModalProps {
   open: boolean
@@ -376,16 +393,16 @@ export function ChestOpenModal({
                         }
                       : { type: 'spring', stiffness: 220, damping: 16 }
                     }
-                    className="w-[76px] h-[76px] rounded-2xl border flex items-center justify-center relative overflow-hidden"
+                    className="w-[92px] h-[92px] rounded-2xl border flex items-center justify-center relative overflow-hidden"
                     style={{
                       borderColor: chestTheme.border,
-                      background: `radial-gradient(circle at 50% 35%, ${chestTheme.glow}55 0%, rgba(8,8,16,0.92) 70%)`,
+                      background: `radial-gradient(circle at 50% 35%, ${chestTheme.glow}60 0%, rgba(8,8,16,0.92) 70%)`,
                     }}
                   >
                     {chest.image ? (
-                      <img src={chest.image} alt="" className="w-12 h-12 object-contain select-none" style={{ imageRendering: 'pixelated' }} draggable={false} />
+                      <img src={chest.image} alt="" className="w-16 h-16 object-contain select-none" style={{ imageRendering: 'pixelated' }} draggable={false} />
                     ) : (
-                      <span className="text-4xl">{chest.icon}</span>
+                      <span className="text-5xl">{chest.icon}</span>
                     )}
                   </motion.div>
                 </motion.div>
@@ -393,21 +410,33 @@ export function ChestOpenModal({
                 {/* Status label */}
                 <div className="mt-3 h-[18px] relative overflow-hidden">
                   <AnimatePresence mode="wait">
-                    <motion.p
-                      key={isRevealed ? 'revealed' : 'opening'}
-                      className="absolute inset-0 text-[11px] font-mono uppercase tracking-wider text-center"
-                      style={{ color: chestTheme.color }}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -6 }}
-                      transition={{ duration: 0.2, ease: 'easeOut' }}
-                    >
-                      {isRevealed
-                        ? item
+                    {isRevealed ? (
+                      <motion.p
+                        key="revealed"
+                        className="absolute inset-0 text-[11px] font-mono uppercase tracking-wider text-center"
+                        style={{ color: item ? rarityTheme.color : chestTheme.color }}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                      >
+                        {item
                           ? (({ common: 'Bag opened', rare: 'Rare drop!', epic: 'Epic drop!', legendary: 'Legendary!!', mythic: 'Mythic!!' } as Record<string, string>)[item.rarity] ?? 'Bag opened')
-                          : 'Bag opened'
-                        : 'Opening\u2026'}
-                    </motion.p>
+                          : 'Bag opened'}
+                      </motion.p>
+                    ) : (
+                      <motion.span
+                        key="opening"
+                        className="absolute inset-0 text-[11px] font-mono uppercase tracking-wider text-center flex items-center justify-center"
+                        style={{ color: chestTheme.color }}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                      >
+                        Opening<LoadingDots color={chestTheme.color} />
+                      </motion.span>
+                    )}
                   </AnimatePresence>
                 </div>
 
@@ -533,15 +562,25 @@ export function ChestOpenModal({
                         >
                           {item.name}
                         </motion.p>
-                        <motion.p
-                          key={`rarity:${revealKey}`}
-                          className="text-[10px] font-mono uppercase tracking-wider mt-0.5"
-                          style={{ color: rarityTheme.color }}
-                          animate={isRevealed && item.rarity !== 'common' ? { scale: [1, 1.22, 1] } : {}}
-                          transition={{ duration: 0.38, delay: 0.1 }}
-                        >
-                          {item.rarity}
-                        </motion.p>
+                        <div className="flex items-center justify-center gap-1.5 mt-0.5">
+                          <motion.p
+                            key={`rarity:${revealKey}`}
+                            className="text-[10px] font-mono uppercase tracking-wider"
+                            style={{ color: rarityTheme.color }}
+                            animate={isRevealed && item.rarity !== 'common' ? { scale: [1, 1.22, 1] } : {}}
+                            transition={{ duration: 0.38, delay: 0.1 }}
+                          >
+                            {item.rarity}
+                          </motion.p>
+                          {(['head', 'body', 'legs', 'ring', 'weapon'] as string[]).includes(item.slot) && (
+                            <span
+                              className="text-[8px] font-mono uppercase tracking-widest px-1 py-px rounded"
+                              style={{ color: `${rarityTheme.color}99`, background: `${rarityTheme.color}14`, border: `1px solid ${rarityTheme.color}28` }}
+                            >
+                              {item.slot}
+                            </span>
+                          )}
+                        </div>
                         {item.description && <p className="text-[9px] text-gray-500 italic mt-1 leading-snug">{item.description}</p>}
                         <p className="text-[10px] text-gray-400 mt-1 leading-snug">{getItemPerkDescription(item)}</p>
                       </motion.div>
