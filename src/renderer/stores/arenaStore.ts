@@ -10,6 +10,8 @@ import {
 import type { CombatStats } from '../lib/loot'
 import { CHEST_DEFS, LOOT_ITEMS, rollBossChestTier, type BonusMaterial, type ChestType, type LootSlot } from '../lib/loot'
 import { PLANT_COMBAT_BUFFS, grantWarriorXP } from '../lib/farming'
+import { getHotZoneId, HOT_CHEST_TIER_UP } from '../lib/hotZone'
+import { FOOD_ITEM_MAP } from '../lib/cooking'
 import { skillLevelFromXP, getGrindlyLevel, computeGrindlyBonuses } from '../lib/skills'
 import { useAuthStore } from './authStore'
 import { useGoldStore } from './goldStore'
@@ -112,14 +114,41 @@ function clearStaleActiveBattle() {
 }
 clearStaleActiveBattle()
 
-function rollMaterial(mob: MobDef): { id: string; qty: number } | null {
+function rollMaterial(mob: MobDef, dropMultiplier = 1): { id: string; qty: number } | null {
   if (!mob.materialDropId || !mob.materialDropChance) return null
-  if (Math.random() >= mob.materialDropChance) return null
-  return { id: mob.materialDropId, qty: mob.materialDropQty ?? 1 }
+  const chance = Math.min(1, mob.materialDropChance * dropMultiplier)
+  if (Math.random() >= chance) return null
+  const qty = mob.materialDropQty ?? 1
+  return { id: mob.materialDropId, qty: dropMultiplier > 1 ? qty * 2 : qty }
 }
 
-function randomGold(min: number, max: number): number {
-  return min + Math.floor(Math.random() * (max - min + 1))
+function randomGold(min: number, max: number, goldMultiplier = 1): number {
+  const base = min + Math.floor(Math.random() * (max - min + 1))
+  return Math.round(base * goldMultiplier)
+}
+
+/** Compute combined gold multiplier from food loadout. Returns 1 if no food bonus. */
+function getFoodGoldMultiplier(foodLoadout: FoodLoadout | undefined): number {
+  if (!foodLoadout) return 1
+  let pct = 0
+  for (const slot of foodLoadout) {
+    if (!slot) continue
+    const def = FOOD_ITEM_MAP[slot.foodId]
+    if (def?.effect?.goldBonusPct) pct += def.effect.goldBonusPct
+  }
+  return 1 + pct / 100
+}
+
+/** Compute combined drop bonus multiplier from food loadout. Returns 1 if no bonus. */
+function getFoodDropMultiplier(foodLoadout: FoodLoadout | undefined): number {
+  if (!foodLoadout) return 1
+  let pct = 0
+  for (const slot of foodLoadout) {
+    if (!slot) continue
+    const def = FOOD_ITEM_MAP[slot.foodId]
+    if (def?.effect?.dropBonusPct) pct += def.effect.dropBonusPct
+  }
+  return 1 + pct / 100
 }
 
 /** Generate a battle seed from timestamp + random bits for dynamic damage PRNG. */
@@ -413,7 +442,11 @@ export const useArenaStore = create<ArenaState>()(
           const mob = activeBattle.mobDef
           if (state.victory) {
             get().recordKill(mob.id)
-            const gold = randomGold(mob.goldMin, mob.goldMax)
+            const hotZoneId = getHotZoneId()
+            const isHotZone = activeBattle.dungeonZoneId === hotZoneId
+            const goldMult = (isHotZone ? 2 : 1) * getFoodGoldMultiplier(activeBattle.foodLoadout)
+            const dropMult = (isHotZone ? 2 : 1) * getFoodDropMultiplier(activeBattle.foodLoadout)
+            const gold = randomGold(mob.goldMin, mob.goldMax, goldMult)
             useGoldStore.getState().addGold(gold)
             const user = useAuthStore.getState().user
             if (user) useGoldStore.getState().syncToSupabase(user.id)
@@ -421,7 +454,7 @@ export const useArenaStore = create<ArenaState>()(
             void grantWarriorXP(mob.xpReward)
             warriorXP = mob.xpReward
 
-            const materialDrop = rollMaterial(mob)
+            const materialDrop = rollMaterial(mob, dropMult)
             if (materialDrop) {
               useInventoryStore.getState().addItem(materialDrop.id, materialDrop.qty)
               const matItem = LOOT_ITEMS.find((x) => x.id === materialDrop.id)
@@ -456,8 +489,14 @@ export const useArenaStore = create<ArenaState>()(
           if (state.victory) {
             get().recordKill(activeBattle.bossSnapshot.id)
             const bossForChest = activeBattle.bossSnapshot as BossDef
+            const hotZoneId2 = getHotZoneId()
+            const isBossHotZone = activeBattle.dungeonZoneId === hotZoneId2
+            const bossDropMult = (isBossHotZone ? 2 : 1) * getFoodDropMultiplier(activeBattle.foodLoadout)
             if (bossForChest.rewards?.chestTier) {
-              const rolledTier = rollBossChestTier(bossForChest.rewards.chestTier)
+              const baseTier = isBossHotZone
+                ? (HOT_CHEST_TIER_UP[bossForChest.rewards.chestTier] as ChestType ?? bossForChest.rewards.chestTier)
+                : bossForChest.rewards.chestTier
+              const rolledTier = rollBossChestTier(baseTier)
               if (rolledTier) {
                 // Add rolled chest to inventory
                 useInventoryStore.getState().addChest(rolledTier, 'session_complete', 100)
@@ -477,13 +516,14 @@ export const useArenaStore = create<ArenaState>()(
               warriorXP = bossWarriorXP
             }
 
-            // Grant boss-exclusive material drop
+            // Grant boss-exclusive material drop (doubled on hot zone)
             if (bossForChest.materialDropId) {
-              const qty = bossForChest.materialDropQty ?? 1
+              const qty = Math.round((bossForChest.materialDropQty ?? 1) * (isBossHotZone ? 2 : 1))
               useInventoryStore.getState().addItem(bossForChest.materialDropId, qty)
               const matItem = LOOT_ITEMS.find((i) => i.id === bossForChest.materialDropId)
               matDrop = { id: bossForChest.materialDropId, name: matItem?.name ?? bossForChest.materialDropId, icon: matItem?.icon ?? '📦', qty }
             }
+            void bossDropMult // used above for chest tier
 
             // If this was the dungeon boss, mark zone cleared and grant accumulated gold
             // Mark daily boss as claimed
@@ -679,6 +719,11 @@ export const useArenaStore = create<ArenaState>()(
           // Clone food loadout for this run (quantities deplete per run)
           const runFood = foodLoadout?.map(s => s ? { ...s } : null)
 
+          // Hot zone + food multipliers for this run
+          const autoHotZone = getHotZoneId() === zoneId
+          const autoGoldMult = (autoHotZone ? 2 : 1) * getFoodGoldMultiplier(foodLoadout)
+          const autoDropMult = (autoHotZone ? 2 : 1) * getFoodDropMultiplier(foodLoadout)
+
           // Fight 3 mobs
           for (let m = 0; m < 3 && !failed; m++) {
             const mob = zone.mobs[m]
@@ -697,11 +742,11 @@ export const useArenaStore = create<ArenaState>()(
               outcome = computeBattleOutcome(playerSnapshot, mob as unknown as BossDef)
             }
             if (outcome.willWin) {
-              const gold = randomGold(mob.goldMin, mob.goldMax)
+              const gold = randomGold(mob.goldMin, mob.goldMax, autoGoldMult)
               totalGold += gold
               void grantWarriorXP(mob.xpReward)
               totalWarriorXP += mob.xpReward
-              const drop = rollMaterial(mob)
+              const drop = rollMaterial(mob, autoDropMult)
               if (drop) {
                 useInventoryStore.getState().addItem(drop.id, drop.qty)
                 const matItem = LOOT_ITEMS.find((x) => x.id === drop.id)
@@ -743,7 +788,10 @@ export const useArenaStore = create<ArenaState>()(
           }
           if (bossOutcome.willWin) {
             get().recordKill(zone.boss.id)
-            const rolledTier = rollBossChestTier(zone.boss.rewards.chestTier)
+            const autoBaseTier = autoHotZone
+              ? (HOT_CHEST_TIER_UP[zone.boss.rewards.chestTier] as ChestType ?? zone.boss.rewards.chestTier)
+              : zone.boss.rewards.chestTier
+            const rolledTier = rollBossChestTier(autoBaseTier)
             if (rolledTier) {
               useInventoryStore.getState().addChest(rolledTier, 'session_complete', 100)
               chests.push(rolledTier)
@@ -763,7 +811,7 @@ export const useArenaStore = create<ArenaState>()(
               totalWarriorXP += bossWarriorXP
             }
             if (zone.boss.materialDropId) {
-              const qty = zone.boss.materialDropQty ?? 1
+              const qty = Math.round((zone.boss.materialDropQty ?? 1) * (autoHotZone ? 2 : 1))
               useInventoryStore.getState().addItem(zone.boss.materialDropId, qty)
               const matItem = LOOT_ITEMS.find((x) => x.id === zone.boss.materialDropId)
               if (materialMap[zone.boss.materialDropId]) {

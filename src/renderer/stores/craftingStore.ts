@@ -4,6 +4,7 @@ import { skillLevelFromXP, getGrindlyLevel, computeGrindlyBonuses } from '../lib
 import { recordCraftComplete } from '../services/dailyActivityService'
 import { useAchievementStatsStore } from './achievementStatsStore'
 import { useGoldStore } from './goldStore'
+import { useBountyStore } from './bountyStore'
 
 const STORAGE_KEY = 'grindly_crafting_v2'
 
@@ -184,6 +185,7 @@ export const useCraftingStore = create<CraftingState>((set, get) => ({
     if (newDone >= activeJob.totalQty) {
       recordCraftComplete()
       useAchievementStatsStore.getState().incrementCrafts()
+      useBountyStore.getState().incrementCraft(completable)
       const next = newQueue.shift() ?? null
       newActiveJob = next ? { ...next, startedAt: now, doneQty: 0 } : null
     } else {

@@ -147,6 +147,7 @@ export function CurrentActivity() {
             </motion.p>
             {xpThisSession > 0 && (
               <motion.span
+                key={xpThisSession}
                 layout
                 initial={{ opacity: 0, y: 3 }}
                 animate={{ opacity: 1, y: 0 }}

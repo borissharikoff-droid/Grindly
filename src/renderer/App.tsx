@@ -166,6 +166,7 @@ export default function App() {
     setActiveTab(tab)
   }, [])
   useEffect(() => { useNavigationStore.getState().setNavigateTo(navigateTo) }, [navigateTo])
+  useEffect(() => { useNavigationStore.getState().setCurrentTab(activeTab) }, [activeTab])
   useEffect(() => { useAchievementStatsStore.getState().hydrate() }, [])
   const [showStreak, setShowStreak] = useState(false)
   const [streakCount, setStreakCount] = useState(0)

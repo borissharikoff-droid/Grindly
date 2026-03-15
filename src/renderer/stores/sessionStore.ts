@@ -14,7 +14,7 @@ import { routeNotification } from '../services/notificationRouter'
 import { generateSessionCoach, type SessionCoachSummary } from '../lib/sessionCoach'
 import { publishSocialFeedEvent } from '../services/socialFeed'
 import { ensureInventoryHydrated, useInventoryStore } from './inventoryStore'
-import { recordDeveloperXp, recordFocusSeconds, recordSessionWithoutAfk } from '../services/dailyActivityService'
+import { recordDeveloperXp, recordFocusSeconds, recordSessionWithoutAfk, recordWeeklySkillXP } from '../services/dailyActivityService'
 import { useChestDropStore } from './chestDropStore'
 import { getEquippedPerkRuntime } from '../lib/loot'
 import { track } from '../lib/analytics'
@@ -239,6 +239,7 @@ function startXpTicking() {
     if (totalSkillDelta <= 0) return
     recordFocusSeconds(Math.floor(tickDurationMs / 1000))
     recordDeveloperXp(event.skillXpDelta.developer ?? 0)
+    recordWeeklySkillXP(totalSkillDelta)
     const reasonEvent = makeProgressionEvent({
       ...event,
       title: 'Focus Skill XP',

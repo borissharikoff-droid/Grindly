@@ -103,6 +103,9 @@ export function SessionControls({ glowPulse }: SessionControlsProps) {
               transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
               className="w-full max-w-[320px] rounded-2xl p-3.5 border border-white/10 bg-discord-card/90 shadow-lg"
             >
+              <div className="text-center mb-2">
+                <span className="text-2xl">{confirmState === 'discard' ? '🗑️' : '🛑'}</span>
+              </div>
               <p className="text-sm font-semibold text-center mb-1 text-white">
                 {confirmState === 'discard' ? 'Session under 30s' : 'Stop grinding?'}
               </p>

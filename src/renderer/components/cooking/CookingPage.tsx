@@ -3,6 +3,7 @@ import { useEscapeHandler } from '../../hooks/useEscapeHandler'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   COOKING_RECIPES,
+  COOKING_RECIPE_MAP,
   FOOD_ITEM_MAP,
   canAffordCookRecipe,
   maxAffordableCookQty,
@@ -542,7 +543,7 @@ function DishCard({
                 <div className="w-1.5 h-1.5 rounded-full ml-auto shrink-0" style={{ background: `${K.ready}60` }} />
               )}
               {lvlLocked && (
-                <span className="font-mono ml-auto" style={{ color: K.warn }}>Chef Lvl {recipe.chefLevelRequired}</span>
+                <span className="font-mono ml-auto" style={{ color: K.warn }}>Cooking Lvl {recipe.chefLevelRequired}</span>
               )}
             </div>
           </div>
@@ -775,7 +776,7 @@ function ToolsPanel({ chefLevel, onClose, focusId }: { chefLevel: number; onClos
         <div className="p-4 pb-8 max-h-[70vh] overflow-y-auto">
           <div className="flex justify-center mb-3"><div className="w-10 h-1 rounded-full" style={{ background: K.faint }} /></div>
           <div className="flex items-center justify-between mb-4">
-            <p className="text-[14px] font-bold" style={{ color: K.cream }}>Kitchen Tools</p>
+            <p className="text-[14px] font-bold" style={{ color: K.cream }}>Cooking Tools</p>
             <span className="text-[10px] font-mono px-2 py-1 rounded-lg"
               style={{ color: K.xp, background: `${K.xp}08` }}>
               {gold.toLocaleString()} gold
@@ -818,7 +819,7 @@ function ToolsPanel({ chefLevel, onClose, focusId }: { chefLevel: number; onClos
                         )}
                       </div>
                       {isLocked ? (
-                        <p className="text-[9px] mt-0.5" style={{ color: K.muted }}>Requires Chef Level {inst.unlockLevel}</p>
+                        <p className="text-[9px] mt-0.5" style={{ color: K.muted }}>Requires Cooking Level {inst.unlockLevel}</p>
                       ) : (
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap text-[8px]">
                           {td.speedBonus > 0 && <span style={{ color: K.ready }}>Speed +{Math.round(td.speedBonus * 100)}%</span>}
@@ -954,16 +955,18 @@ function ItemIcon({ item, size = 'md' }: { item: LootItemDef | null; size?: 'sm'
   return <LootVisual icon={item.icon} image={item.image} className={`${cls} object-contain`} scale={item.renderScale ?? 1} />
 }
 
-function Cauldron({ items, onConsume, onGrant }: {
+function Cauldron({ items, onConsume, onGrant, onRecipeFound }: {
   items: Record<string, number>
   onConsume: (id: string, qty: number) => void
   onGrant: (id: string, qty: number) => void
+  onRecipeFound?: (recipeId: string) => void
 }) {
   const [slots, setSlots] = useState<string[]>(mkSlots)
   const [pickingSlot, setPickingSlot] = useState<number | null>(null)
   const [result, setResult] = useState<DiscoveryResult | null>(null)
   const [shake, setShake] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [infoMsg, setInfoMsg] = useState<string | null>(null)
   const [slotFlashRed, setSlotFlashRed] = useState(false)
   const resultRef = useRef<HTMLDivElement>(null)
   const tryFreeformCook = useCookingStore((s) => s.tryFreeformCook)
@@ -1000,11 +1003,17 @@ function Cauldron({ items, onConsume, onGrant }: {
       onGrant('food_mystery_stew', 1)
     } else if (res.type === 'discovered') {
       playCookDiscoverySound()
-    } else if (res.xpGained === 0) {
-      // known recipe but can't afford — show modal with info, play error sound
-      playCookErrorSound()
+      if (res.canStart && res.recipeId) {
+        onRecipeFound?.(res.recipeId)
+      }
+    } else if (res.type === 'known' && res.canStart && res.recipeId) {
+      // Already known recipe — show info, don't open modal
+      setInfoMsg(`Recipe already discovered!`)
+      setTimeout(() => setInfoMsg(null), 2000)
+      playClickSound()
     } else {
-      playLootRaritySound('common')
+      // known recipe but can't afford
+      playCookErrorSound()
     }
     setSlots(mkSlots())
   }, [slots, items, onConsume, tryFreeformCook])
@@ -1045,6 +1054,10 @@ function Cauldron({ items, onConsume, onGrant }: {
           {errorMsg && (
             <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               className="text-[10px] font-bold mt-1" style={{ color: K.warn }}>{errorMsg}</motion.p>
+          )}
+          {infoMsg && !errorMsg && (
+            <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="text-[10px] font-bold mt-1" style={{ color: K.copper }}>{infoMsg}</motion.p>
           )}
         </AnimatePresence>
       </div>
@@ -1584,7 +1597,7 @@ function GuideSection({ title, children }: { title: string; children: React.Reac
   )
 }
 
-function KitchenGuideContent() {
+function CookingGuideContent() {
   return (
     <div className="space-y-1">
       <GuideSection title="Cooking Basics">
@@ -1599,14 +1612,14 @@ function KitchenGuideContent() {
       <GuideSection title="Mastery">
         <p>Cook the same dish repeatedly to earn mastery stars. Stars increase buff power, grant ingredient save chance, and boost XP earned.</p>
       </GuideSection>
-      <GuideSection title="Kitchen Tools">
+      <GuideSection title="Cooking Tools">
         <p>Unlock and upgrade instruments (knife, pan, pot, etc.) with gold. They increase cooking speed, reduce burn chance, and boost quality bonus.</p>
       </GuideSection>
       <GuideSection title="Cauldron">
         <p>Combine any ingredients freely to discover new recipes. Wrong combos produce Mystery Stew (small XP but the item is consumed). Right combos unlock the recipe permanently!</p>
       </GuideSection>
-      <GuideSection title="Chef Level">
-        <p>Earn XP from cooking to level up. Higher chef level unlocks new recipes and reduces cooking time. Some recipes require specific chef levels.</p>
+      <GuideSection title="Cooking Level">
+        <p>Earn XP from cooking to level up. Higher cooking level unlocks new recipes and reduces cooking time. Some recipes require specific cooking levels.</p>
       </GuideSection>
     </div>
   )
@@ -1686,6 +1699,7 @@ export function CookingPage() {
     prevJobIdRef.current = jobId
     if (prevId && !jobId && prevJobRef.current) {
       const lastRoll = useCookingStore.getState().lastRoll
+      const totalXp = useCookingStore.getState().lastJobXp
       const prev = prevJobRef.current
       const food = FOOD_ITEM_MAP[prev.outputItemId]
       if (food) {
@@ -1694,7 +1708,7 @@ export function CookingPage() {
           qty: lastRoll?.granted ?? prev.totalQty,
           burned: lastRoll?.burned ?? 0,
           bonus: lastRoll?.bonus ?? 0,
-          xp: (lastRoll?.granted ?? prev.totalQty) * prev.xpPerItem,
+          xp: totalXp,
           rarity: food.rarity,
         })
         setTimeout(() => {
@@ -1810,10 +1824,10 @@ export function CookingPage() {
               🍳
             </div>
             <div>
-              <h1 className="text-[15px] font-bold" style={{ color: K.cream }}>Kitchen</h1>
+              <h1 className="text-[15px] font-bold" style={{ color: K.cream }}>Cooking</h1>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-[10px]" style={{ color: K.muted }}>
-                  Chef Level <span className="font-bold" style={{ color: K.copper }}>{chefLvl}</span>
+                  Cooking Level <span className="font-bold" style={{ color: K.copper }}>{chefLvl}</span>
                 </span>
                 <span className="text-[9px] font-mono" style={{ color: K.xp }}>{xpCur.toLocaleString()} XP</span>
               </div>
@@ -1936,7 +1950,7 @@ export function CookingPage() {
             if (!out) return null
             return (
               <p className="text-center text-[10px] pt-3 px-4" style={{ color: K.muted }}>
-                Next: {out.icon} <span style={{ color: K.cream }}>{out.name}</span> at Chef Level {next.chefLevelRequired}
+                Next: {out.icon} <span style={{ color: K.cream }}>{out.name}</span> at Cooking Level {next.chefLevelRequired}
               </p>
             )
           })()}
@@ -1946,7 +1960,11 @@ export function CookingPage() {
       {activeTab === 'cauldron' && (
         <Cauldron items={items}
           onConsume={(id, n) => deleteItem(id, n)}
-          onGrant={(id, n) => addItem(id, n)} />
+          onGrant={(id, n) => addItem(id, n)}
+          onRecipeFound={(recipeId) => {
+            const r = COOKING_RECIPE_MAP[recipeId]
+            if (r) setSelRecipe(r)
+          }} />
       )}
 
       {activeTab === 'cookbook' && (
@@ -2022,7 +2040,7 @@ export function CookingPage() {
               <div className="w-full max-w-[280px] rounded-2xl p-5 text-center"
                 style={{ background: K.surface, border: `1px solid ${K.copper}30`, boxShadow: `0 0 40px ${K.copper}15` }}>
                 <div className="text-4xl mb-2">🧑‍🍳</div>
-                <h2 className="text-[16px] font-bold mb-3" style={{ color: K.cream }}>Welcome to the Kitchen!</h2>
+                <h2 className="text-[16px] font-bold mb-3" style={{ color: K.cream }}>Welcome to Cooking!</h2>
                 <p className="text-[10px] mb-4" style={{ color: K.muted }}>
                   Cook food to heal and gain combat buffs in the Arena.
                 </p>
@@ -2090,8 +2108,8 @@ export function CookingPage() {
             >
               <div className="p-4 pb-8 max-h-[75vh] overflow-y-auto">
                 <div className="flex justify-center mb-3"><div className="w-10 h-1 rounded-full" style={{ background: K.faint }} /></div>
-                <h3 className="text-[14px] font-bold mb-4" style={{ color: K.cream }}>Kitchen Guide</h3>
-                <KitchenGuideContent />
+                <h3 className="text-[14px] font-bold mb-4" style={{ color: K.cream }}>Cooking Guide</h3>
+                <CookingGuideContent />
                 <button onClick={() => setShowGuide(false)}
                   className="mt-4 w-full py-2 rounded-xl text-[11px] font-bold"
                   style={{ background: K.hearth, color: K.cream, border: `1px solid ${K.faint}` }}>Close</button>

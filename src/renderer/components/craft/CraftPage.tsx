@@ -456,20 +456,22 @@ export function CraftPage() {
           )
         })()}
 
-        {/* Dev test kit — seed crafting materials */}
-        <button
-          type="button"
-          onClick={() => {
-            addItem('ore_iron', 100)
-            addItem('monster_fang', 60)
-            addItem('magic_essence', 40)
-            addItem('ancient_scale', 20)
-            addItem('void_crystal', 10)
-          }}
-          className="w-full py-2 rounded-xl text-[10px] font-mono text-gray-500 border border-dashed border-white/[0.10] hover:border-white/[0.20] hover:text-gray-300 transition-colors"
-        >
-          🧪 +100 ore / +60 fang / +40 essence / +20 scale / +10 crystal
-        </button>
+        {/* Dev test kit — hidden in production */}
+        {import.meta.env.DEV && (
+          <button
+            type="button"
+            onClick={() => {
+              addItem('ore_iron', 100)
+              addItem('monster_fang', 60)
+              addItem('magic_essence', 40)
+              addItem('ancient_scale', 20)
+              addItem('void_crystal', 10)
+            }}
+            className="w-full py-2 rounded-xl text-[10px] font-mono text-gray-500 border border-dashed border-white/[0.10] hover:border-white/[0.20] hover:text-gray-300 transition-colors"
+          >
+            🧪 +100 ore / +60 fang / +40 essence / +20 scale / +10 crystal
+          </button>
+        )}
       </div>
     </div>
   )

@@ -29,6 +29,8 @@ export interface Notification {
   chestReward?: {
     rewardId: string
     chestType: string
+    chestImage?: string
+    chestRarity?: string
   }
   poll?: {
     pollId: string

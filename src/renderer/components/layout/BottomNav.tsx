@@ -9,6 +9,7 @@ import { useArenaStore } from '../../stores/arenaStore'
 import { useCraftingStore } from '../../stores/craftingStore'
 import { useCookingStore } from '../../stores/cookingStore'
 import { useFarmStore } from '../../stores/farmStore'
+import { useBountyStore } from '../../stores/bountyStore'
 import { MOTION } from '../../lib/motion'
 import { getUIIcons } from '../../lib/itemConfig'
 import { useAdminConfigStore } from '../../stores/adminConfigStore'
@@ -55,6 +56,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const { queue, currentAlert } = useAlertStore()
   const { incomingRequestsCount, unreadMessagesCount, marketplaceSaleCount } = useNavBadgeStore()
   const isArenaBattleActive = useArenaStore((s) => !!s.activeBattle)
+  const claimableBounties = useBountyStore((s) => s.bounties.filter((b) => !b.claimed && b.progress >= b.targetCount).length)
   const isCraftingActive = useCraftingStore((s) => !!s.activeJob)
   const isCookingActive = useCookingStore((s) => !!s.activeJob)
   const planted = useFarmStore((s) => s.planted)
@@ -84,7 +86,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   void tick // re-read on tick
 
   const secondaryIsActive = SECONDARY_IDS.has(activeTab)
-  const secondaryHasBadge = badgeFarm > 0 || isArenaBattleActive || isCraftingActive || isCookingActive || marketplaceSaleCount > 0 || profileUnclaimed > 0
+  const secondaryHasBadge = badgeFarm > 0 || isArenaBattleActive || isCraftingActive || isCookingActive || marketplaceSaleCount > 0 || profileUnclaimed > 0 || claimableBounties > 0
 
   const navigate = (id: TabId) => {
     playTabSound()
@@ -119,8 +121,8 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
               <div className="p-1.5 grid grid-cols-3 gap-0.5">
                 {SECONDARY_TABS.map((tab) => {
                   const isActive = activeTab === tab.id
-                  const tabBadge = tab.id === 'farm' ? badgeFarm : tab.id === 'marketplace' ? marketplaceSaleCount : 0
-                  const tabPulse = (tab.id === 'arena' && isArenaBattleActive) || (tab.id === 'craft' && isCraftingActive) || (tab.id === 'cooking' && isCookingActive)
+                  const tabBadge = tab.id === 'farm' ? badgeFarm : tab.id === 'marketplace' ? marketplaceSaleCount : tab.id === 'arena' ? claimableBounties : 0
+                  const tabPulse = (tab.id === 'arena' && isArenaBattleActive && claimableBounties === 0) || (tab.id === 'craft' && isCraftingActive) || (tab.id === 'cooking' && isCookingActive)
                   const tabOrangeDot = tab.id === 'profile' && profileUnclaimed > 0
                   return (
                     <motion.button
@@ -130,7 +132,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                       onClick={() => navigate(tab.id)}
                       className={`relative flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl transition-colors ${
                         isActive
-                          ? 'bg-cyber-neon/12 text-cyber-neon'
+                          ? 'bg-cyber-neon/15 text-cyber-neon ring-1 ring-inset ring-cyber-neon/20'
                           : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.06]'
                       }`}
                     >

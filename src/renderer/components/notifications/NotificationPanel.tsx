@@ -7,7 +7,7 @@ import { useInventoryStore } from '../../stores/inventoryStore'
 import { useFarmStore } from '../../stores/farmStore'
 import { useNavigationStore } from '../../stores/navigationStore'
 import { useAuthStore } from '../../stores/authStore'
-import { LOOT_ITEMS, type BonusMaterial, type ChestType } from '../../lib/loot'
+import { LOOT_ITEMS, RARITY_COLORS, type BonusMaterial, type ChestType, type LootRarity } from '../../lib/loot'
 import { ChestOpenModal } from '../animations/ChestOpenModal'
 import { supabase } from '../../lib/supabase'
 import { playClickSound } from '../../lib/sounds'
@@ -109,7 +109,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
           ref={panelRef}
           initial={{ opacity: 0, y: -6, scale: 0.94, transformOrigin: 'top right' }}
           animate={{ opacity: 1, y: 0, scale: 1, transformOrigin: 'top right' }}
-          exit={{ opacity: 0, y: -12, scale: 0.5, transformOrigin: 'top right' }}
+          exit={{ opacity: 0, y: -8, scale: 0.95, transformOrigin: 'top right' }}
           transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
           className="absolute top-full right-0 mt-1.5 w-[260px] max-h-[360px] rounded-xl bg-discord-card border border-white/10 shadow-xl z-50 overflow-hidden flex flex-col"
         >
@@ -205,15 +205,15 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                   </div>
                 ) : item.recovery ? (
                   <div key={item.id} className="px-3 py-2 border-b border-white/[0.03] last:border-0">
-                    <div className="rounded-xl border border-cyber-neon/20 bg-gradient-to-r from-cyber-neon/[0.07] to-transparent px-3 py-2">
-                      <div className="flex items-start gap-2">
-                        <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
+                    <div className="rounded-xl border border-cyber-neon/20 bg-cyber-neon/[0.05] px-3 py-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-cyber-neon/15 border border-cyber-neon/25">
+                          <span className="text-sm leading-none">{item.icon}</span>
+                        </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-[11px] font-semibold text-white leading-snug">{item.title}</p>
-                            <span className="text-[9px] text-gray-600 font-mono shrink-0 mt-0.5">{timeAgo(item.timestamp)}</span>
-                          </div>
-                          <p className="text-[10px] text-gray-400 leading-snug mt-0.5 line-clamp-2">{item.body}</p>
+                          <p className="text-[11px] font-semibold text-white leading-snug truncate">{item.title}</p>
+                          <p className="text-[9px] text-gray-400 leading-snug mt-0.5 line-clamp-1">{item.body}</p>
+                          <span className="text-[9px] text-gray-500 font-mono">{timeAgo(item.timestamp)}</span>
                         </div>
                         <button
                           type="button"
@@ -228,33 +228,57 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                             window.electronAPI?.db?.clearCheckpoint?.().catch(() => {})
                             dismiss(item.id)
                           }}
-                          className="shrink-0 mt-0.5 px-2.5 py-1 rounded-lg bg-cyber-neon/15 border border-cyber-neon/35 text-cyber-neon text-xs font-semibold hover:bg-cyber-neon/25 transition-colors"
+                          className="shrink-0 px-2.5 py-1 rounded-lg bg-cyber-neon/15 border border-cyber-neon/35 text-cyber-neon text-xs font-semibold hover:bg-cyber-neon/25 transition-colors"
                         >
                           Claim
                         </button>
                       </div>
                     </div>
                   </div>
-                ) : item.chestReward ? (
-                  <div key={item.id} className="px-3 py-2 border-b border-white/[0.03] last:border-0">
-                    <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-base shrink-0">{item.icon}</span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[11px] text-white leading-snug">{item.title}</p>
-                          <span className="text-[9px] text-gray-500 font-mono">{timeAgo(item.timestamp)}</span>
+                ) : item.chestReward ? (() => {
+                  const cr = item.chestReward
+                  const rTheme = RARITY_COLORS[(cr.chestRarity as LootRarity) ?? 'common'] ?? RARITY_COLORS.common
+                  return (
+                    <div key={item.id} className="px-3 py-2 border-b border-white/[0.03] last:border-0">
+                      <div
+                        className="rounded-xl px-3 py-2"
+                        style={{ border: `1px solid ${rTheme.border}`, background: `${rTheme.color}0d` }}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: `${rTheme.color}18`, border: `1px solid ${rTheme.border}` }}
+                          >
+                            {cr.chestImage ? (
+                              <img
+                                src={cr.chestImage}
+                                alt=""
+                                className="w-5 h-5 object-contain"
+                                style={{ imageRendering: 'pixelated' }}
+                                draggable={false}
+                              />
+                            ) : (
+                              <span className="text-sm leading-none">{item.icon}</span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-semibold text-white leading-snug truncate">{item.title}</p>
+                            <span className="text-[9px] text-gray-500 font-mono">{timeAgo(item.timestamp)}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenChest(item.id, cr.rewardId, cr.chestType)}
+                            className="shrink-0 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors"
+                            style={{ color: rTheme.color, background: `${rTheme.color}20`, border: `1px solid ${rTheme.border}` }}
+                          >
+                            Open
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenChest(item.id, item.chestReward!.rewardId, item.chestReward!.chestType)}
-                          className="shrink-0 px-2.5 py-1 rounded-lg bg-amber-400/20 border border-amber-400/40 text-amber-300 text-xs font-semibold hover:bg-amber-400/30 transition-colors"
-                        >
-                          Open
-                        </button>
                       </div>
                     </div>
-                  </div>
-                ) : item.poll ? (
+                  )
+                })()
+                : item.poll ? (
                   <div key={item.id} className="px-3 py-2 border-b border-white/[0.03] last:border-0">
                     <div className="rounded-xl border border-purple-400/20 bg-purple-400/[0.06] px-3 py-2">
                       <div className="flex items-start gap-2 mb-2">

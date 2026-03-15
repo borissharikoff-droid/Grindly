@@ -52,7 +52,7 @@ export const SKILLS: SkillDef[] = [
   { id: 'farmer', name: 'Farmer', icon: '🌾', color: '#84cc16', category: 'farming' },
   { id: 'warrior', name: 'Warrior', icon: '⚔️', color: '#EF4444', category: 'warrior' },
   { id: 'crafter', name: 'Crafter', icon: '⚒️', color: '#f97316', category: 'crafting' },
-  { id: 'chef', name: 'Chef', icon: '🍳', color: '#fb923c', category: 'cooking' },
+  { id: 'chef', name: 'Cooking', icon: '🍳', color: '#fb923c', category: 'cooking' },
   { id: 'grindly', name: 'Grindly', icon: '🏠', color: '#c084fc', category: 'grindly' },
 ]
 

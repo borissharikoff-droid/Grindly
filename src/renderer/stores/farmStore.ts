@@ -27,6 +27,7 @@ import { recordHarvest } from '../services/dailyActivityService'
 import { useGoldStore } from './goldStore'
 import { useInventoryStore } from './inventoryStore'
 import { useAuthStore } from './authStore'
+import { useBountyStore } from './bountyStore'
 
 export interface PlantedSlot {
   seedId: string
@@ -288,6 +289,7 @@ export const useFarmStore = create<FarmState>()(
         grantFarmerXP(xp).catch(() => undefined)
 
         recordHarvest(1)
+        useBountyStore.getState().incrementFarm(1)
         return { yieldPlantId: seed.yieldPlantId, qty, xpGained: xp, seedZipTier, composted: isComposted, compostDrop }
       },
 
@@ -326,7 +328,10 @@ export const useFarmStore = create<FarmState>()(
         }
 
         set({ planted: newPlanted, seedZips: newZips })
-        if (results.length > 0) recordHarvest(results.length)
+        if (results.length > 0) {
+          recordHarvest(results.length)
+          useBountyStore.getState().incrementFarm(results.length)
+        }
         return results
       },
 

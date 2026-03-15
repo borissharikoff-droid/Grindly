@@ -17,7 +17,7 @@ import { computePlayerStats } from '../../lib/combat'
 import { useGoldStore } from '../../stores/goldStore'
 import { useArenaStore } from '../../stores/arenaStore'
 import { ensureInventoryHydrated, useInventoryStore } from '../../stores/inventoryStore'
-import { getDailyActivities, getWeeklyActivities } from '../../services/dailyActivityService'
+import { getDailyActivities, getWeeklyActivities, getBestStreak } from '../../services/dailyActivityService'
 import { QuestsSection } from '../quests/QuestsSection'
 import { AvatarWithFrame } from '../shared/AvatarWithFrame'
 import { ItemInspectModal } from '../shared/ItemInspectModal'
@@ -334,25 +334,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
         onDraftSubmit={applyDraftUsername}
         onDraftCancel={() => { setDraftUsername(username); setIsUsernameEditing(false) }}
         onItemInspect={(itemId) => { playClickSound(); setInspectItemId(itemId) }}
-        syncButton={supabase && user ? (
-          <button
-            type="button"
-            onClick={async () => {
-              ensureInventoryHydrated()
-              const equippedLoot = useInventoryStore.getState().equippedBySlot
-              const perk = getEquippedPerkRuntime(equippedLoot)
-              const res = await syncCosmeticsToSupabase([], getEquippedFrame(), {
-                equippedLoot: (equippedLoot ?? {}) as Record<string, string>,
-                statusTitle: perk.statusTitle,
-              })
-              playClickSound()
-              setMessage(res.ok ? { type: 'ok', text: 'Cosmetics synced.' } : { type: 'err', text: res.error ?? 'Sync failed' })
-            }}
-            className="text-[8px] text-cyber-neon/60 hover:text-cyber-neon font-mono transition-colors"
-          >
-            sync to cloud
-          </button>
-        ) : null}
+        syncButton={null}
       />
 
       <ItemInspectModal item={inspectItem} onClose={() => setInspectItemId(null)} />
@@ -773,7 +755,7 @@ function FlexCard({ avatar, username, frameId, equippedLootItems, unlockedCount,
   const permanentStats = useInventoryStore((s) => s.permanentStats)
   const equippedBySlot = useInventoryStore((s) => s.equippedBySlot)
 
-  const [grindStats, setGrindStats] = useState({ totalSessions: 0, totalHours: 0, totalKeys: 0, streak: 0 })
+  const [grindStats, setGrindStats] = useState({ totalSessions: 0, totalHours: 0, totalKeys: 0, streak: 0, bestStreak: 0 })
 
   useEffect(() => {
     const load = async () => {
@@ -791,6 +773,7 @@ function FlexCard({ avatar, username, frameId, equippedLootItems, unlockedCount,
           totalHours: Math.floor((seconds as number) / 3600),
           totalKeys: keys as number,
           streak: streak as number,
+          bestStreak: getBestStreak(),
         })
       } catch { /* ignore */ }
     }
@@ -897,7 +880,7 @@ function FlexCard({ avatar, username, frameId, equippedLootItems, unlockedCount,
       <div className="grid grid-cols-4 gap-px bg-white/[0.04] mx-4 mb-4 rounded-xl overflow-hidden">
         <StatCell icon={'\u26A1'} value={String(totalSkillLevel)} label="Skill LVL" color="#00FF88" />
         <StatCell icon={'\uD83C\uDFC6'} value={`${unlockedCount}/${ACHIEVEMENTS.length}`} label="Achieves" color="#FACC15" />
-        <StatCell icon={'\uD83D\uDD25'} value={grindStats.streak > 0 ? `${grindStats.streak}d` : '-'} label="Streak" color="#FF6B35" />
+        <StatCell icon={'\uD83D\uDD25'} value={grindStats.streak > 0 ? `${grindStats.streak}d` : '-'} label={grindStats.bestStreak > 0 ? `Best ${grindStats.bestStreak}d` : 'Streak'} color="#FF6B35" />
         <StatCell icon={'\uD83E\uDE99'} value={gold > 0 ? gold.toLocaleString() : '-'} label="Gold" color="#F59E0B" />
         <StatCell icon={'\u23F1\uFE0F'} value={grindStats.totalHours > 0 ? `${grindStats.totalHours}h` : '-'} label="Grind" color="#818CF8" />
         <StatCell icon={'\u2328\uFE0F'} value={grindStats.totalKeys > 0 ? formatKeys(grindStats.totalKeys) : '-'} label="Keys" color="#67E8F9" />

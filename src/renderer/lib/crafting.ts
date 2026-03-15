@@ -385,7 +385,7 @@ export const CRAFT_RECIPES: CraftRecipe[] = [
     ingredients: [{ id: 'magic_essence', qty: 3 }],
     levelRequired: 15,
     xpPerItem: 40,
-    secPerItem: 120,
+    secPerItem: 15,
   },
   {
     id: 'recipe_ancient_dust',
@@ -395,7 +395,7 @@ export const CRAFT_RECIPES: CraftRecipe[] = [
     ingredients: [{ id: 'ancient_scale', qty: 2 }],
     levelRequired: 30,
     xpPerItem: 70,
-    secPerItem: 150,
+    secPerItem: 15,
   },
   {
     id: 'recipe_void_fragment',
@@ -405,7 +405,7 @@ export const CRAFT_RECIPES: CraftRecipe[] = [
     ingredients: [{ id: 'void_crystal', qty: 2 }],
     levelRequired: 55,
     xpPerItem: 120,
-    secPerItem: 240,
+    secPerItem: 20,
   },
 
   // ── Tier 2 — Craft gear from intermediates + farm plants ───────────────────
@@ -433,7 +433,7 @@ export const CRAFT_RECIPES: CraftRecipe[] = [
     ],
     levelRequired: 15,
     xpPerItem: 70,
-    secPerItem: 300,
+    secPerItem: 60,
   },
   {
     // Essence Vial × 2 + Blossoms × 2 → Essence Ring
@@ -517,7 +517,7 @@ export const CRAFT_RECIPES: CraftRecipe[] = [
     ],
     levelRequired: 15,
     xpPerItem: 100,
-    secPerItem: 480,
+    secPerItem: 300,
     goldCost: 300,
   },
   {
@@ -532,7 +532,7 @@ export const CRAFT_RECIPES: CraftRecipe[] = [
     ],
     levelRequired: 25,
     xpPerItem: 200,
-    secPerItem: 900,
+    secPerItem: 600,
     goldCost: 800,
   },
   {

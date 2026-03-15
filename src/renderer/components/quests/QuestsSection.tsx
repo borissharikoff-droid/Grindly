@@ -382,7 +382,7 @@ function QuestRow({ icon, title, description, progressText, pct, completed, clai
         </div>
       </div>
       {!claimed && (
-        <div className="mt-2 h-1 rounded-full bg-white/5 overflow-hidden">
+        <div className="mt-2 h-1.5 rounded-full bg-white/5 overflow-hidden">
           <div className={`h-full rounded-full transition-all duration-500 ${completed ? doneBarColor : barColor}`} style={{ width: `${pct}%` }} />
         </div>
       )}
@@ -395,35 +395,48 @@ function QuestRow({ icon, title, description, progressText, pct, completed, clai
 function BonusRow({ claimed, canClaim, progress, total, onClaim }: {
   claimed: boolean; canClaim: boolean; progress: number; total: number; onClaim: () => void
 }) {
+  const legendaryChest = CHEST_DEFS['legendary_chest']
   return (
     <div className={`rounded-xl border p-3 transition-all ${
       canClaim ? 'border-yellow-500/40 bg-yellow-500/5' : claimed ? 'border-yellow-500/20 bg-yellow-500/5' : 'border-white/5 bg-discord-dark/30'
     }`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${claimed ? 'bg-yellow-500/15' : 'bg-discord-darker/80'}`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${claimed ? 'bg-yellow-500/15' : 'bg-discord-darker/80'}`}>
             <span className="text-base">🏅</span>
           </div>
-          <div>
+          <div className="min-w-0">
             <p className={`text-[11px] font-semibold ${claimed ? 'text-yellow-400' : canClaim ? 'text-yellow-300' : 'text-gray-300'}`}>
               Complete All Dailies
             </p>
-            <p className="text-[9px] text-gray-500">Claim all 6 daily quests for a Legendary Chest</p>
+            <div className="flex items-center gap-1 mt-0.5">
+              {legendaryChest && (
+                legendaryChest.image
+                  ? <img src={legendaryChest.image} alt="" className="w-3 h-3 object-contain" style={{ imageRendering: 'pixelated' }} draggable={false} />
+                  : <span className="text-[10px]">{legendaryChest.icon}</span>
+              )}
+              <p className="text-[9px] text-gray-500">Legendary Chest bonus</p>
+            </div>
           </div>
         </div>
         {claimed ? (
-          <span className="text-[9px] px-2 py-1 rounded border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 font-mono">Claimed</span>
+          <span className="text-[9px] px-2 py-1 rounded border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 font-mono shrink-0">Claimed</span>
         ) : canClaim ? (
           <button type="button" onClick={onClaim}
-            className="text-[9px] px-3 py-1.5 rounded-lg border border-yellow-500/40 bg-yellow-500/15 text-yellow-400 font-semibold hover:bg-yellow-500/25 transition-colors animate-pulse">
+            className="text-[9px] px-3 py-1.5 rounded-lg border border-yellow-500/40 bg-yellow-500/15 text-yellow-400 font-semibold hover:bg-yellow-500/25 transition-colors animate-pulse shrink-0 flex items-center gap-1">
             Claim
+            {legendaryChest && (
+              legendaryChest.image
+                ? <img src={legendaryChest.image} alt="" className="w-3.5 h-3.5 object-contain" style={{ imageRendering: 'pixelated' }} draggable={false} />
+                : <span className="text-[10px]">{legendaryChest.icon}</span>
+            )}
           </button>
         ) : (
-          <span className="text-[9px] text-gray-600 font-mono">{progress}/{total}</span>
+          <span className="text-[9px] text-gray-600 font-mono shrink-0">{progress}/{total}</span>
         )}
       </div>
       {!claimed && (
-        <div className="mt-2 h-1 rounded-full bg-white/5 overflow-hidden">
+        <div className="mt-2 h-1.5 rounded-full bg-white/5 overflow-hidden">
           <div className="h-full rounded-full bg-yellow-500/60 transition-all duration-500" style={{ width: `${(progress / total) * 100}%` }} />
         </div>
       )}

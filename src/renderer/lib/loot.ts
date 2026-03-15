@@ -25,7 +25,7 @@ export function normalizeEquippedLoot(raw: unknown): Partial<Record<LootSlot, st
   return out
 }
 
-export type LootSource = 'skill_grind' | 'achievement_claim' | 'goal_complete' | 'daily_activity' | 'session_complete'
+export type LootSource = 'skill_grind' | 'achievement_claim' | 'goal_complete' | 'daily_activity' | 'session_complete' | 'bounty_reward'
 
 /** Human-readable labels for loot sources (shown in inventory, chest modals) */
 export const LOOT_SOURCE_LABELS: Record<LootSource, string> = {
@@ -34,6 +34,7 @@ export const LOOT_SOURCE_LABELS: Record<LootSource, string> = {
   goal_complete: 'Goal Complete',
   daily_activity: 'Daily Activity',
   session_complete: 'Session Complete',
+  bounty_reward: 'Daily Bounty',
 }
 
 /** Item Power score by rarity (100+). Higher rarity = higher IP. Used for leaderboard and item descriptions. */
