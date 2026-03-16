@@ -30,15 +30,32 @@ export interface Raid {
   tribute_items: TributeItem[]
   created_at: string
   current_phase: number
+  party_hp: number | null
+  party_hp_max: number | null
+  last_tick_date: string | null
+}
+
+export interface CharacterSnapshot {
+  atk: number
+  hp: number
+  hp_regen: number
+  def: number
+  equipped: Array<{ slot: string; item_id: string; name: string; icon: string; rarity: string }>
+  updated_at: string
 }
 
 export interface RaidParticipant {
   raid_id: string
   user_id: string
   username: string | null
+  avatar_url?: string | null
   joined_at: string
   tribute_paid: boolean
   daily_attacks: DailyAttack[]
+  role: 'tank' | 'healer' | 'dps'
+  heal_actions: HealAction[]
+  defend_actions: DefendAction[]
+  character_snapshot?: CharacterSnapshot | null
 }
 
 export interface Friend {
@@ -57,8 +74,9 @@ export const RAID_TIER_CONFIGS = {
     icon: '🗿',
     boss_hp: 1_000_000,
     contribution_per_win: 150_000,
-    warrior_level_req: 50,
-    skill_level_req: 40,
+    warrior_level_req: 20,
+    skill_level_req: 20,
+    zones_required: 6,
     party_min: 2,
     /** The combat encounter boss for daily attack sessions */
     encounter: {
@@ -87,6 +105,7 @@ export const RAID_TIER_CONFIGS = {
     contribution_per_win: 400_000,
     warrior_level_req: 65,
     skill_level_req: 55,
+    zones_required: 8,
     party_min: 2,
     encounter: {
       id: 'mythic_hydra',
@@ -114,6 +133,7 @@ export const RAID_TIER_CONFIGS = {
     contribution_per_win: 800_000,
     warrior_level_req: 80,
     skill_level_req: 70,
+    zones_required: 8,
     party_min: 3,
     encounter: {
       id: 'eternal_titan',
@@ -141,6 +161,7 @@ export const RAID_TIER_CONFIGS = {
   contribution_per_win: number
   warrior_level_req: number
   skill_level_req: number
+  zones_required: number
   party_min: number
   encounter: {
     id: string; name: string; icon: string
@@ -156,6 +177,32 @@ export const RAID_TIER_CONFIGS = {
 }>
 
 export const RAID_PHASE_ATK_MULT: Record<1 | 2 | 3, number> = { 1: 1.0, 2: 1.4, 3: 1.8 }
+
+// ── Party HP ──────────────────────────────────────────────────────────────────
+
+/** Starting party HP per tier */
+export const PARTY_HP_MAX: Record<RaidTierId, number> = {
+  ancient: 300,
+  mythic: 500,
+  eternal: 800,
+}
+
+/** Daily boss damage to party HP per tier per phase */
+export const PARTY_DAILY_DAMAGE: Record<RaidTierId, Record<1 | 2 | 3, number>> = {
+  ancient: { 1: 20, 2: 35, 3: 50 },
+  mythic:  { 1: 40, 2: 65, 3: 90 },
+  eternal: { 1: 60, 2: 100, 3: 140 },
+}
+
+export interface HealAction {
+  date: string            // yyyy-mm-dd
+  heal_amount: number
+  items_used: { item_id: string; quantity: number }[]
+}
+
+export interface DefendAction {
+  date: string
+}
 
 export function getRaidPhase(hpRemaining: number, hpMax: number): 1 | 2 | 3 {
   const pct = hpRemaining / hpMax
@@ -191,8 +238,9 @@ export function checkRaidGates(
 ): { ok: boolean; reason?: string } {
   const cfg = RAID_TIER_CONFIGS[tier]
 
-  if (clearedZoneIds.length < 8) {
-    return { ok: false, reason: `Clear all 8 zones first (${clearedZoneIds.length}/8)` }
+  const zonesNeeded = cfg.zones_required
+  if (clearedZoneIds.length < zonesNeeded) {
+    return { ok: false, reason: `Clear ${zonesNeeded} zones first (${clearedZoneIds.length}/${zonesNeeded})` }
   }
 
   if (warriorLevel < cfg.warrior_level_req) {
@@ -264,6 +312,8 @@ export async function fetchPendingInvites(userId: string): Promise<RaidInvite[]>
 export async function acceptRaidInvite(
   inviteId: string,
   userId: string,
+  role: 'tank' | 'healer' | 'dps' = 'dps',
+  snapshot?: CharacterSnapshot | null,
 ): Promise<{ ok: boolean; raidId?: string; error?: string }> {
   if (!supabase) return { ok: false, error: 'Supabase not configured' }
   const { data: invite, error: fetchErr } = await supabase
@@ -275,8 +325,12 @@ export async function acceptRaidInvite(
 
   await supabase.from('raid_invites').update({ status: 'accepted' }).eq('id', inviteId)
 
+  // Fetch the user's profile to store their username in raid_participants
+  const { data: profile } = await supabase.from('profiles').select('username').eq('id', userId).single()
+  const username = (profile as { username?: string | null } | null)?.username ?? null
+
   const raidId = (invite as { raid_id: string }).raid_id
-  const joinResult = await joinRaid(raidId, userId, null)
+  const joinResult = await joinRaid(raidId, userId, username, role, snapshot)
   if (!joinResult.ok) return { ok: false, error: joinResult.error }
 
   return { ok: true, raidId }
@@ -290,16 +344,32 @@ export async function declineRaidInvite(inviteId: string): Promise<{ ok: boolean
 
 // ── Supabase CRUD ─────────────────────────────────────────────────────────────
 
+export async function updateRaidParticipantRole(
+  raidId: string,
+  userId: string,
+  role: 'tank' | 'healer' | 'dps',
+): Promise<void> {
+  if (!supabase) return
+  await supabase
+    .from('raid_participants')
+    .update({ role })
+    .eq('raid_id', raidId)
+    .eq('user_id', userId)
+}
+
 export async function createRaid(
   leaderId: string,
   tier: RaidTierId,
   tributeItems: TributeItem[],
+  leaderRole: 'tank' | 'healer' | 'dps' = 'dps',
+  leaderSnapshot?: CharacterSnapshot | null,
 ): Promise<{ ok: boolean; raid?: Raid; error?: string }> {
   if (!supabase) return { ok: false, error: 'Supabase not configured' }
   const cfg = RAID_TIER_CONFIGS[tier]
   const now = new Date()
   const endsAt = new Date(now.getTime() + cfg.duration_days * 86_400_000).toISOString()
 
+  const partyHpMax = PARTY_HP_MAX[tier]
   const { data, error } = await supabase
     .from('raids')
     .insert({
@@ -311,6 +381,9 @@ export async function createRaid(
       started_at: now.toISOString(),
       ends_at: endsAt,
       tribute_items: tributeItems,
+      party_hp: partyHpMax,
+      party_hp_max: partyHpMax,
+      last_tick_date: now.toISOString().split('T')[0],
     })
     .select()
     .single()
@@ -324,10 +397,27 @@ export async function createRaid(
       user_id: leaderId,
       tribute_paid: true,
       daily_attacks: [],
+      role: leaderRole,
+      heal_actions: [],
+      defend_actions: [],
+      character_snapshot: leaderSnapshot ?? null,
     })
   } catch { /* non-critical */ }
 
   return { ok: true, raid: data as Raid }
+}
+
+export async function updateParticipantSnapshot(
+  raidId: string,
+  userId: string,
+  snapshot: CharacterSnapshot,
+): Promise<void> {
+  if (!supabase) return
+  await supabase
+    .from('raid_participants')
+    .update({ character_snapshot: snapshot })
+    .eq('raid_id', raidId)
+    .eq('user_id', userId)
 }
 
 export async function fetchActiveRaid(userId: string): Promise<{ raid: Raid | null; participants: RaidParticipant[] }> {
@@ -354,7 +444,15 @@ export async function fetchActiveRaid(userId: string): Promise<{ raid: Raid | nu
       .from('raid_participants')
       .select('*')
       .eq('raid_id', (leadRaid as Raid).id)
-    return { raid: leadRaid as Raid, participants: (parts as RaidParticipant[]) ?? [] }
+    const rawParts2 = (parts as RaidParticipant[]) ?? []
+    if (rawParts2.length > 0) {
+      const { data: profiles2 } = await supabase.from('profiles').select('id, username, avatar_url').in('id', rawParts2.map((p) => p.user_id))
+      if (profiles2?.length) {
+        const pm2 = Object.fromEntries((profiles2 as { id: string; username: string | null; avatar_url: string | null }[]).map((p) => [p.id, p]))
+        return { raid: leadRaid as Raid, participants: rawParts2.map((p) => ({ ...p, username: pm2[p.user_id]?.username ?? p.username, avatar_url: pm2[p.user_id]?.avatar_url ?? null })) }
+      }
+    }
+    return { raid: leadRaid as Raid, participants: rawParts2 }
   }
 
   const raidIds = partRows.map((r) => r.raid_id as string)
@@ -374,13 +472,37 @@ export async function fetchActiveRaid(userId: string): Promise<{ raid: Raid | nu
     .select('*')
     .eq('raid_id', raid.id)
 
-  return { raid, participants: (parts as RaidParticipant[]) ?? [] }
+  const rawParts = (parts as RaidParticipant[]) ?? []
+
+  // Enrich with profile data (username, avatar) — overrides stored username which may be null
+  if (rawParts.length > 0) {
+    const userIds = rawParts.map((p) => p.user_id)
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url')
+      .in('id', userIds)
+    if (profiles?.length) {
+      const pm = Object.fromEntries((profiles as { id: string; username: string | null; avatar_url: string | null }[]).map((p) => [p.id, p]))
+      return {
+        raid,
+        participants: rawParts.map((p) => ({
+          ...p,
+          username: pm[p.user_id]?.username ?? p.username,
+          avatar_url: pm[p.user_id]?.avatar_url ?? null,
+        })),
+      }
+    }
+  }
+
+  return { raid, participants: rawParts }
 }
 
 export async function joinRaid(
   raidId: string,
   userId: string,
   username: string | null,
+  role: 'tank' | 'healer' | 'dps' = 'dps',
+  snapshot?: CharacterSnapshot | null,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!supabase) return { ok: false, error: 'Supabase not configured' }
 
@@ -390,6 +512,10 @@ export async function joinRaid(
     username,
     tribute_paid: false,
     daily_attacks: [],
+    role,
+    heal_actions: [],
+    defend_actions: [],
+    character_snapshot: snapshot ?? null,
   })
   return error ? { ok: false, error: error.message } : { ok: true }
 }
@@ -468,6 +594,163 @@ export async function fetchFriends(userId: string): Promise<Friend[]> {
     .in('id', friendIds)
 
   return (profiles as Friend[]) ?? []
+}
+
+/** Submit healer daily action — consume food items and restore party HP */
+export async function submitHealAction(
+  raidId: string,
+  userId: string,
+  items: { item_id: string; quantity: number }[],
+  healAmount: number,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Supabase not configured' }
+
+  const today = new Date().toISOString().split('T')[0]
+
+  // Fetch current heal_actions for this participant
+  const { data: partRow } = await supabase
+    .from('raid_participants')
+    .select('heal_actions')
+    .eq('raid_id', raidId)
+    .eq('user_id', userId)
+    .single()
+
+  if (!partRow) return { ok: false, error: 'Participant not found' }
+
+  const existingHeals = (partRow.heal_actions as HealAction[]) ?? []
+  if (existingHeals.some((h) => h.date === today)) {
+    return { ok: false, error: 'Already healed today' }
+  }
+
+  const newHeal: HealAction = { date: today, heal_amount: healAmount, items_used: items }
+  await supabase
+    .from('raid_participants')
+    .update({ heal_actions: [...existingHeals, newHeal] })
+    .eq('raid_id', raidId)
+    .eq('user_id', userId)
+
+  // Apply heal to party_hp (capped at party_hp_max)
+  const { data: raidRow } = await supabase
+    .from('raids')
+    .select('party_hp, party_hp_max')
+    .eq('id', raidId)
+    .single()
+
+  if (raidRow) {
+    const r = raidRow as { party_hp: number; party_hp_max: number }
+    const newHp = Math.min(r.party_hp_max, (r.party_hp ?? 0) + healAmount)
+    await supabase.from('raids').update({ party_hp: newHp }).eq('id', raidId)
+  }
+
+  return { ok: true }
+}
+
+/** Submit tank daily defend action */
+export async function submitDefendAction(
+  raidId: string,
+  userId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Supabase not configured' }
+
+  const today = new Date().toISOString().split('T')[0]
+
+  const { data: partRow } = await supabase
+    .from('raid_participants')
+    .select('defend_actions')
+    .eq('raid_id', raidId)
+    .eq('user_id', userId)
+    .single()
+
+  if (!partRow) return { ok: false, error: 'Participant not found' }
+
+  const existingDefends = (partRow.defend_actions as DefendAction[]) ?? []
+  if (existingDefends.some((d) => d.date === today)) {
+    return { ok: false, error: 'Already defended today' }
+  }
+
+  await supabase
+    .from('raid_participants')
+    .update({ defend_actions: [...existingDefends, { date: today }] })
+    .eq('raid_id', raidId)
+    .eq('user_id', userId)
+
+  return { ok: true }
+}
+
+/**
+ * Apply daily party HP damage tick for any days missed since last_tick_date.
+ * Called lazily when a player fetches the raid.
+ * Only applies damage when new days have elapsed — idempotent if called multiple times on same day.
+ */
+export async function applyPartyHpTick(
+  raidId: string,
+  tier: RaidTierId,
+  currentPhase: 1 | 2 | 3,
+): Promise<void> {
+  if (!supabase) return
+
+  const { data: raidRow } = await supabase
+    .from('raids')
+    .select('party_hp, party_hp_max, last_tick_date, status')
+    .eq('id', raidId)
+    .single()
+
+  if (!raidRow) return
+  const r = raidRow as {
+    party_hp: number | null
+    party_hp_max: number | null
+    last_tick_date: string | null
+    status: string
+  }
+
+  if (r.status !== 'active') return
+  if (r.party_hp === null || r.party_hp_max === null) return
+
+  const today = new Date().toISOString().split('T')[0]
+  const lastTick = r.last_tick_date ?? today
+
+  if (lastTick >= today) return // nothing to tick
+
+  // Count days elapsed
+  const lastMs = new Date(lastTick).getTime()
+  const todayMs = new Date(today).getTime()
+  const daysElapsed = Math.max(0, Math.floor((todayMs - lastMs) / 86_400_000))
+  if (daysElapsed === 0) return
+
+  // Fetch all defend/heal actions to adjust damage
+  const { data: parts } = await supabase
+    .from('raid_participants')
+    .select('role, defend_actions, heal_actions')
+    .eq('raid_id', raidId)
+
+  const participants = (parts ?? []) as Array<{
+    role: string
+    defend_actions: DefendAction[]
+    heal_actions: HealAction[]
+  }>
+
+  const baseDamagePerDay = PARTY_DAILY_DAMAGE[tier][currentPhase]
+  let partyHp = r.party_hp
+
+  // For each elapsed day, compute net damage
+  for (let d = 0; d < daysElapsed; d++) {
+    const date = new Date(lastMs + (d + 1) * 86_400_000).toISOString().split('T')[0]
+
+    const tankDefended = participants.some(
+      (p) => p.role === 'tank' && (p.defend_actions ?? []).some((a) => a.date === date),
+    )
+
+    // Damage is halved if tank defended that day
+    const damage = tankDefended ? Math.floor(baseDamagePerDay * 0.5) : baseDamagePerDay
+    partyHp -= damage
+  }
+
+  partyHp = Math.max(0, partyHp)
+
+  const updates: Record<string, unknown> = { party_hp: partyHp, last_tick_date: today }
+  if (partyHp <= 0) updates.status = 'failed'
+
+  await supabase.from('raids').update(updates).eq('id', raidId)
 }
 
 export async function checkRaidExpiry(raidId: string): Promise<void> {

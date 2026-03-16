@@ -18,6 +18,9 @@ import {
 } from '../lib/loot'
 import { useGoldStore } from './goldStore'
 import { useAuthStore } from './authStore'
+import { track } from '../lib/analytics'
+import { getGuildChestDropBonus } from '../lib/guildBuffs'
+import { useGuildStore } from './guildStore'
 
 export interface PendingReward {
   id: string
@@ -231,7 +234,8 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     if (elapsedSeconds <= 0) return null
     const perk = getEquippedPerkRuntime(state.equippedBySlot)
     const categoryBonus = context.focusCategory ? (perk.chestDropChanceBonusByCategory[context.focusCategory] ?? 0) : 0
-    const effectivePerMinute = BASE_DROP_PER_MINUTE * (1 + categoryBonus)
+    const guildChestBonus = getGuildChestDropBonus(useGuildStore.getState().hallLevel) / 100
+    const effectivePerMinute = BASE_DROP_PER_MINUTE * (1 + categoryBonus + guildChestBonus)
     const perSecond = effectivePerMinute / 60
     // Clamp to cooldown window to avoid near-100% chance on first ever roll (lastSkillDropAt=0).
     const sinceLastDrop = lastDropAt > 0 ? Math.floor((now - lastDropAt) / 1000) : SKILL_DROP_COOLDOWN_MS / 1000
@@ -389,6 +393,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     if (qty <= 0) return
     const item = LOOT_ITEMS.find((x) => x.id === itemId)
     if (!item || !LOOT_SLOTS.includes(item.slot)) return
+    track('item_equip', { item_id: item.id, slot: item.slot, rarity: item.rarity })
     set((prev) => {
       const next: InventoryState = {
         ...prev,

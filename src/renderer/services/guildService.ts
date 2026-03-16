@@ -12,6 +12,9 @@ export interface Guild {
   weekly_goal_progress: Record<string, number>
   weekly_goal_reset_at: string | null
   tax_rate_pct: number
+  hall_level: number
+  hall_build_started_at: string | null
+  hall_build_target_level: number | null
 }
 
 export interface GuildMember {
@@ -430,6 +433,100 @@ export async function demoteMember(guildId: string, memberId: string): Promise<{
     .eq('user_id', memberId)
     .eq('guild_id', guildId)
   return error ? { ok: false, error: error.message } : { ok: true }
+}
+
+// ── Guild Hall ────────────────────────────────────────────────────────────────
+
+export interface HallContributions {
+  [itemId: string]: number
+}
+
+export async function fetchHallContributions(guildId: string): Promise<HallContributions> {
+  if (!supabase) return {}
+  const { data } = await supabase
+    .from('guild_hall_contributions')
+    .select('item_id, total_donated')
+    .eq('guild_id', guildId)
+  if (!data) return {}
+  const map: HallContributions = {}
+  for (const row of data as { item_id: string; total_donated: number }[]) {
+    map[row.item_id] = row.total_donated
+  }
+  return map
+}
+
+export async function donateToHall(
+  guildId: string,
+  items: Array<{ id: string; qty: number }>,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Supabase not configured' }
+  if (items.length === 0) return { ok: false, error: 'No items specified' }
+
+  // Upsert each item contribution (add to existing total)
+  for (const item of items) {
+    if (item.qty <= 0) continue
+    const { data: existing } = await supabase
+      .from('guild_hall_contributions')
+      .select('total_donated')
+      .eq('guild_id', guildId)
+      .eq('item_id', item.id)
+      .maybeSingle()
+
+    const prev = (existing as { total_donated: number } | null)?.total_donated ?? 0
+    const { error } = await supabase
+      .from('guild_hall_contributions')
+      .upsert(
+        { guild_id: guildId, item_id: item.id, total_donated: prev + item.qty },
+        { onConflict: 'guild_id,item_id' },
+      )
+    if (error) return { ok: false, error: error.message }
+  }
+  return { ok: true }
+}
+
+export async function startHallBuild(
+  guildId: string,
+  targetLevel: number,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Supabase not configured' }
+  const { error } = await supabase
+    .from('guilds')
+    .update({
+      hall_build_started_at: new Date().toISOString(),
+      hall_build_target_level: targetLevel,
+    })
+    .eq('id', guildId)
+  return error ? { ok: false, error: error.message } : { ok: true }
+}
+
+export async function completeHallUpgrade(
+  guildId: string,
+  newLevel: number,
+  itemsToReset: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Supabase not configured' }
+  const { error } = await supabase
+    .from('guilds')
+    .update({
+      hall_level: newLevel,
+      hall_build_started_at: null,
+      hall_build_target_level: null,
+    })
+    .eq('id', guildId)
+  if (error) return { ok: false, error: error.message }
+
+  // Reset contribution rows for the completed level
+  if (itemsToReset.length > 0) {
+    await tryRun(() =>
+      supabase!
+        .from('guild_hall_contributions')
+        .upsert(
+          itemsToReset.map((id) => ({ guild_id: guildId, item_id: id, total_donated: 0 })),
+          { onConflict: 'guild_id,item_id' },
+        ),
+    )
+  }
+  return { ok: true }
 }
 
 export async function applyGuildTax(userId: string, guildId: string, goldEarned: number, taxRatePct: number): Promise<number> {

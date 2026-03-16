@@ -52,7 +52,7 @@ export function DungeonMap({ zone, mobIndex, goldEarned, themeColor }: DungeonMa
                   )}
                 </motion.div>
                 <p
-                  className={`text-[8px] font-mono leading-tight text-center truncate w-full ${
+                  className={`text-[10px] font-mono leading-tight text-center truncate w-full ${
                     active ? 'text-white' : done ? 'text-green-400/70' : 'text-gray-600'
                   }`}
                 >
@@ -62,7 +62,7 @@ export function DungeonMap({ zone, mobIndex, goldEarned, themeColor }: DungeonMa
 
               {/* Connector arrow (not after last) */}
               {i < rooms.length - 1 && (
-                <span className={`text-[8px] shrink-0 -mt-2 ${done ? 'text-green-500/60' : 'text-gray-700'}`}>›</span>
+                <span className={`text-[10px] shrink-0 -mt-2 ${done ? 'text-green-500/60' : 'text-gray-700'}`}>›</span>
               )}
             </div>
           )
@@ -72,7 +72,7 @@ export function DungeonMap({ zone, mobIndex, goldEarned, themeColor }: DungeonMa
       {/* Accumulated gold */}
       {goldEarned > 0 && (
         <div className="flex items-center justify-center gap-1">
-          <span className="text-[9px] text-amber-400 font-mono">🪙 {goldEarned}g accumulated</span>
+          <span className="text-[10px] text-amber-400 font-mono">🪙 {goldEarned}g accumulated</span>
         </div>
       )}
     </div>

@@ -75,8 +75,8 @@ function showNativeNotification(title: string, body: string) {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 480,
-    height: 720,
+    width: 600,
+    height: 820,
     icon: getIconPath(),
     webPreferences: {
       preload: path.join(__dirname, '../../preload/index.js'),

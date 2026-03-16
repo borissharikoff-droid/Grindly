@@ -138,15 +138,15 @@ export function ListForSaleModal({ itemId, onClose, onListed, maxQty = 1, onDedu
 
         {activeFloorPrice !== undefined && (
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-[9px] text-gray-500 font-mono">Market floor</span>
+            <span className="text-[10px] text-gray-500 font-mono">Market floor</span>
             <button
               type="button"
               onClick={() => setPrice(String(activeFloorPrice))}
               className="flex items-center gap-1 px-2 py-0.5 rounded-md border border-green-500/25 bg-green-500/10 hover:bg-green-500/18 transition-colors"
             >
-              <span className="text-green-400 text-[9px]">🪙</span>
+              <span className="text-green-400 text-[10px]">🪙</span>
               <span className="text-green-400 text-[10px] font-bold tabular-nums">{activeFloorPrice.toLocaleString()}</span>
-              <span className="text-green-400/55 text-[8px] font-mono ml-0.5">use</span>
+              <span className="text-green-400/55 text-[10px] font-mono ml-0.5">use</span>
             </button>
           </div>
         )}

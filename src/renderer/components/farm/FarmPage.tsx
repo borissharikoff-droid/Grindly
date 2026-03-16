@@ -171,7 +171,7 @@ function PlotUnlockCelebration({ slotIndex, onDone }: { slotIndex: number; onDon
           initial={{ scale: 1.6, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 500, damping: 22, delay: 0.05 }}
-          className="text-[9px] font-black tracking-[0.25em] px-3 py-1 rounded-full border"
+          className="text-[10px] font-black tracking-[0.25em] px-3 py-1 rounded-full border"
           style={{ color: '#84cc16', borderColor: 'rgba(132,204,22,0.3)', background: 'rgba(132,204,22,0.09)', zIndex: 2 }}
         >
           PLOT {slotIndex + 1}
@@ -267,7 +267,7 @@ function PlotUnlockCelebration({ slotIndex, onDone }: { slotIndex: number; onDon
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.32 }}
           transition={{ delay: 0.7 }}
-          className="text-[9px] font-mono text-gray-500 -mt-2"
+          className="text-[10px] font-mono text-gray-500 -mt-2"
           style={{ zIndex: 2 }}
         >
           tap anywhere to dismiss
@@ -620,7 +620,7 @@ function SeedCabinetSection() {
             <div key={label} className="flex items-center gap-2">
               <span className="text-[11px]">{met ? '✓' : '✗'}</span>
               <span className={`text-[10px] font-mono flex-1 ${met ? 'text-green-400' : 'text-gray-500'}`}>{label}</span>
-              <span className="text-[9px] font-mono text-gray-500">{progress}</span>
+              <span className="text-[10px] font-mono text-gray-500">{progress}</span>
             </div>
           ))}
         </div>
@@ -700,7 +700,7 @@ function SeedCabinetSection() {
                   : <span className="text-lg shrink-0">{seed.icon}</span>}
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-medium text-white truncate">{seed.name}</p>
-                  <p className="text-[8px] font-mono uppercase mt-0.5" style={{ color: t.color }}>
+                  <p className="text-[10px] font-mono uppercase mt-0.5" style={{ color: t.color }}>
                     {seed.rarity} · {formatGrowTime(seed.growTimeSeconds)}
                   </p>
                 </div>
@@ -797,7 +797,7 @@ function SeedZipSection() {
               {(() => { const d = getSeedZipDisplay(tier); return d.image ? <img src={d.image} className="w-6 h-6 object-contain shrink-0" /> : <span className="text-xl shrink-0">{d.icon}</span> })()}
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] font-semibold text-white">{getSeedZipDisplay(tier).name}</p>
-                <p className="text-[9px] text-gray-400 mt-0.5">Contains a {tier} seed</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Contains a {tier} seed</p>
               </div>
               <span className="text-sm font-mono font-bold shrink-0 mr-2" style={{ color: t.color }}>×{count}</span>
               <motion.button
@@ -962,7 +962,7 @@ function HarvestRevealModal({ result, remaining = 0, onClose }: { result: Harves
               <span className="text-base">🧪</span>
               <div className="flex-1 text-left">
                 <p className="text-[10px] font-bold text-amber-400 leading-none">Bonus drop!</p>
-                <p className="text-[9px] text-gray-400 font-mono mt-0.5">Compost ×{compostDrops}</p>
+                <p className="text-[10px] text-gray-400 font-mono mt-0.5">Compost ×{compostDrops}</p>
               </div>
             </div>
           )}
@@ -975,7 +975,7 @@ function HarvestRevealModal({ result, remaining = 0, onClose }: { result: Harves
                 <span className="text-base">{sd.icon}</span>
                 <div className="flex-1 text-left">
                   <p className="text-[10px] font-bold text-green-400 leading-none">Seed returned!</p>
-                  <p className="text-[9px] text-gray-400 font-mono mt-0.5">{sd.name} ×{seedDrops}</p>
+                  <p className="text-[10px] text-gray-400 font-mono mt-0.5">{sd.name} ×{seedDrops}</p>
                 </div>
               </div>
             ) : null
@@ -994,7 +994,7 @@ function HarvestRevealModal({ result, remaining = 0, onClose }: { result: Harves
                 {d.image ? <img src={d.image} className="w-5 h-5 object-contain" /> : <span className="text-base">{d.icon}</span>}
                 <div className="flex-1 text-left">
                   <p className="text-[10px] font-bold leading-none" style={{ color: zt.color }}>Bonus drop!</p>
-                  <p className="text-[9px] text-gray-400 font-mono mt-0.5">{d.name}{count > 1 ? ` ×${count}` : ''}</p>
+                  <p className="text-[10px] text-gray-400 font-mono mt-0.5">{d.name}{count > 1 ? ` ×${count}` : ''}</p>
                 </div>
               </div>
             )
@@ -1083,7 +1083,7 @@ function FarmSlot({
             <span className={`text-2xl ${slotComposted ? 'text-amber-400/60' : 'text-gray-700 group-hover:text-lime-400/50'} transition-colors`}>
               {slotComposted ? '🧪' : '🌱'}
             </span>
-            <span className="text-[9px] text-gray-600 font-mono group-hover:text-gray-400 transition-colors tracking-wider uppercase">
+            <span className="text-[10px] text-gray-600 font-mono group-hover:text-gray-400 transition-colors tracking-wider uppercase">
               {slotComposted ? 'Composted · Plant seed' : 'Plant seed'}
             </span>
           </motion.button>
@@ -1097,7 +1097,7 @@ function FarmSlot({
                 compostSlot(slotIndex)
               }}
               disabled={compostCount < COMPOST_PER_PLOT}
-              className={`text-[8px] font-mono px-2 py-0.5 rounded border transition-colors ${
+              className={`text-[10px] font-mono px-2 py-0.5 rounded border transition-colors ${
                 compostCount >= COMPOST_PER_PLOT
                   ? 'bg-amber-500/10 border-amber-500/25 text-amber-400 hover:bg-amber-500/20'
                   : 'bg-white/[0.03] border-white/[0.06] text-gray-600 cursor-not-allowed'
@@ -1176,7 +1176,7 @@ function FarmSlot({
                   : <span className="text-base leading-none shrink-0">{seed?.icon ?? '🌱'}</span>}
                 <p className="text-[10px] font-medium text-white/80 truncate flex-1">{seed?.name}</p>
                 {isComposted && <span className="text-[7px] font-mono px-1 py-px rounded bg-amber-500/15 text-amber-400 border border-amber-500/25 shrink-0">🧪</span>}
-                <span className="text-[8px] font-mono font-bold text-lime-400 shrink-0 tracking-wider">READY</span>
+                <span className="text-[10px] font-mono font-bold text-lime-400 shrink-0 tracking-wider">READY</span>
               </div>
 
               {/* Big harvest button */}
@@ -1272,7 +1272,7 @@ function FarmSlot({
                   </motion.div>
                 </div>
                 <div className="flex items-center justify-end mt-1">
-                  <p className="text-[8px] font-mono text-gray-400 tabular-nums">
+                  <p className="text-[10px] font-mono text-gray-400 tabular-nums">
                     {Math.floor(progress * 100)}%
                   </p>
                 </div>
@@ -1290,7 +1290,7 @@ function FarmSlot({
                     className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-discord-darker/95"
                   >
                     <p className="text-[11px] font-bold text-white">Cancel crop?</p>
-                    <p className="text-[9px] text-gray-400 font-mono">Seed will be lost.</p>
+                    <p className="text-[10px] text-gray-400 font-mono">Seed will be lost.</p>
                     <div className="flex gap-2 mt-1">
                       <button
                         type="button"
@@ -1345,12 +1345,12 @@ function LockedSlot({ slotIndex, onUnlock }: { slotIndex: number; onUnlock: () =
       <span className="text-xl">{check.canUnlock ? '🔓' : '🔒'}</span>
       <span className="text-[10px] font-mono font-semibold text-amber-400">🪙 {cost.toLocaleString()}</span>
       {req.farmerLevel > 0 && (
-        <span className={`text-[8px] font-mono ${check.missingFarmer ? 'text-red-400' : 'text-emerald-400'}`}>
+        <span className={`text-[10px] font-mono ${check.missingFarmer ? 'text-red-400' : 'text-emerald-400'}`}>
           {check.missingFarmer ? '✗' : '✓'} Farmer LVL {req.farmerLevel}
         </span>
       )}
       {req.secondarySkill && (
-        <span className={`text-[8px] font-mono ${check.missingSecondary ? 'text-red-400' : 'text-emerald-400'}`}>
+        <span className={`text-[10px] font-mono ${check.missingSecondary ? 'text-red-400' : 'text-emerald-400'}`}>
           {check.missingSecondary ? '✗' : '✓'} {SKILL_LABELS[req.secondarySkill.skillId] ?? req.secondarySkill.skillId} LVL {req.secondarySkill.level}
         </span>
       )}
@@ -1460,7 +1460,7 @@ function SeedPicker({ slotIndex, seeds, onClose }: { slotIndex: number; seeds: R
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-sm font-semibold text-white">{seed.name}</p>
                       <span
-                        className="text-[8px] font-mono uppercase px-1.5 py-0.5 rounded shrink-0"
+                        className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded shrink-0"
                         style={{ color: t.color, backgroundColor: `${t.color}1A` }}
                       >
                         {seed.rarity}
@@ -1470,7 +1470,7 @@ function SeedPicker({ slotIndex, seeds, onClose }: { slotIndex: number; seeds: R
                       ⏱ {formatGrowTime(seed.growTimeSeconds)}
                       {plant && <span className="ml-2">· yields {plant.image ? <img src={plant.image} className="w-3 h-3 object-contain inline" /> : plant.icon} ×{seed.yieldMin}–{seed.yieldMax}</span>}
                     </p>
-                    <p className="text-[9px] text-gray-600 font-mono mt-0.5">+{seed.xpOnHarvest} Farmer XP on harvest</p>
+                    <p className="text-[10px] text-gray-600 font-mono mt-0.5">+{seed.xpOnHarvest} Farmer XP on harvest</p>
                   </div>
                   <span
                     className="text-xs font-mono font-bold shrink-0 px-2 py-0.5 rounded-lg"
@@ -1585,7 +1585,7 @@ function PlantAllPicker({ seeds, emptyCount, onClose }: { seeds: Record<string, 
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-sm font-semibold text-white">{seed.name}</p>
                       <span
-                        className="text-[8px] font-mono uppercase px-1.5 py-0.5 rounded shrink-0"
+                        className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded shrink-0"
                         style={{ color: t.color, backgroundColor: `${t.color}1A` }}
                       >
                         {seed.rarity}
@@ -1603,7 +1603,7 @@ function PlantAllPicker({ seeds, emptyCount, onClose }: { seeds: Record<string, 
                     >
                       ×{qty}
                     </span>
-                    <span className="text-[9px] text-gray-500 font-mono mt-0.5">
+                    <span className="text-[10px] text-gray-500 font-mono mt-0.5">
                       plant {willPlant}
                     </span>
                   </div>
@@ -1697,7 +1697,7 @@ function FarmhouseSection({ farmerLevel, farmhouseLevel, onUpgrade }: { farmerLe
           <div className="relative">
             <span className="text-3xl opacity-30 grayscale">🏚️</span>
             <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center">
-              <span className="text-[8px]">🔒</span>
+              <span className="text-[10px]">🔒</span>
             </div>
           </div>
           <div className="flex-1">
@@ -1751,7 +1751,7 @@ function FarmhouseSection({ farmerLevel, farmhouseLevel, onUpgrade }: { farmerLe
             <span className="text-2xl">{icon}</span>
           </motion.div>
           {farmhouseLevel > 0 && (
-            <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[8px] font-black border"
+            <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-black border"
               style={{
                 background: isMaxed ? '#84cc16' : '#f59e0b',
                 borderColor: isMaxed ? '#65a30d' : '#d97706',
@@ -1768,7 +1768,7 @@ function FarmhouseSection({ farmerLevel, farmhouseLevel, onUpgrade }: { farmerLe
           <div className="flex items-center gap-2">
             <p className="text-[13px] font-bold text-white">Farmhouse</p>
             {isMaxed && (
-              <span className="text-[8px] font-mono font-black px-1.5 py-0.5 rounded bg-lime-400/15 text-lime-400 border border-lime-400/25 tracking-wider">
+              <span className="text-[10px] font-mono font-black px-1.5 py-0.5 rounded bg-lime-400/15 text-lime-400 border border-lime-400/25 tracking-wider">
                 MAX
               </span>
             )}
@@ -1784,7 +1784,7 @@ function FarmhouseSection({ farmerLevel, farmhouseLevel, onUpgrade }: { farmerLe
                 transition={{ duration: 0.5, ease: 'easeOut' }}
               />
             </div>
-            <span className="text-[8px] font-mono text-gray-500 shrink-0 tabular-nums">{farmhouseLevel}/10</span>
+            <span className="text-[10px] font-mono text-gray-500 shrink-0 tabular-nums">{farmhouseLevel}/10</span>
           </div>
           {/* Inline bonus summary */}
           {farmhouseLevel > 0 && !isBuilding ? (
@@ -1853,7 +1853,7 @@ function FarmhouseSection({ farmerLevel, farmhouseLevel, onUpgrade }: { farmerLe
                         <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">{stat.label}</span>
                       </div>
                       <p className="text-[15px] font-mono font-black" style={{ color: stat.color }}>{stat.value}</p>
-                      <p className="text-[9px] text-gray-600 font-mono mt-0.5">{stat.desc}</p>
+                      <p className="text-[10px] text-gray-600 font-mono mt-0.5">{stat.desc}</p>
                     </div>
                   ))}
                   {bonuses.autoHarvest && (
@@ -1864,7 +1864,7 @@ function FarmhouseSection({ farmerLevel, farmhouseLevel, onUpgrade }: { farmerLe
                         <span className="text-lg">✨</span>
                         <div>
                           <p className="text-[11px] font-bold text-lime-400">Auto-Harvest Active</p>
-                          <p className="text-[9px] text-gray-500 font-mono">Ready crops are automatically collected</p>
+                          <p className="text-[10px] text-gray-500 font-mono">Ready crops are automatically collected</p>
                         </div>
                       </div>
                     </div>
@@ -1904,7 +1904,6 @@ function FarmhouseSection({ farmerLevel, farmhouseLevel, onUpgrade }: { farmerLe
                         const have = inventoryItems[matId] ?? 0
                         const ok = have >= qty
                         const item = LOOT_ITEMS.find((x) => x.id === matId)
-                        const rt = item ? rarityTheme(item.rarity) : null
                         return (
                           <div key={matId} className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-colors"
                             style={{
@@ -1982,7 +1981,7 @@ function FarmhouseSection({ farmerLevel, farmhouseLevel, onUpgrade }: { farmerLe
                           initial={{ opacity: 0, y: -4 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0 }}
-                          className="text-[9px] text-red-400 font-mono text-center mt-1.5"
+                          className="text-[10px] text-red-400 font-mono text-center mt-1.5"
                         >
                           {upgradeError}
                         </motion.p>
@@ -1994,7 +1993,7 @@ function FarmhouseSection({ farmerLevel, farmhouseLevel, onUpgrade }: { farmerLe
                           exit={{ opacity: 0 }}
                           className="text-center mt-1.5"
                         >
-                          <span className="text-[9px] text-emerald-400 font-mono font-bold">✨ Farmhouse upgraded!</span>
+                          <span className="text-[10px] text-emerald-400 font-mono font-bold">✨ Farmhouse upgraded!</span>
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -2106,7 +2105,7 @@ export function FarmPage() {
       animate={MOTION.page.animate}
       exit={MOTION.page.exit}
       transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
-      className="p-4 pb-20 space-y-4 max-w-lg mx-auto"
+      className="p-4 pb-20 space-y-4"
     >
       <PageHeader
         title="Farm"
@@ -2133,7 +2132,7 @@ export function FarmPage() {
               </button>
               {farmerLevel < 10 && (
                 <div className="absolute right-0 top-full mt-1 z-50 hidden group-hover:block w-44">
-                  <div className="bg-discord-darker border border-white/10 rounded-lg px-2.5 py-1.5 text-[9px] text-gray-300 font-mono shadow-lg">
+                  <div className="bg-discord-darker border border-white/10 rounded-lg px-2.5 py-1.5 text-[10px] text-gray-300 font-mono shadow-lg">
                     Unlocks at <span className="text-emerald-400 font-bold">Farmer LVL 10</span>
                     <br />Current level: <span className="text-white">{farmerLevel}</span>
                     <br />Plant one seed in all empty plots
@@ -2161,7 +2160,7 @@ export function FarmPage() {
               </button>
               {farmerLevel < 50 && (
                 <div className="absolute right-0 top-full mt-1 z-50 hidden group-hover:block w-44">
-                  <div className="bg-discord-darker border border-white/10 rounded-lg px-2.5 py-1.5 text-[9px] text-gray-300 font-mono shadow-lg">
+                  <div className="bg-discord-darker border border-white/10 rounded-lg px-2.5 py-1.5 text-[10px] text-gray-300 font-mono shadow-lg">
                     Unlocks at <span className="text-amber-400 font-bold">Farmer LVL 50</span>
                     <br />Current level: <span className="text-white">{farmerLevel}</span>
                     <br />Compost empty plots automatically
@@ -2185,12 +2184,12 @@ export function FarmPage() {
             {(growingCount > 0 || readyCount > 0) && (
               <div className="flex items-center gap-1.5">
                 {growingCount > 0 && (
-                  <span className="text-[8px] font-mono px-1.5 py-px rounded bg-white/[0.08] text-gray-300">
+                  <span className="text-[10px] font-mono px-1.5 py-px rounded bg-white/[0.08] text-gray-300">
                     {growingCount} growing
                   </span>
                 )}
                 {readyCount > 0 && (
-                  <span className="text-[8px] font-mono px-1.5 py-px rounded bg-lime-400/15 text-lime-400 border border-lime-400/25">
+                  <span className="text-[10px] font-mono px-1.5 py-px rounded bg-lime-400/15 text-lime-400 border border-lime-400/25">
                     {readyCount} ready
                   </span>
                 )}
@@ -2281,12 +2280,12 @@ export function FarmPage() {
                 >
                   <span>{isLocked ? '🔒 ' : ''}{field.label}</span>
                   {!isLocked && (fieldGrowing > 0 || fieldReady > 0) && (
-                    <span className="ml-1.5 text-[8px]">
+                    <span className="ml-1.5 text-[10px]">
                       {fieldGrowing > 0 && <span className="text-gray-500">{fieldGrowing}⏳</span>}
                       {fieldReady > 0 && <span className="text-lime-400 ml-0.5">{fieldReady}✓</span>}
                     </span>
                   )}
-                  {!isLocked && <span className="text-[8px] text-gray-600 ml-1">{fieldUnlocked}/8</span>}
+                  {!isLocked && <span className="text-[10px] text-gray-600 ml-1">{fieldUnlocked}/8</span>}
                 </button>
                 {isLocked && (
                   <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1.5 z-50 hidden group-hover:block w-48">
@@ -2294,15 +2293,15 @@ export function FarmPage() {
                       <p className="text-[10px] font-bold text-white mb-1.5">Unlock Field 2</p>
                       <div className="space-y-1">
                         <div className="flex items-center gap-1.5">
-                          <span className={`text-[9px] ${unlockedSlots > 8 ? 'text-emerald-400' : 'text-red-400'}`}>{unlockedSlots > 8 ? '✓' : '✗'}</span>
+                          <span className={`text-[10px] ${unlockedSlots > 8 ? 'text-emerald-400' : 'text-red-400'}`}>{unlockedSlots > 8 ? '✓' : '✗'}</span>
                           <span className="text-[10px] text-gray-300 font-mono">Unlock all Field 1 plots</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <span className={`text-[9px] ${farmerLevel >= field2Req.farmerLevel ? 'text-emerald-400' : 'text-red-400'}`}>{farmerLevel >= field2Req.farmerLevel ? '✓' : '✗'}</span>
+                          <span className={`text-[10px] ${farmerLevel >= field2Req.farmerLevel ? 'text-emerald-400' : 'text-red-400'}`}>{farmerLevel >= field2Req.farmerLevel ? '✓' : '✗'}</span>
                           <span className="text-[10px] text-gray-300 font-mono">Farmer LVL {field2Req.farmerLevel}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <span className={`text-[9px] ${(useGoldStore.getState().gold ?? 0) >= (SLOT_UNLOCK_COSTS[8] ?? 0) ? 'text-emerald-400' : 'text-red-400'}`}>{(useGoldStore.getState().gold ?? 0) >= (SLOT_UNLOCK_COSTS[8] ?? 0) ? '✓' : '✗'}</span>
+                          <span className={`text-[10px] ${(useGoldStore.getState().gold ?? 0) >= (SLOT_UNLOCK_COSTS[8] ?? 0) ? 'text-emerald-400' : 'text-red-400'}`}>{(useGoldStore.getState().gold ?? 0) >= (SLOT_UNLOCK_COSTS[8] ?? 0) ? '✓' : '✗'}</span>
                           <span className="text-[10px] text-amber-400 font-mono">🪙 {(SLOT_UNLOCK_COSTS[8] ?? 0).toLocaleString()}</span>
                         </div>
                       </div>
@@ -2328,7 +2327,7 @@ export function FarmPage() {
               >
                 <span className="text-gray-500 text-base">🔒</span>
                 {SLOT_UNLOCK_COSTS[i] != null && (
-                  <span className="text-[8px] font-mono text-gray-500">🪙 {SLOT_UNLOCK_COSTS[i]!.toLocaleString()}</span>
+                  <span className="text-[10px] font-mono text-gray-500">🪙 {SLOT_UNLOCK_COSTS[i]!.toLocaleString()}</span>
                 )}
                 {SLOT_UNLOCK_REQUIREMENTS[i]?.farmerLevel > 0 && (
                   <span className="text-[7px] font-mono text-gray-600">Farmer LVL {SLOT_UNLOCK_REQUIREMENTS[i].farmerLevel}</span>
@@ -2352,7 +2351,7 @@ export function FarmPage() {
           )}
         </AnimatePresence>
         {!unlockError && unlockedSlots < MAX_FARM_SLOTS && (
-          <p className="text-[9px] text-gray-400 font-mono text-center mt-2">
+          <p className="text-[10px] text-gray-400 font-mono text-center mt-2">
             Next plot · 🪙 {(SLOT_UNLOCK_COSTS[unlockedSlots] ?? 0).toLocaleString()} gold
             {(SLOT_UNLOCK_REQUIREMENTS[unlockedSlots]?.farmerLevel ?? 0) > 0 && (
               <span> · Farmer LVL {SLOT_UNLOCK_REQUIREMENTS[unlockedSlots].farmerLevel}</span>

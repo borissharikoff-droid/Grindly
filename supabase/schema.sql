@@ -314,7 +314,10 @@ CREATE TABLE IF NOT EXISTS public.guilds (
   member_count INT DEFAULT 1,
   chest_gold INT DEFAULT 0 CHECK (chest_gold >= 0),
   weekly_goal_progress JSONB DEFAULT '{}'::jsonb,
-  weekly_goal_reset_at TIMESTAMPTZ
+  weekly_goal_reset_at TIMESTAMPTZ,
+  hall_level INT DEFAULT 1,
+  hall_build_started_at TIMESTAMPTZ,
+  hall_build_target_level INT
 );
 
 CREATE TABLE IF NOT EXISTS public.guild_members (
@@ -348,6 +351,45 @@ CREATE TABLE IF NOT EXISTS public.guild_activity_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_guild_activity_guild_created ON guild_activity_log(guild_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.guild_hall_contributions (
+  guild_id UUID REFERENCES guilds(id) ON DELETE CASCADE,
+  item_id TEXT NOT NULL,
+  total_donated INT DEFAULT 0,
+  PRIMARY KEY (guild_id, item_id)
+);
+
+ALTER TABLE guild_hall_contributions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "guild_members_read_contributions"
+  ON guild_hall_contributions FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM guild_members
+      WHERE guild_members.guild_id = guild_hall_contributions.guild_id
+        AND guild_members.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "guild_members_upsert_contributions"
+  ON guild_hall_contributions FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM guild_members
+      WHERE guild_members.guild_id = guild_hall_contributions.guild_id
+        AND guild_members.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "guild_members_update_contributions"
+  ON guild_hall_contributions FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM guild_members
+      WHERE guild_members.guild_id = guild_hall_contributions.guild_id
+        AND guild_members.user_id = auth.uid()
+    )
+  );
 
 -- RPC: increment guild weekly goal progress
 CREATE OR REPLACE FUNCTION increment_guild_progress(p_guild_id UUID, p_type TEXT, p_delta INT DEFAULT 1)

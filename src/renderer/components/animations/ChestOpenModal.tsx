@@ -5,7 +5,6 @@ import type { BonusMaterial, ChestType, LootItemDef } from '../../lib/loot'
 import { CHEST_DEFS, LOOT_ITEMS, getRarityTheme, getItemPerkDescription } from '../../lib/loot'
 import { getSeedZipDisplay, type SeedZipTier } from '../../lib/farming'
 import { useAdminConfigStore } from '../../stores/adminConfigStore'
-import { MOTION } from '../../lib/motion'
 import { PixelConfetti } from '../home/PixelConfetti'
 import { playClickSound, playLootRaritySound, playChestOpeningSound } from '../../lib/sounds'
 import { track } from '../../lib/analytics'
@@ -579,14 +578,14 @@ export function ChestOpenModal({
                           </motion.p>
                           {(['head', 'body', 'legs', 'ring', 'weapon'] as string[]).includes(item.slot) && (
                             <span
-                              className="text-[8px] font-mono uppercase tracking-widest px-1 py-px rounded"
+                              className="text-[10px] font-mono uppercase tracking-widest px-1 py-px rounded"
                               style={{ color: `${rarityTheme.color}99`, background: `${rarityTheme.color}14`, border: `1px solid ${rarityTheme.color}28` }}
                             >
                               {item.slot}
                             </span>
                           )}
                         </div>
-                        {item.description && <p className="text-[9px] text-gray-500 italic mt-1 leading-snug">{item.description}</p>}
+                        {item.description && <p className="text-[10px] text-gray-500 italic mt-1 leading-snug">{item.description}</p>}
                         <p className="text-[10px] text-gray-400 mt-1 leading-snug">{getItemPerkDescription(item)}</p>
                       </motion.div>
                       ) : null}
@@ -603,7 +602,7 @@ export function ChestOpenModal({
                           <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at 50% 35%, rgba(245,158,11,0.18) 0%, transparent 65%)' }} />
                           <span className="text-3xl relative">🪙</span>
                           <span className="text-xl font-bold text-amber-400 tabular-nums relative">+{goldDropped}</span>
-                          <span className="text-[9px] font-mono text-amber-500/60 uppercase tracking-widest relative">Gold</span>
+                          <span className="text-[10px] font-mono text-amber-500/60 uppercase tracking-widest relative">Gold</span>
                         </motion.div>
                       )}
 
@@ -630,7 +629,7 @@ export function ChestOpenModal({
                               )}
                             </div>
                             <span className="text-lg font-bold tabular-nums relative" style={{ color: matTheme.color }}>×{mat.qty}</span>
-                            <span className="text-[9px] font-medium text-center leading-tight px-2 relative" style={{ color: `${matTheme.color}cc` }}>{matDef.name}</span>
+                            <span className="text-[10px] font-medium text-center leading-tight px-2 relative" style={{ color: `${matTheme.color}cc` }}>{matDef.name}</span>
                           </motion.div>
                         )
                       })}
@@ -647,7 +646,7 @@ export function ChestOpenModal({
                           <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at 50% 35%, rgba(239,68,68,0.18) 0%, transparent 65%)' }} />
                           <span className="text-3xl relative">🗡️</span>
                           <span className="text-xl font-bold text-red-400 tabular-nums relative">+{warriorXP}</span>
-                          <span className="text-[9px] font-mono text-red-500/60 uppercase tracking-widest relative">Warrior XP</span>
+                          <span className="text-[10px] font-mono text-red-500/60 uppercase tracking-widest relative">Warrior XP</span>
                         </motion.div>
                       )}
 
@@ -668,7 +667,7 @@ export function ChestOpenModal({
                               ? <img src={zipDisplay.image} className="w-10 h-10 object-contain relative" />
                               : <span className="text-3xl relative">{zipDisplay.icon}</span>}
                             <span className="text-sm font-semibold text-center leading-tight px-2 relative" style={{ color: zipTheme.color }}>{zipDisplay.name}</span>
-                            <span className="text-[9px] font-mono uppercase tracking-widest relative" style={{ color: `${zipTheme.color}88` }}>Seed Zip</span>
+                            <span className="text-[10px] font-mono uppercase tracking-widest relative" style={{ color: `${zipTheme.color}88` }}>Seed Zip</span>
                           </motion.div>
                         )
                       })()}

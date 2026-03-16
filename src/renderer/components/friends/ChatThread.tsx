@@ -334,7 +334,7 @@ export function ChatThread({ profile, onBack, onOpenProfile, messages, loading, 
       {/* Header */}
       <div className="relative flex items-center justify-center shrink-0 py-2.5 mb-1">
         <div className="absolute left-0">
-          <BackButton onClick={() => { onBack(); playClickSound() }} />
+          <BackButton onClick={onBack} />
         </div>
         <button
           type="button"

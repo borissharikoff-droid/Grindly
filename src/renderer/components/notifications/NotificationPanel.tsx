@@ -173,7 +173,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                           <div className="min-w-0 flex-1">
                             <div className="flex items-baseline justify-between gap-1">
                               <p className="text-[11px] font-semibold text-white truncate">{item.title}</p>
-                              <span className="text-[9px] text-gray-500 font-mono shrink-0">{timeAgo(item.timestamp)}</span>
+                              <span className="text-[10px] text-gray-500 font-mono shrink-0">{timeAgo(item.timestamp)}</span>
                             </div>
                             <p className="text-[10px] leading-snug mt-0.5 truncate" style={{ color: accent }}>{item.body}</p>
                           </div>
@@ -216,7 +216,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                         <div className="min-w-0 flex-1">
                           <div className="flex items-baseline justify-between gap-1">
                             <p className="text-[11px] font-semibold text-white truncate">{item.title}</p>
-                            <span className="text-[9px] text-gray-500 font-mono shrink-0">{timeAgo(item.timestamp)}</span>
+                            <span className="text-[10px] text-gray-500 font-mono shrink-0">{timeAgo(item.timestamp)}</span>
                           </div>
                           <p className="text-[10px] text-gray-400 truncate mt-0.5">{item.body}</p>
                         </div>
@@ -270,7 +270,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                           <div className="min-w-0 flex-1">
                             <div className="flex items-baseline justify-between gap-1">
                               <p className="text-[11px] font-semibold text-white truncate">{item.title}</p>
-                              <span className="text-[9px] text-gray-500 font-mono shrink-0">{timeAgo(item.timestamp)}</span>
+                              <span className="text-[10px] text-gray-500 font-mono shrink-0">{timeAgo(item.timestamp)}</span>
                             </div>
                             <p className="text-[10px] mt-0.5 truncate" style={{ color: rTheme.color }}>{cr.chestRarity ? `${cr.chestRarity.charAt(0).toUpperCase() + cr.chestRarity.slice(1)} bag` : item.body}</p>
                           </div>
@@ -297,7 +297,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                         <div className="min-w-0 flex-1">
                           <div className="flex items-baseline justify-between gap-1">
                             <p className="text-[11px] font-semibold text-white truncate">{item.title}</p>
-                            <span className="text-[9px] text-gray-500 font-mono shrink-0">{timeAgo(item.timestamp)}</span>
+                            <span className="text-[10px] text-gray-500 font-mono shrink-0">{timeAgo(item.timestamp)}</span>
                           </div>
                           {item.body && <p className="text-[10px] text-gray-400 truncate mt-0.5">{item.body}</p>}
                         </div>
@@ -343,7 +343,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                         <div className="min-w-0 flex-1">
                           <div className="flex items-baseline justify-between gap-1">
                             <p className="text-[11px] font-semibold text-white truncate">{item.title}</p>
-                            <span className="text-[9px] text-gray-500 font-mono shrink-0">{timeAgo(item.timestamp)}</span>
+                            <span className="text-[10px] text-gray-500 font-mono shrink-0">{timeAgo(item.timestamp)}</span>
                           </div>
                           <p className="text-[10px] text-gray-400 truncate mt-0.5">{item.body}</p>
                         </div>
@@ -372,7 +372,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-1">
                         <p className="text-[11px] font-semibold text-white truncate">{item.title}</p>
-                        <span className="text-[9px] text-gray-600 font-mono shrink-0">{timeAgo(item.timestamp)}</span>
+                        <span className="text-[10px] text-gray-600 font-mono shrink-0">{timeAgo(item.timestamp)}</span>
                       </div>
                       {item.body && <p className="text-[10px] text-gray-500 truncate mt-0.5">{item.body}</p>}
                     </div>

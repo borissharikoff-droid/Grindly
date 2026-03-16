@@ -113,7 +113,11 @@ export function GoalWidget({ trailingAction }: { trailingAction?: React.ReactNod
     const api = window.electronAPI
     if (api?.db?.getTasks) {
       try {
-        const t = await api.db.getTasks()
+        const raw = await api.db.getTasks()
+        // Normalize done: DB may return boolean (SQLite), Task type uses number (0/1)
+        const t: Task[] = (raw as { id: string; text: string; done: boolean | number; created_at: number }[]).map(
+          (r) => ({ ...r, done: r.done ? 1 : 0 })
+        )
         setTasks(t)
       } catch (e) { console.error('loadTasks failed', e) }
       return
@@ -377,7 +381,7 @@ function GoalTypePicker({ onPickTime, onPickTask, onCancel }: { onPickTime: () =
         >
           <span className="text-lg">⏱</span>
           <span className="text-[11px] text-gray-300 font-medium">Time goal</span>
-          <span className="text-[9px] text-gray-600">Track hours</span>
+          <span className="text-[10px] text-gray-600">Track hours</span>
         </button>
         <button
           onClick={onPickTask}
@@ -385,7 +389,7 @@ function GoalTypePicker({ onPickTime, onPickTask, onCancel }: { onPickTime: () =
         >
           <span className="text-lg">✅</span>
           <span className="text-[11px] text-gray-300 font-medium">Task</span>
-          <span className="text-[9px] text-gray-600">Checklist item</span>
+          <span className="text-[10px] text-gray-600">Checklist item</span>
         </button>
       </div>
     </div>
@@ -584,9 +588,9 @@ function GoalReachedModal({
               <span className="text-xl shrink-0">{chest.icon}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] font-semibold text-cyber-neon">{chest.name}</p>
-                <p className="text-[9px] text-gray-600">Sent to your inbox</p>
+                <p className="text-[10px] text-gray-600">Sent to your inbox</p>
               </div>
-              <span className="text-[9px] font-mono text-gray-600 uppercase tracking-wide shrink-0">Reward</span>
+              <span className="text-[10px] font-mono text-gray-600 uppercase tracking-wide shrink-0">Reward</span>
             </motion.div>
           )}
           <div className="flex gap-2 pt-0.5">
@@ -649,7 +653,7 @@ function GoalCard({ goal, onEdit }: { goal: GoalWithProgress; onEdit: () => void
       </div>
       {!isComplete && rewardChest && (
         <div className="mt-1.5 flex items-center gap-1">
-          <span className="text-[9px] text-gray-600 font-mono">
+          <span className="text-[10px] text-gray-600 font-mono">
             {rewardChest.icon} {rewardChest.name} on completion
           </span>
         </div>

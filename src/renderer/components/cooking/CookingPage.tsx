@@ -272,7 +272,7 @@ function CookingStation({ onCancel }: { onCancel: (id: string) => void }) {
 
         {/* Last roll info */}
         {lastRoll && (lastRoll.burned > 0 || lastRoll.bonus > 0) && (
-          <p className="text-[9px] text-center mt-2" style={{ color: K.muted }}>
+          <p className="text-[10px] text-center mt-2" style={{ color: K.muted }}>
             {lastRoll.burned > 0 && <span style={{ color: K.warn }}>Last item burned! </span>}
             {lastRoll.bonus > 0 && <span style={{ color: K.indigo }}>Bonus output! </span>}
           </p>
@@ -283,7 +283,7 @@ function CookingStation({ onCancel }: { onCancel: (id: string) => void }) {
             {queue.map((job, i) => {
               const qOut = FOOD_ITEM_MAP[job.outputItemId]
               return (
-                <div key={job.id} className="flex items-center gap-1.5 px-1 py-0.5 text-[9px] font-mono" style={{ color: K.muted }}>
+                <div key={job.id} className="flex items-center gap-1.5 px-1 py-0.5 text-[10px] font-mono" style={{ color: K.muted }}>
                   <span style={{ color: `${K.muted}80` }}>{i + 1}.</span>
                   {qOut?.icon && <span>{qOut.icon}</span>}
                   <span className="truncate">{qOut?.name ?? job.outputItemId}</span>
@@ -337,19 +337,19 @@ function DishCard({
               {/* Hidden name */}
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[12px] font-bold tracking-widest" style={{ color: `${K.muted}60` }}>??? ???</span>
-                <span className="text-[9px] font-semibold uppercase" style={{ color: `${theme.color}50` }}>{output.rarity}</span>
+                <span className="text-[10px] font-semibold uppercase" style={{ color: `${theme.color}50` }}>{output.rarity}</span>
               </div>
 
               {/* Hidden ingredients */}
               <div className="flex items-center gap-1.5 mb-1">
                 {recipe.ingredients.map((_, i) => (
-                  <span key={i} className="text-[9px] font-mono px-1.5 py-0.5 rounded"
+                  <span key={i} className="text-[10px] font-mono px-1.5 py-0.5 rounded"
                     style={{ background: 'rgba(255,255,255,.03)', color: `${K.muted}50` }}>???</span>
                 ))}
               </div>
 
               {/* Discovery hint */}
-              <div className="text-[9px] italic" style={{ color: `${K.muted}50` }}>
+              <div className="text-[10px] italic" style={{ color: `${K.muted}50` }}>
                 Discover via Cauldron
               </div>
             </div>
@@ -388,7 +388,7 @@ function DishCard({
       )}
 
       {isCooking && (
-        <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-[8px] font-bold uppercase tracking-wider"
+        <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider"
           style={{ background: `${K.copper}20`, color: K.copper, border: `1px solid ${K.copper}30` }}>
           Cooking
         </div>
@@ -409,9 +409,9 @@ function DishCard({
             {/* Name + rarity */}
             <div className="flex items-center gap-2 mb-0.5">
               <span className="text-[12px] font-bold truncate" style={{ color: K.cream }}>{output.name}</span>
-              <span className="text-[9px] font-semibold uppercase" style={{ color: theme.color }}>{output.rarity}</span>
+              <span className="text-[10px] font-semibold uppercase" style={{ color: theme.color }}>{output.rarity}</span>
               {owned > 0 && (
-                <span className="text-[9px] font-mono px-1 py-0.5 rounded shrink-0"
+                <span className="text-[10px] font-mono px-1 py-0.5 rounded shrink-0"
                   style={{ color: K.muted, background: 'rgba(255,255,255,.03)' }}>x{owned}</span>
               )}
             </div>
@@ -419,10 +419,10 @@ function DishCard({
             {/* Effect tags */}
             {!locked && (
               <div className="flex flex-wrap gap-1 mb-1.5">
-                {output.effect.heal && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ color: K.ready, background: `${K.ready}0a` }}>+{output.effect.heal} HP</span>}
-                {output.effect.buffAtk && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ color: K.warn, background: `${K.warn}0a` }}>+{output.effect.buffAtk} ATK</span>}
-                {output.effect.buffDef && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ color: K.indigo, background: `${K.indigo}0a` }}>+{output.effect.buffDef} DEF</span>}
-                {output.effect.buffRegen && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ color: '#22d3ee', background: 'rgba(34,211,238,.04)' }}>+{output.effect.buffRegen} Regen</span>}
+                {output.effect.heal && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ color: K.ready, background: `${K.ready}0a` }}>+{output.effect.heal} HP</span>}
+                {output.effect.buffAtk && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ color: K.warn, background: `${K.warn}0a` }}>+{output.effect.buffAtk} ATK</span>}
+                {output.effect.buffDef && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ color: K.indigo, background: `${K.indigo}0a` }}>+{output.effect.buffDef} DEF</span>}
+                {output.effect.buffRegen && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ color: '#22d3ee', background: 'rgba(34,211,238,.04)' }}>+{output.effect.buffRegen} Regen</span>}
               </div>
             )}
 
@@ -433,17 +433,17 @@ function DishCard({
                 const have = items[ing.id] ?? 0
                 const enough = have >= ing.qty
                 return (
-                  <span key={ing.id} className="text-[9px] flex items-center gap-0.5"
+                  <span key={ing.id} className="text-[10px] flex items-center gap-0.5"
                     style={{ color: enough ? `${K.ready}cc` : `${K.warn}cc` }}>
                     {def?.icon} <span className="font-medium">{ing.qty}x {def?.name ?? ing.id}</span>
-                    <span className="font-mono text-[8px]" style={{ color: K.muted }}>({have})</span>
+                    <span className="font-mono text-[10px]" style={{ color: K.muted }}>({have})</span>
                   </span>
                 )
               })}
             </div>
 
             {/* Bottom row: time, steps, burn chance, quality */}
-            <div className="flex items-center gap-3 text-[9px]" style={{ color: K.muted }}>
+            <div className="flex items-center gap-3 text-[10px]" style={{ color: K.muted }}>
               {!locked && (
                 <>
                   <span>{formatCookTime(totalTime)}</span>
@@ -523,12 +523,12 @@ function CookModal({
             <div className="flex-1 min-w-0">
               <p className="text-[14px] font-bold" style={{ color: K.cream }}>{output.name}</p>
               <div className="flex gap-1 mt-1 flex-wrap">
-                {fx.heal && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ color: K.ready, background: `${K.ready}0c` }}>+{fx.heal} HP</span>}
-                {fx.buffAtk && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ color: K.warn, background: `${K.warn}0c` }}>+{fx.buffAtk} ATK</span>}
-                {fx.buffDef && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ color: K.indigo, background: `${K.indigo}0c` }}>+{fx.buffDef} DEF</span>}
-                {fx.buffRegen && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ color: '#22d3ee', background: 'rgba(34,211,238,.06)' }}>+{fx.buffRegen} Regen</span>}
+                {fx.heal && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ color: K.ready, background: `${K.ready}0c` }}>+{fx.heal} HP</span>}
+                {fx.buffAtk && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ color: K.warn, background: `${K.warn}0c` }}>+{fx.buffAtk} ATK</span>}
+                {fx.buffDef && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ color: K.indigo, background: `${K.indigo}0c` }}>+{fx.buffDef} DEF</span>}
+                {fx.buffRegen && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ color: '#22d3ee', background: 'rgba(34,211,238,.06)' }}>+{fx.buffRegen} Regen</span>}
                 {fx.buffDurationSec && (fx.buffAtk || fx.buffDef || fx.buffRegen) && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ color: K.muted, background: 'rgba(255,255,255,.03)' }}>for {fx.buffDurationSec}s</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ color: K.muted, background: 'rgba(255,255,255,.03)' }}>for {fx.buffDurationSec}s</span>
                 )}
               </div>
             </div>
@@ -536,7 +536,7 @@ function CookModal({
 
           {/* Ingredients — compact row */}
           <div className="mb-3">
-            <p className="text-[9px] uppercase tracking-wider mb-1" style={{ color: K.muted }}>Ingredients (x{qty})</p>
+            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: K.muted }}>Ingredients (x{qty})</p>
             <div className="flex gap-1.5 flex-wrap">
               {recipe.ingredients.map((ing) => {
                 const def = getItemDef(ing.id)
@@ -557,7 +557,7 @@ function CookModal({
 
           {/* Steps — inline */}
           <div className="mb-3">
-            <p className="text-[9px] uppercase tracking-wider mb-1" style={{ color: K.muted }}>
+            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: K.muted }}>
               {recipe.steps.length} steps
             </p>
             <div className="flex items-center gap-1 flex-wrap">
@@ -565,12 +565,12 @@ function CookModal({
                 const stepDur = cookStepDuration(st, chefLevel, grindlyMult, instrumentTiers)
                 return (
                   <div key={i} className="flex items-center gap-1">
-                    {i > 0 && <span className="text-[8px]" style={{ color: K.faint }}>›</span>}
+                    {i > 0 && <span className="text-[10px]" style={{ color: K.faint }}>›</span>}
                     <div className="flex items-center gap-1 rounded-md px-1.5 py-0.5"
                       style={{ background: `${K.copper}06`, border: `1px solid ${K.copper}0c` }}>
                       <span className="text-xs">{st.icon}</span>
-                      <span className="text-[8px]" style={{ color: K.cream }}>{st.label}</span>
-                      <span className="text-[8px] font-mono" style={{ color: K.copper }}>{formatCookTime(stepDur)}</span>
+                      <span className="text-[10px]" style={{ color: K.cream }}>{st.label}</span>
+                      <span className="text-[10px] font-mono" style={{ color: K.copper }}>{formatCookTime(stepDur)}</span>
                     </div>
                   </div>
                 )
@@ -580,7 +580,7 @@ function CookModal({
 
           {/* Qty */}
           <div>
-            <p className="text-[9px] uppercase tracking-wider mb-1" style={{ color: K.muted }}>Quantity</p>
+            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: K.muted }}>Quantity</p>
             <div className="flex gap-1.5 flex-wrap items-center">
               {QTY_PRESETS.map((p) => (
                 <button key={p} type="button" onClick={() => setQty(p)}
@@ -621,7 +621,7 @@ function CookModal({
             <AnimatePresence>
               {missingTip && (
                 <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                  className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] font-bold px-2 py-0.5 rounded-md z-10"
+                  className="absolute -top-7 right-0 whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-md z-10"
                   style={{ background: K.warn, color: '#fff' }}>Missing ingredients!</motion.div>
               )}
             </AnimatePresence>
@@ -728,14 +728,14 @@ function ToolsPanel({ chefLevel, onClose, focusId }: { chefLevel: number; onClos
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] font-semibold" style={{ color: K.cream }}>{inst.name}</span>
                         {!isLocked && (
-                          <span className="text-[8px] font-mono px-1 py-0.5 rounded"
+                          <span className="text-[10px] font-mono px-1 py-0.5 rounded"
                             style={{ color: TIER_C[tier], background: `${TIER_C[tier]}0c` }}>{td.name}</span>
                         )}
                       </div>
                       {isLocked ? (
-                        <p className="text-[9px] mt-0.5" style={{ color: K.muted }}>Requires Cooking Level {inst.unlockLevel}</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: K.muted }}>Requires Cooking Level {inst.unlockLevel}</p>
                       ) : (
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap text-[8px]">
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap text-[10px]">
                           {td.speedBonus > 0 && <span style={{ color: K.ready }}>Speed +{Math.round(td.speedBonus * 100)}%</span>}
                           {td.qualityBonus > 0 && <span style={{ color: K.indigo }}>Bonus +{Math.round(td.qualityBonus * 100)}%</span>}
                           {td.burnReduction > 0 && <span style={{ color: K.warn }}>Burn -{Math.round(td.burnReduction * 100)}%</span>}
@@ -759,7 +759,7 @@ function ToolsPanel({ chefLevel, onClose, focusId }: { chefLevel: number; onClos
                         {lvlLock ? `Lvl ${inst.unlockLevel}` : `${inst.unlockCost.toLocaleString()}g`}
                       </button>
                     ) : maxed ? (
-                      <span className="text-[9px] font-mono px-2" style={{ color: K.muted }}>MAX</span>
+                      <span className="text-[10px] font-mono px-2" style={{ color: K.muted }}>MAX</span>
                     ) : (
                       <button type="button"
                         onClick={() => { if (canUP) { playClickSound(); upgradeInstrument(inst.id, gold, spend) } }}
@@ -826,7 +826,7 @@ function InstrumentShelf({ currentInstrument, activeInstruments, onInstrumentCli
                 style={{ width: 34, height: 34, fontSize: 18 }}>
                 {isLocked ? '🔒' : td.icon}
               </div>
-              <span className="text-[8px] mt-1" style={{
+              <span className="text-[10px] mt-1" style={{
                 color: isCurrentStep && isCooking ? K.copper : K.muted,
                 fontWeight: isCurrentStep ? 700 : 400,
               }}>
@@ -1007,7 +1007,7 @@ function Cauldron({ items, onConsume, onGrant, onRecipeFound }: {
                   <span className="text-base" style={{ color: `${K.muted}50` }}>+</span>
                 )}
               </button>
-              <span className="text-[8px] mt-1 truncate w-full text-center leading-tight"
+              <span className="text-[10px] mt-1 truncate w-full text-center leading-tight"
                 style={{ color: id ? K.cream : `${K.muted}40`, minHeight: 12 }}>
                 {itemDef?.name ?? (id ? id : '')}
               </span>
@@ -1086,9 +1086,9 @@ function Cauldron({ items, onConsume, onGrant, onRecipeFound }: {
                         <div className="w-9 h-9 flex items-center justify-center mb-1">
                           <ItemIcon item={item} size="lg" />
                         </div>
-                        <span className="text-[9px] font-medium truncate w-full text-center leading-tight"
+                        <span className="text-[10px] font-medium truncate w-full text-center leading-tight"
                           style={{ color: K.cream }}>{item.name}</span>
-                        <span className="text-[8px] font-mono" style={{ color: K.muted }}>×{items[item.id] ?? 0}</span>
+                        <span className="text-[10px] font-mono" style={{ color: K.muted }}>×{items[item.id] ?? 0}</span>
                       </button>
                     )
                   })}
@@ -1147,18 +1147,18 @@ function Cauldron({ items, onConsume, onGrant, onRecipeFound }: {
                   <div className="text-[10px] font-mono" style={{ color: K.xp }}>+{result.xpGained} XP</div>
                 )}
                 {result.type === 'mystery_stew' && (
-                  <p className="text-[9px] mt-2" style={{ color: K.muted }}>
+                  <p className="text-[10px] mt-2" style={{ color: K.muted }}>
                     Wrong combination — try different ingredients!
                   </p>
                 )}
                 {result.type === 'discovered' && (
-                  <p className="text-[9px] mt-2" style={{ color: K.copper }}>
+                  <p className="text-[10px] mt-2" style={{ color: K.copper }}>
                     Recipe added to your Cookbook!
                     {result.xpGained === 0 && <><br/>Gather more ingredients to start cooking.</>}
                   </p>
                 )}
                 {result.type === 'known' && result.xpGained === 0 && (
-                  <p className="text-[9px] mt-2" style={{ color: K.muted }}>
+                  <p className="text-[10px] mt-2" style={{ color: K.muted }}>
                     You know this recipe but need more ingredients. Check the Recipes tab!
                   </p>
                 )}
@@ -1185,7 +1185,7 @@ function StarDisplay({ stars, maxStars = MASTERY_MAX_STARS }: { stars: number; m
   return (
     <span className="inline-flex gap-0.5">
       {Array.from({ length: maxStars }).map((_, i) => (
-        <span key={i} className="text-[9px]" style={{ color: i < stars ? '#e2b052' : '#2a2a3a', textShadow: i < stars ? '0 0 4px rgba(226,176,82,.3)' : 'none' }}>★</span>
+        <span key={i} className="text-[10px]" style={{ color: i < stars ? '#e2b052' : '#2a2a3a', textShadow: i < stars ? '0 0 4px rgba(226,176,82,.3)' : 'none' }}>★</span>
       ))}
     </span>
   )
@@ -1245,7 +1245,7 @@ function Cookbook({ chefLevel }: { chefLevel: number }) {
                 {g.label}
               </span>
               <div className="flex-1 h-px" style={{ background: `${rarTheme.color}12` }} />
-              <span className="text-[9px] font-mono" style={{ color: K.muted }}>
+              <span className="text-[10px] font-mono" style={{ color: K.muted }}>
                 {found}/{g.recipes.length}
               </span>
             </div>
@@ -1289,11 +1289,11 @@ function Cookbook({ chefLevel }: { chefLevel: number }) {
                               <StarDisplay stars={stars} />
                             </Tip>
                           ) : (
-                            <span className="text-[8px] italic" style={{ color: `${K.muted}80` }}>Undiscovered</span>
+                            <span className="text-[10px] italic" style={{ color: `${K.muted}80` }}>Undiscovered</span>
                           )}
                         </div>
                         {isFound && nextStarIn > 0 && (
-                          <div className="text-[8px] mt-0.5 font-mono" style={{ color: `${K.muted}90` }}>
+                          <div className="text-[10px] mt-0.5 font-mono" style={{ color: `${K.muted}90` }}>
                             {nextStarIn} to next ★
                           </div>
                         )}
@@ -1352,7 +1352,7 @@ function Cookbook({ chefLevel }: { chefLevel: number }) {
                           {isFound && (
                             <div className="flex items-center gap-2 mt-0.5">
                               <StarDisplay stars={stars} />
-                              <span className="text-[9px] font-mono" style={{ color: K.muted }}>
+                              <span className="text-[10px] font-mono" style={{ color: K.muted }}>
                                 {timesCrafted}× cooked
                               </span>
                             </div>
@@ -1369,7 +1369,7 @@ function Cookbook({ chefLevel }: { chefLevel: number }) {
                         <div className="space-y-3">
                           {/* Ingredients */}
                           <div className="rounded-lg p-2.5" style={{ background: K.hearth }}>
-                            <div className="text-[9px] font-bold uppercase tracking-wide mb-1.5" style={{ color: K.copper }}>Ingredients</div>
+                            <div className="text-[10px] font-bold uppercase tracking-wide mb-1.5" style={{ color: K.copper }}>Ingredients</div>
                             <div className="space-y-1">
                               {selectedRecipe.ingredients.map((ing) => {
                                 const iDef = getItemDef(ing.id)
@@ -1379,7 +1379,7 @@ function Cookbook({ chefLevel }: { chefLevel: number }) {
                                       <ItemIcon item={iDef} size="sm" />
                                     </div>
                                     <span className="text-[10px] font-medium" style={{ color: K.cream }}>{iDef?.name ?? ing.id}</span>
-                                    <span className="text-[9px] font-mono ml-auto" style={{ color: K.muted }}>×{ing.qty}</span>
+                                    <span className="text-[10px] font-mono ml-auto" style={{ color: K.muted }}>×{ing.qty}</span>
                                   </div>
                                 )
                               })}
@@ -1389,34 +1389,34 @@ function Cookbook({ chefLevel }: { chefLevel: number }) {
                           {/* Food effect */}
                           {food?.effect && (
                             <div className="rounded-lg p-2.5" style={{ background: K.hearth }}>
-                              <div className="text-[9px] font-bold uppercase tracking-wide mb-1.5" style={{ color: K.ready }}>Effect</div>
+                              <div className="text-[10px] font-bold uppercase tracking-wide mb-1.5" style={{ color: K.ready }}>Effect</div>
                               <div className="flex flex-wrap gap-1.5">
                                 {(food.effect.heal ?? 0) > 0 && (
-                                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded"
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
                                     style={{ color: K.ready, background: `${K.ready}0a` }}>
                                     +{food.effect.heal} HP
                                   </span>
                                 )}
                                 {(food.effect.buffAtk ?? 0) > 0 && (
-                                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded"
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
                                     style={{ color: K.warn, background: `${K.warn}0a` }}>
                                     +{Math.round(food.effect.buffAtk! * bonus.buffMultiplier)} ATK
                                   </span>
                                 )}
                                 {(food.effect.buffDef ?? 0) > 0 && (
-                                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded"
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
                                     style={{ color: K.indigo, background: `${K.indigo}0a` }}>
                                     +{Math.round(food.effect.buffDef! * bonus.buffMultiplier)} DEF
                                   </span>
                                 )}
                                 {(food.effect.buffRegen ?? 0) > 0 && (
-                                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded"
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
                                     style={{ color: '#22d3ee', background: 'rgba(34,211,238,.04)' }}>
                                     +{Math.round(food.effect.buffRegen! * bonus.buffMultiplier)} Regen
                                   </span>
                                 )}
                                 {(food.effect.buffDurationSec ?? 0) > 0 && (food.effect.buffAtk || food.effect.buffDef || food.effect.buffRegen) && (
-                                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded"
+                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded"
                                     style={{ color: K.muted, background: 'rgba(255,255,255,.02)' }}>
                                     {food.effect.buffDurationSec}s
                                   </span>
@@ -1428,30 +1428,30 @@ function Cookbook({ chefLevel }: { chefLevel: number }) {
                           {/* Mastery bonuses */}
                           {stars >= 2 && (
                             <div className="rounded-lg p-2.5" style={{ background: K.hearth }}>
-                              <div className="text-[9px] font-bold uppercase tracking-wide mb-1.5" style={{ color: K.xp }}>
+                              <div className="text-[10px] font-bold uppercase tracking-wide mb-1.5" style={{ color: K.xp }}>
                                 Mastery ({stars}★)
                               </div>
                               <div className="flex flex-wrap gap-1.5">
                                 {bonus.buffMultiplier > 1 && (
-                                  <span className="text-[9px] px-1.5 py-0.5 rounded"
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded"
                                     style={{ color: K.xp, background: `${K.xp}0a` }}>
                                     Buff +{Math.round((bonus.buffMultiplier - 1) * 100)}%
                                   </span>
                                 )}
                                 {bonus.ingredientSaveChance > 0 && (
-                                  <span className="text-[9px] px-1.5 py-0.5 rounded"
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded"
                                     style={{ color: K.ready, background: `${K.ready}0a` }}>
                                     Save {Math.round(bonus.ingredientSaveChance * 100)}%
                                   </span>
                                 )}
                                 {bonus.doubleOutputChance > 0 && (
-                                  <span className="text-[9px] px-1.5 py-0.5 rounded"
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded"
                                     style={{ color: K.indigo, background: `${K.indigo}0a` }}>
                                     2× {Math.round(bonus.doubleOutputChance * 100)}%
                                   </span>
                                 )}
                                 {bonus.xpMultiplier > 1 && (
-                                  <span className="text-[9px] px-1.5 py-0.5 rounded"
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded"
                                     style={{ color: K.copper, background: `${K.copper}0a` }}>
                                     XP +{Math.round((bonus.xpMultiplier - 1) * 100)}%
                                   </span>
@@ -1462,9 +1462,9 @@ function Cookbook({ chefLevel }: { chefLevel: number }) {
                         </div>
                       ) : (
                         <div className="rounded-lg p-3" style={{ background: K.hearth }}>
-                          <div className="text-[9px] font-bold uppercase tracking-wide mb-1.5" style={{ color: K.copper }}>Hint</div>
+                          <div className="text-[10px] font-bold uppercase tracking-wide mb-1.5" style={{ color: K.copper }}>Hint</div>
                           <p className="text-[10px] italic leading-relaxed" style={{ color: K.muted }}>{hint}</p>
-                          <p className="text-[9px] mt-2 leading-relaxed" style={{ color: `${K.muted}80` }}>
+                          <p className="text-[10px] mt-2 leading-relaxed" style={{ color: `${K.muted}80` }}>
                             Combine the right ingredients in the Cauldron to discover this recipe.
                           </p>
                         </div>
@@ -1552,7 +1552,7 @@ function Tip({ text, children }: { text: string; children: React.ReactNode }) {
       onClick={() => setShow((s) => !s)}>
       {children}
       {show && (
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 rounded text-[8px] whitespace-nowrap z-50"
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 rounded text-[10px] whitespace-nowrap z-50"
           style={{ background: '#1a1a2e', color: K.cream, border: `1px solid ${K.faint}`, boxShadow: '0 4px 12px rgba(0,0,0,.4)' }}>
           {text}
         </span>
@@ -1739,7 +1739,7 @@ export function CookingPage() {
               <span className="text-[10px]" style={{ color: K.muted }}>
                 Lv <span className="font-bold" style={{ color: K.copper }}>{chefLvl}</span>
               </span>
-              <span className="text-[9px] font-mono" style={{ color: K.xp }}>{xpCur.toLocaleString()} XP</span>
+              <span className="text-[10px] font-mono" style={{ color: K.xp }}>{xpCur.toLocaleString()} XP</span>
             </div>
           }
           rightSlot={
@@ -1760,8 +1760,8 @@ export function CookingPage() {
           }} />
         </div>
         <div className="flex justify-between mt-0.5">
-          <span className="text-[8px] font-mono" style={{ color: K.muted }}>{xpIntoLevel.toLocaleString()}</span>
-          <span className="text-[8px] font-mono" style={{ color: K.muted }}>{xpNeededForNext.toLocaleString()}</span>
+          <span className="text-[10px] font-mono" style={{ color: K.muted }}>{xpIntoLevel.toLocaleString()}</span>
+          <span className="text-[10px] font-mono" style={{ color: K.muted }}>{xpNeededForNext.toLocaleString()}</span>
         </div>
       </div>
 
@@ -1814,7 +1814,7 @@ export function CookingPage() {
                     <div className="w-1 h-3.5 rounded-full" style={{ background: rarTheme.color }} />
                     <span className="text-[12px] font-bold uppercase tracking-wide" style={{ color: rarTheme.color }}>{g.label}</span>
                     <div className="flex-1 h-px" style={{ background: `${rarTheme.color}12` }} />
-                    <span className="text-[9px] font-mono" style={{ color: K.muted }}>
+                    <span className="text-[10px] font-mono" style={{ color: K.muted }}>
                       {g.recipes.filter((r) => chefLvl >= r.chefLevelRequired).length}/{g.recipes.length}
                     </span>
                   </div>
@@ -1847,7 +1847,7 @@ export function CookingPage() {
             <div className="mx-4 mt-3 p-3 rounded-xl text-center kv-pulse relative"
               style={{ background: `${K.copper}08`, border: `1px solid ${K.copper}15` }}>
               <button onClick={() => { localStorage.setItem('grindly_cauldron_hinted', '1'); setActiveTab('cauldron') }}
-                className="absolute top-1 right-2 text-[9px]" style={{ color: K.muted }}>dismiss</button>
+                className="absolute top-1 right-2 text-[10px]" style={{ color: K.muted }}>dismiss</button>
               <p className="text-[11px]" style={{ color: K.copper }}>
                 Try the Cauldron tab to discover secret recipes!
               </p>
@@ -1925,12 +1925,12 @@ export function CookingPage() {
                 </p>
                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   {completionBanner.burned > 0 && (
-                    <span className="text-[9px] font-bold" style={{ color: K.warn }}>{completionBanner.burned} burned</span>
+                    <span className="text-[10px] font-bold" style={{ color: K.warn }}>{completionBanner.burned} burned</span>
                   )}
                   {completionBanner.bonus > 0 && (
-                    <span className="text-[9px] font-bold" style={{ color: K.indigo }}>+{completionBanner.bonus} bonus</span>
+                    <span className="text-[10px] font-bold" style={{ color: K.indigo }}>+{completionBanner.bonus} bonus</span>
                   )}
-                  <span className="text-[9px] font-bold" style={{ color: K.xp }}>+{completionBanner.xp.toLocaleString()} XP</span>
+                  <span className="text-[10px] font-bold" style={{ color: K.xp }}>+{completionBanner.xp.toLocaleString()} XP</span>
                 </div>
               </div>
             </div>
@@ -1962,7 +1962,7 @@ export function CookingPage() {
                     <span className="text-base shrink-0">📋</span>
                     <div>
                       <div className="text-[11px] font-bold" style={{ color: K.cream }}>Recipes</div>
-                      <p className="text-[9px] mt-0.5" style={{ color: K.muted }}>
+                      <p className="text-[10px] mt-0.5" style={{ color: K.muted }}>
                         Pick a dish and cook it. Each recipe has multi-step process — chop, boil, bake.
                       </p>
                     </div>
@@ -1972,7 +1972,7 @@ export function CookingPage() {
                     <span className="text-base shrink-0">🫕</span>
                     <div>
                       <div className="text-[11px] font-bold" style={{ color: K.cream }}>Cauldron</div>
-                      <p className="text-[9px] mt-0.5" style={{ color: K.muted }}>
+                      <p className="text-[10px] mt-0.5" style={{ color: K.muted }}>
                         Throw in ingredients to discover new secret recipes.
                       </p>
                     </div>
@@ -1982,14 +1982,14 @@ export function CookingPage() {
                     <span className="text-base shrink-0">📖</span>
                     <div>
                       <div className="text-[11px] font-bold" style={{ color: K.cream }}>Cookbook</div>
-                      <p className="text-[9px] mt-0.5" style={{ color: K.muted }}>
+                      <p className="text-[10px] mt-0.5" style={{ color: K.muted }}>
                         Track discovered recipes and earn mastery stars for bonus effects.
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <p className="text-[9px] mb-4" style={{ color: `${K.muted}90` }}>
+                <p className="text-[10px] mb-4" style={{ color: `${K.muted}90` }}>
                   Ingredients come from the <span style={{ color: K.cream }}>Farm</span> (crops) and <span style={{ color: K.cream }}>Arena</span> (mob drops).
                 </p>
 

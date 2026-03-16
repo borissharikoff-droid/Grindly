@@ -23,7 +23,6 @@ interface FriendProfileProps {
   onCompare?: () => void
   onMessage?: () => void
   onRemove?: () => void
-  onRetrySync?: () => void
 }
 
 interface SessionSummary {
@@ -64,7 +63,7 @@ function formatDuration(s: number): string {
   return `${sec}s`
 }
 
-export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: FriendProfileProps) {
+export function FriendProfile({ profile, onBack, onMessage }: FriendProfileProps) {
   const guildMembership = useGuildStore((s) => s.membership)
   const myGuild = useGuildStore((s) => s.myGuild)
   const sendInvite = useGuildStore((s) => s.sendInvite)
@@ -359,7 +358,7 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-white font-bold text-[15px] truncate">{profile.username || 'Anonymous'}</h3>
                 {profile.guild_tag && (
-                  <span className="text-[9px] px-1 py-[1px] rounded font-bold border border-amber-500/40 bg-amber-500/10 text-amber-400 shrink-0" title={`Guild: ${profile.guild_tag}`}>
+                  <span className="text-[10px] px-1 py-[1px] rounded font-bold border border-amber-500/40 bg-amber-500/10 text-amber-400 shrink-0" title={`Guild: ${profile.guild_tag}`}>
                     [{profile.guild_tag}]
                   </span>
                 )}
@@ -400,7 +399,7 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
           ].map(({ value, label, color }, i) => (
             <div key={label} className={`text-center py-2.5 ${i > 0 ? 'border-l border-white/[0.06]' : ''}`}>
               <p className="text-[13px] font-mono font-bold leading-none" style={{ color }}>{value}</p>
-              <p className="text-[8px] font-mono text-gray-500 uppercase tracking-wider mt-0.5">{label}</p>
+              <p className="text-[10px] font-mono text-gray-500 uppercase tracking-wider mt-0.5">{label}</p>
             </div>
           ))}
         </div>
@@ -433,16 +432,8 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
 
       {/* Skills — compact bars */}
       <div className="rounded-xl bg-discord-card/80 border border-white/10 p-3">
-        <div className="flex items-center justify-between mb-2">
+        <div className="mb-2">
           <p className="text-[10px] uppercase tracking-widest text-gray-500 font-mono font-semibold">Skills</p>
-          <div className="flex items-center gap-2">
-            {!hasConfirmedSkillRows && !hasProfileSkillRows && (
-              <span className="text-[10px] text-amber-400/90 font-mono">Sync pending</span>
-            )}
-            {!hasConfirmedSkillRows && onRetrySync && (
-              <button type="button" onClick={onRetrySync} className="text-[10px] px-2 py-0.5 rounded-md border border-white/15 text-gray-300 hover:text-white hover:bg-white/5 transition-colors">Retry</button>
-            )}
-          </div>
         </div>
         <div className="space-y-[3px]">
           {(() => {
@@ -459,9 +450,7 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
                 : (hasConfirmedSkillRows ? Math.min(100, (level / 99) * 100) : 0)
               const xpTitle = hasRealXp
                 ? `${skillDef.name}: ${formatXp(totalXp)} XP`
-                : unknownSkill
-                  ? `${skillDef.name}: pending sync`
-                  : `${skillDef.name}: LVL ${level}`
+                : `${skillDef.name}: LVL ${level}`
               const isActive = levelingSkill === skillDef.name
               return (
                 <div key={skillDef.id} title={xpTitle} className={`flex items-center gap-2 px-2 py-[5px] rounded-lg transition-colors ${isActive ? 'bg-cyber-neon/[0.04]' : ''}`}>
@@ -593,7 +582,7 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
                     <div key={event.id} className="flex items-center gap-2 py-1 px-1">
                       <span className="text-[11px] shrink-0 w-4 text-center">{icon}</span>
                       <span className="text-[11px] text-gray-300 flex-1 min-w-0 truncate">{label}</span>
-                      <span className="text-[9px] text-gray-600 font-mono shrink-0">{ago}</span>
+                      <span className="text-[10px] text-gray-600 font-mono shrink-0">{ago}</span>
                     </div>
                   )
                 })}

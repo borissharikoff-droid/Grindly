@@ -121,7 +121,7 @@ function PrestigeBadge({ skillId, color, level }: { skillId: string; color: stri
         <span className="text-[10px] text-gray-500 font-mono leading-none">LVL</span>
         <span className="text-base font-mono font-bold leading-tight" style={{ color }}>{level}</span>
         {prestige > 0 && (
-          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] leading-none" title={`Prestige ${prestige}`}>
+          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[10px] leading-none" title={`Prestige ${prestige}`}>
             {'★'.repeat(prestige)}
           </span>
         )}
@@ -149,7 +149,7 @@ function PrestigeSection({ skillId, xp, color, onPrestige }: { skillId: string; 
         </div>
       </div>
       {prestige > 0 && (
-        <p className="text-[9px] text-gray-500 font-mono mt-0.5">+{prestige * 2}% XP bonus active</p>
+        <p className="text-[10px] text-gray-500 font-mono mt-0.5">+{prestige * 2}% XP bonus active</p>
       )}
       {canDo && (
         <button
@@ -430,7 +430,7 @@ export function SkillsPage() {
             <>
               <span className="text-[10px] text-gray-500 font-mono uppercase">XP Source</span>
               <p className="mt-1.5 text-[10px] text-gray-400 leading-relaxed">Earned by planting and harvesting crops in the Farm tab.</p>
-              <p className="mt-0.5 text-[9px] text-gray-600 font-mono">Plant +10–160 XP · Harvest +50–800 XP</p>
+              <p className="mt-0.5 text-[10px] text-gray-600 font-mono">Plant +10–160 XP · Harvest +50–800 XP</p>
             </>
           ) : skill.category === 'warrior' ? (() => {
             const wLevel = skillLevelFromXP(xp)
@@ -440,7 +440,7 @@ export function SkillsPage() {
               <>
                 <span className="text-[10px] text-gray-500 font-mono uppercase">XP Source</span>
                 <p className="mt-1.5 text-[10px] text-gray-400 leading-relaxed">Earned by defeating enemies in the Arena.</p>
-                <p className="mt-0.5 text-[9px] text-gray-600 font-mono">Mob +30–90K XP · Boss +120–15K XP</p>
+                <p className="mt-0.5 text-[10px] text-gray-600 font-mono">Mob +30–90K XP · Boss +120–15K XP</p>
                 {bonusParts.length > 0 && (
                   <p className="mt-1.5 text-[10px] font-mono" style={{ color: '#EF4444' }}>Bonuses: {bonusParts.join(' · ')}</p>
                 )}
@@ -450,13 +450,13 @@ export function SkillsPage() {
             <>
               <span className="text-[10px] text-gray-500 font-mono uppercase">XP Source</span>
               <p className="mt-1.5 text-[10px] text-gray-400 leading-relaxed">Earned by crafting items in the Craft tab.</p>
-              <p className="mt-0.5 text-[9px] text-gray-600 font-mono">XP per craft varies by recipe tier</p>
+              <p className="mt-0.5 text-[10px] text-gray-600 font-mono">XP per craft varies by recipe tier</p>
             </>
           ) : skill.category === 'cooking' ? (
             <>
               <span className="text-[10px] text-gray-500 font-mono uppercase">XP Source</span>
               <p className="mt-1.5 text-[10px] text-gray-400 leading-relaxed">Earned by cooking food in the Cook tab.</p>
-              <p className="mt-0.5 text-[9px] text-gray-600 font-mono">XP per cook varies by recipe · Mastery grants bonus XP</p>
+              <p className="mt-0.5 text-[10px] text-gray-600 font-mono">XP per cook varies by recipe · Mastery grants bonus XP</p>
             </>
           ) : skill.category === 'grindly' ? (
             <>
@@ -548,14 +548,14 @@ export function SkillsPage() {
                 <span className="text-[13px] font-semibold text-white truncate">{skill.name}</span>
                 {isLeveling && (
                   <span
-                    className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0"
+                    className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0"
                     style={{ backgroundColor: `${skill.color}25`, color: skill.color, border: `1px solid ${skill.color}40` }}
                   >
                     active
                   </span>
                 )}
                 {nextIsMilestone && !isLeveling && (
-                  <span className="text-[8px] font-mono text-amber-400/70 shrink-0" title={`LVL ${level + 1} unlocks a perk`}>★</span>
+                  <span className="text-[10px] font-mono text-amber-400/70 shrink-0" title={`LVL ${level + 1} unlocks a perk`}>★</span>
                 )}
               </div>
               {/* XP bar */}
@@ -619,7 +619,7 @@ export function SkillsPage() {
 
   if (loading) {
     return (
-      <div className="p-4 pb-20 max-w-lg mx-auto">
+      <div className="p-4 pb-20">
         <div className="space-y-3">
           <div className="rounded-xl border border-white/10 bg-discord-card/70 p-4">
             <div className="flex items-center justify-between">
@@ -668,7 +668,7 @@ export function SkillsPage() {
       initial={MOTION.page.initial}
       animate={MOTION.page.animate}
       exit={MOTION.page.exit}
-      className="p-4 pb-20 max-w-lg mx-auto overflow-auto"
+      className="p-4 pb-20 overflow-auto"
     >
       {/* Header */}
       <PageHeader

@@ -449,7 +449,7 @@ export const useArenaStore = create<ArenaState>()(
             useWeeklyStore.getState().incrementKill()
             const hotZoneId = getHotZoneId()
             const isHotZone = activeBattle.dungeonZoneId === hotZoneId
-            const goldMult = (isHotZone ? 2 : 1) * getFoodGoldMultiplier(activeBattle.foodLoadout) * getGuildGoldMultiplier(!!useGuildStore.getState().myGuild)
+            const goldMult = (isHotZone ? 2 : 1) * getFoodGoldMultiplier(activeBattle.foodLoadout) * getGuildGoldMultiplier(useGuildStore.getState().hallLevel)
             const dropMult = (isHotZone ? 2 : 1) * getFoodDropMultiplier(activeBattle.foodLoadout)
             const gold = randomGold(mob.goldMin, mob.goldMax, goldMult)
             const user = useAuthStore.getState().user
@@ -497,6 +497,7 @@ export const useArenaStore = create<ArenaState>()(
             }
             lostItem = loseRandomEquippedItem()
             if (lostItem?.insuranceUsed) { insuranceUsed = true; lostItem = null }
+            track('dungeon_death', { zone_id: activeBattle.dungeonZoneId ?? activeDungeon?.zoneId ?? null, gold_lost: goldLost })
             set({ activeBattle: null, activeDungeon: null })
           }
         } else {
@@ -558,6 +559,7 @@ export const useArenaStore = create<ArenaState>()(
                   if (user) useGoldStore.getState().syncToSupabase(user.id)
                 }
               }
+              const dungeonZoneForTrack = activeBattle.dungeonZoneId!
               set((s) => ({
                 activeBattle: null,
                 activeDungeon: null,
@@ -567,8 +569,11 @@ export const useArenaStore = create<ArenaState>()(
               }))
               recordDungeonComplete()
               useAchievementStatsStore.getState().incrementDungeonCompletions()
+              track('dungeon_complete', { zone_id: dungeonZoneForTrack, total_gold: dungeonGold, rooms_cleared: 4 })
+              track('boss_kill', { zone_id: dungeonZoneForTrack, boss_id: activeBattle.bossSnapshot.id, gold_earned: dungeonGold })
             } else {
               set({ activeBattle: null })
+              track('boss_kill', { zone_id: null, boss_id: activeBattle.bossSnapshot.id, gold_earned: 0 })
             }
           } else {
             // Death penalty + item loss on dungeon death
@@ -582,6 +587,7 @@ export const useArenaStore = create<ArenaState>()(
             if (activeBattle.dungeonZoneId) {
               lostItem = loseRandomEquippedItem()
               if (lostItem?.insuranceUsed) { insuranceUsed = true; lostItem = null }
+              track('dungeon_death', { zone_id: activeBattle.dungeonZoneId, gold_lost: goldLost })
             }
             set({ activeBattle: null, activeDungeon: null })
           }
@@ -842,6 +848,8 @@ export const useArenaStore = create<ArenaState>()(
             runsCompleted++
             recordDungeonComplete()
             useAchievementStatsStore.getState().incrementDungeonCompletions()
+            track('dungeon_complete', { zone_id: zoneId, total_gold: totalGold, rooms_cleared: 4 })
+            track('boss_kill', { zone_id: zoneId, boss_id: zone.boss.id, gold_earned: totalGold })
           } else {
             failed = true
             failedAt = zone.boss.name
@@ -849,6 +857,7 @@ export const useArenaStore = create<ArenaState>()(
             const goldLost = Math.floor(currentGold * DEATH_GOLD_PENALTY)
             if (goldLost > 0) useGoldStore.getState().addGold(-goldLost)
             totalGold -= goldLost
+            track('dungeon_death', { zone_id: zoneId, gold_lost: goldLost })
             const bossLostResult = loseRandomEquippedItem()
             if (bossLostResult?.insuranceUsed) {
               lostItem = { name: 'Death Insurance consumed', icon: '🛡️' }

@@ -83,7 +83,7 @@ function ActiveJob({ onCancel }: { onCancel: (id: string) => void }) {
         <div className="text-right shrink-0">
           <p className="text-[10px] font-mono text-gray-400">~{formatCraftTime(remaining)}</p>
           <button type="button" onClick={() => { playClickSound(); onCancel(activeJob.id) }}
-            className="text-[9px] font-mono text-gray-500 hover:text-red-400 transition-colors mt-0.5">
+            className="text-[10px] font-mono text-gray-500 hover:text-red-400 transition-colors mt-0.5">
             cancel
           </button>
         </div>
@@ -96,9 +96,9 @@ function ActiveJob({ onCancel }: { onCancel: (id: string) => void }) {
             animate={{ width: `${pct}%` }} transition={{ duration: 0.4, ease: 'linear' }} />
         </div>
         <div className="flex justify-between">
-          <span className="text-[9px] font-mono text-gray-500">{Math.round(pct)}%</span>
+          <span className="text-[10px] font-mono text-gray-500">{Math.round(pct)}%</span>
           {queue.length > 0 &&
-            <span className="text-[9px] font-mono text-gray-500">+{queue.length} queued</span>}
+            <span className="text-[10px] font-mono text-gray-500">+{queue.length} queued</span>}
         </div>
       </div>
 
@@ -107,7 +107,7 @@ function ActiveJob({ onCancel }: { onCancel: (id: string) => void }) {
           {queue.map((job, i) => {
             const qOut = CRAFT_ITEM_MAP[job.outputItemId]
             return (
-              <div key={job.id} className="flex items-center gap-1.5 px-1 py-0.5 rounded text-[9px] font-mono text-gray-500">
+              <div key={job.id} className="flex items-center gap-1.5 px-1 py-0.5 rounded text-[10px] font-mono text-gray-500">
                 <span className="text-gray-600">{i + 1}.</span>
                 {qOut ? <LootVisual icon={qOut.icon} image={qOut.image} className="w-3.5 h-3.5 object-contain opacity-60" /> : null}
                 <span className="truncate">{qOut?.name ?? job.outputItemId}</span>
@@ -167,7 +167,7 @@ function RecipeCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[12px] font-semibold text-white">{output.name}</span>
-            <span className="text-[8px] font-mono uppercase tracking-wide" style={{ color: theme.color }}>
+            <span className="text-[10px] font-mono uppercase tracking-wide" style={{ color: theme.color }}>
               {output.rarity}
             </span>
           </div>
@@ -180,8 +180,8 @@ function RecipeCard({
 
         {/* Status */}
         {locked
-          ? <span className="text-[9px] text-gray-500 shrink-0 font-mono">🔒{recipe.levelRequired}</span>
-          : <span className="text-[9px] text-gray-500 shrink-0">{expanded ? '▲' : '▼'}</span>
+          ? <span className="text-[10px] text-gray-500 shrink-0 font-mono">🔒{recipe.levelRequired}</span>
+          : <span className="text-[10px] text-gray-500 shrink-0">{expanded ? '▲' : '▼'}</span>
         }
       </button>
 
@@ -199,7 +199,7 @@ function RecipeCard({
 
               {/* Ingredients */}
               <div className="space-y-1">
-                <p className="text-[9px] font-mono uppercase tracking-widest text-gray-500 mb-1.5">
+                <p className="text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-1.5">
                   Ingredients × {qty}
                 </p>
                 {recipe.ingredients.map((ing) => {
@@ -215,7 +215,7 @@ function RecipeCard({
                     >
                       {def ? <LootVisual icon={def.icon} image={def.image} className="w-4 h-4 object-contain" /> : <span className="text-sm leading-none">?</span>}
                       <span className="flex-1 text-[11px] text-gray-300 truncate">{def?.name ?? ing.id}</span>
-                      <span className="text-[9px] font-mono shrink-0" style={{ color: ingTheme.color }}>
+                      <span className="text-[10px] font-mono shrink-0" style={{ color: ingTheme.color }}>
                         {def?.rarity}
                       </span>
                       <span className="text-[10px] font-mono tabular-nums shrink-0"
@@ -239,7 +239,7 @@ function RecipeCard({
                   </div>
                 )}
                 {!hasAll1 && (
-                  <p className="text-[9px] text-gray-500 italic pt-0.5">
+                  <p className="text-[10px] text-gray-500 italic pt-0.5">
                     Buy on Marketplace or loot from bosses &amp; farm
                   </p>
                 )}
@@ -247,7 +247,7 @@ function RecipeCard({
 
               {/* Quantity */}
               <div className="space-y-1.5">
-                <p className="text-[9px] font-mono uppercase tracking-widest text-gray-500">Quantity</p>
+                <p className="text-[10px] font-mono uppercase tracking-widest text-gray-500">Quantity</p>
                 <div className="flex gap-1.5 flex-wrap items-center">
                   {QTY_PRESETS.map((p) => (
                     <button key={p} type="button" onClick={() => setQty(p)}
@@ -436,10 +436,10 @@ export function CraftPage() {
         {/* Recipe list */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-[9px] font-mono uppercase tracking-widest text-gray-400">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-gray-400">
               {availableCategories.find((c) => c.id === category)?.label ?? 'All'}
             </p>
-            <p className="text-[9px] font-mono text-gray-500">
+            <p className="text-[10px] font-mono text-gray-500">
               {sortedRecipes.filter((r) => crafterLevel >= r.levelRequired).length}/{sortedRecipes.length} unlocked
             </p>
           </div>

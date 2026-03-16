@@ -11,11 +11,12 @@ import { Leaderboard } from './Leaderboard'
 import { GuildTab } from './GuildTab'
 import { FriendCompare } from './FriendCompare'
 import { ChatThread } from './ChatThread'
-import { RaidPartyPanel } from './RaidPartyPanel'
+import { PartyPanel } from './PartyPanel'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
 import { useChatTargetStore } from '../../stores/chatTargetStore'
 import { useRaidStore } from '../../stores/raidStore'
+import { useNavigationStore } from '../../stores/navigationStore'
 import type { FriendProfile as FriendProfileType, FriendsModel } from '../../hooks/useFriends'
 import { syncSkillsToSupabase } from '../../services/supabaseSync'
 import { useSkillSyncStore } from '../../stores/skillSyncStore'
@@ -38,8 +39,25 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
   const [profileFromChat, setProfileFromChat] = useState(false)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [showGuild, setShowGuild] = useState(false)
-  const hasActiveRaid = useRaidStore((s) => !!s.activeRaid)
+  const [showParty, setShowParty] = useState(false)
   const fetchInvites = useRaidStore((s) => s.fetchInvites)
+  const pendingFriendUserId = useNavigationStore((s) => s.pendingFriendUserId)
+  const setPendingFriendUserId = useNavigationStore((s) => s.setPendingFriendUserId)
+  const returnTab = useNavigationStore((s) => s.returnTab)
+  const setReturnTab = useNavigationStore((s) => s.setReturnTab)
+  const navTo = useNavigationStore((s) => s.navigateTo)
+
+  // Auto-open friend profile when navigated here from another tab (e.g. party row on Home)
+  useEffect(() => {
+    if (!pendingFriendUserId || !friends.length) return
+    const friend = friends.find((f) => f.id === pendingFriendUserId)
+    if (friend) {
+      setPendingFriendUserId(null)
+      setSelected(friend)
+      setProfileFromChat(false)
+      setView('profile')
+    }
+  }, [pendingFriendUserId, friends]) // eslint-disable-line react-hooks/exhaustive-deps
   const peerId = view === 'chat' && selected ? selected.id : null
   const chat = useChat(peerId)
   const chatTargetFriendId = useChatTargetStore((s) => s.friendId)
@@ -93,14 +111,22 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
   }, [chat.markConversationRead, refresh])
 
   const incomingCount = pendingRequests.filter((r) => r.direction === 'incoming').length
-  const isSubview = view === 'chat' || view === 'profile' || view === 'compare' || showGuild || showLeaderboard
+  const isSubview = view === 'chat' || view === 'profile' || view === 'compare' || showGuild || showLeaderboard || showParty
   const backToList = useCallback(() => {
-    setView('list')
-    setSelected(null)
-  }, [])
+    if (returnTab) {
+      setReturnTab(null)
+      setSelected(null)
+      setView('list')
+      navTo?.(returnTab)
+    } else {
+      setView('list')
+      setSelected(null)
+    }
+  }, [returnTab, setReturnTab, navTo])
 
   const handleBack = useCallback(() => {
-    if (showGuild) { setShowGuild(false) }
+    if (showParty) { setShowParty(false) }
+    else if (showGuild) { setShowGuild(false) }
     else if (showLeaderboard) { setShowLeaderboard(false) }
     else if (view === 'compare') { setView('profile') }
     else if (view === 'profile' && profileFromChat) { setProfileFromChat(false); setView('chat') }
@@ -174,7 +200,7 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
           onBack={profileFromChat ? () => { setProfileFromChat(false); setView('chat') } : backToList}
           onCompare={() => setView('compare')}
           onMessage={() => setView('chat')}
-          onRetrySync={retrySkillSync}
+
           onRemove={async () => {
             const ok = await removeFriend(selected.friendship_id)
             if (ok) {
@@ -191,7 +217,15 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
             rightSlot={(
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={() => { setShowLeaderboard(!showLeaderboard); setShowGuild(false) }}
+                  onClick={() => { setShowParty(!showParty); setShowLeaderboard(false); setShowGuild(false) }}
+                  className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+                    showParty ? 'border-cyber-neon/50 text-cyber-neon bg-cyber-neon/10' : 'border-white/10 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Party
+                </button>
+                <button
+                  onClick={() => { setShowLeaderboard(!showLeaderboard); setShowGuild(false); setShowParty(false) }}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors ${
                     showLeaderboard ? 'border-cyber-neon/50 text-cyber-neon bg-cyber-neon/10' : 'border-white/10 text-gray-400 hover:text-white'
                   }`}
@@ -199,7 +233,7 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
                   Leaderboard
                 </button>
                 <button
-                  onClick={() => { setShowGuild(!showGuild); setShowLeaderboard(false) }}
+                  onClick={() => { setShowGuild(!showGuild); setShowLeaderboard(false); setShowParty(false) }}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors ${
                     showGuild ? 'border-amber-500/50 text-amber-400 bg-amber-500/10' : 'border-white/10 text-gray-400 hover:text-white'
                   }`}
@@ -210,10 +244,8 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
             )}
           />
 
-          {!showGuild && !showLeaderboard && <AddFriend onAdded={refresh} />}
-          {hasActiveRaid && !showLeaderboard && !showGuild && (
-            <RaidPartyPanel friends={friends} />
-          )}
+          {!showGuild && !showLeaderboard && !showParty && <AddFriend onAdded={refresh} />}
+          {/* RaidPartyPanel removed — party members are auto-invited when raid starts */}
           {incomingCount > 0 && !showLeaderboard && !showGuild && (
             <PendingRequests
               requests={pendingRequests}
@@ -222,7 +254,20 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
             />
           )}
 
-          {showGuild ? (
+          {showParty ? (
+            <div className="space-y-3">
+              <BackButton onClick={() => setShowParty(false)} />
+              <PartyPanel
+                friends={friends}
+                onClose={() => setShowParty(false)}
+                onViewProfile={(f) => { setSelected(f); setProfileFromChat(false); setShowParty(false); setView('profile') }}
+                onMessageFriend={(userId) => {
+                  const f = friends.find((fr) => fr.id === userId)
+                  if (f) { setSelected(f); setShowParty(false); setView('chat') }
+                }}
+              />
+            </div>
+          ) : showGuild ? (
             <div className="space-y-3">
               <BackButton onClick={() => setShowGuild(false)} />
               <GuildTab onSelectMember={(userId) => {

@@ -60,11 +60,14 @@ interface BottomNavProps {
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   useAdminConfigStore((s) => s.rev)
   const uiIcons = getUIIcons()
-  const { pinnedTabs, setPinnedTabs } = useNavCustomizationStore()
+  const pinnedTabs = useNavCustomizationStore((s) => s.pinnedTabs)
+  const setPinnedTabs = useNavCustomizationStore((s) => s.setPinnedTabs)
   const [moreOpen, setMoreOpen] = useState(false)
   const [dropTarget, setDropTarget] = useState<number | null>(null)
   const popupRef = useRef<HTMLDivElement>(null)
   const moreButtonRef = useRef<HTMLButtonElement>(null)
+  const tabEnteredAtRef = useRef<number>(Date.now())
+  const prevTabRef = useRef<TabId>(activeTab)
 
   useEffect(() => {
     if (!moreOpen) return
@@ -100,6 +103,14 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const moreIsActiveTab = !pinnedTabs.includes(activeTab)
 
   const navigate = (id: TabId) => {
+    if (id !== prevTabRef.current) {
+      const seconds = Math.round((Date.now() - tabEnteredAtRef.current) / 1000)
+      if (seconds > 2) {
+        track('tab_time_spent', { tab_id: prevTabRef.current, seconds })
+      }
+      prevTabRef.current = id
+      tabEnteredAtRef.current = Date.now()
+    }
     playTabSound()
     track('tab_click', { tab: id })
     onTabChange(id)
@@ -162,13 +173,13 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
           <>
             <motion.div
               ref={popupRef}
-              className="fixed bottom-[58px] left-1/2 z-50 w-[228px] -translate-x-1/2 rounded-2xl border border-white/[0.10] bg-[#1a1a2a] shadow-2xl overflow-hidden"
+              className="fixed bottom-[58px] left-1/2 z-50 w-[280px] -translate-x-1/2 rounded-2xl border border-white/[0.10] bg-[#1a1a2a] shadow-2xl overflow-hidden"
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               transition={{ duration: MOTION.duration.fast, ease: MOTION.easingSoft }}
             >
-              <p className="text-[8px] font-mono text-gray-600 text-center pt-2 pb-0.5 px-2 select-none">
+              <p className="text-[10px] font-mono text-gray-600 text-center pt-2 pb-0.5 px-2 select-none">
                 drag any icon to the bar below to pin it
               </p>
 
@@ -199,9 +210,9 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                       <span className="text-lg leading-none">
                         <NavIcon tabId={tab.id} adminIcon={adminIcon} />
                       </span>
-                      <span className="text-[9px] font-mono leading-none tracking-wide">{tab.label}</span>
+                      <span className="text-[10px] font-mono leading-none tracking-wide">{tab.label}</span>
                       {badge && (
-                        <span className={`absolute top-1 right-1.5 min-w-[13px] h-[13px] px-0.5 flex items-center justify-center rounded-full text-[8px] font-bold text-white ${badge.color}`}>
+                        <span className={`absolute top-1 right-1.5 min-w-[13px] h-[13px] px-0.5 flex items-center justify-center rounded-full text-[10px] font-bold text-white ${badge.color}`}>
                           {badge.count > 99 ? '99+' : badge.count}
                         </span>
                       )}
@@ -224,7 +235,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
         onDragOver={(e) => e.preventDefault()}
         onDrop={onDropNavArea}
       >
-        <nav className="flex items-stretch gap-0.5 rounded-2xl bg-discord-nav border border-white/[0.07] px-1.5 py-1.5 shadow-nav w-full max-w-xs">
+        <nav className="flex items-stretch gap-1.5 rounded-2xl bg-discord-nav border border-white/[0.07] px-1.5 py-1.5 shadow-nav w-full max-w-xs">
 
           {/* Pinned tabs (1–4, variable) */}
           {pinnedTabs.map((tabId, slotIndex) => {
@@ -246,9 +257,8 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                 onDrop={(e) => onDropNavSlot(e, slotIndex)}
                 className="flex-1 cursor-grab active:cursor-grabbing"
               >
-              <motion.button
+              <button
                 type="button"
-                whileTap={MOTION.interactive.tap}
                 onClick={() => navigate(tabId)}
                 className={`relative w-full flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-all duration-150 select-none ${
                   isDropTarget
@@ -261,7 +271,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                 <span className="grindly-tab-icon leading-none" aria-hidden>
                   <NavIcon tabId={tabId} adminIcon={adminIcon} />
                 </span>
-                <span className="text-[9px] font-mono leading-none tracking-wide">{tab.label}</span>
+                <span className="text-[10px] font-mono leading-none tracking-wide">{tab.label}</span>
                 {badge && (
                   <span
                     className={`absolute -top-0.5 right-1 min-w-[14px] h-[14px] px-1 flex items-center justify-center rounded-full text-[10px] font-bold text-white border-2 border-discord-nav ${badge.color}`}
@@ -273,7 +283,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                 {pulse && !badge && (
                   <span className="absolute top-1 right-1 w-2 h-2 rounded-full border border-discord-nav bg-cyber-neon animate-pulse" />
                 )}
-              </motion.button>
+              </button>
               </div>
             )
           })}
@@ -293,7 +303,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
             aria-expanded={moreOpen}
           >
             <MoreHorizontal className="w-[18px] h-[18px]" aria-hidden />
-            <span className="text-[9px] font-mono leading-none tracking-wide">More</span>
+            <span className="text-[10px] font-mono leading-none tracking-wide">More</span>
             {moreBadge && !moreOpen && (
               <span className="absolute top-1 right-1 w-2 h-2 rounded-full border border-discord-nav bg-lime-500" />
             )}

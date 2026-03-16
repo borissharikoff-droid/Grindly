@@ -10,7 +10,6 @@ import { GoalWidget } from './GoalWidget'
 import { FocusModeDock } from './FocusModeDock'
 import { OrbBlast } from './OrbBlast'
 import { useSessionStore } from '../../stores/sessionStore'
-import { useAuthStore } from '../../stores/authStore'
 import { MOTION } from '../../lib/motion'
 import { useNotificationStore } from '../../stores/notificationStore'
 import { getQuestStreak } from '../../services/dailyActivityService'
@@ -55,8 +54,8 @@ function raidCountdown(dateStr: string | null): string {
 }
 
 export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFriends }: HomePageProps) {
-  const { showComplete, status } = useSessionStore()
-  const user = useAuthStore((s) => s.user)
+  const showComplete = useSessionStore((s) => s.showComplete)
+  const status = useSessionStore((s) => s.status)
   const pushNotification = useNotificationStore((s) => s.push)
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('grindly_welcomed'))
   const prevStatusRef = useRef(status)
@@ -172,10 +171,10 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
         <div className="mx-4 mt-2 mb-0 rounded-xl border px-3 py-2 flex items-center gap-2" style={{ borderColor: `${raidCfg.color}30`, background: `${raidCfg.color}08` }}>
           <span className="text-base">{raidCfg.icon}</span>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold text-white truncate">{raidCfg.name}</p>
-            <p className="text-[8px] font-mono text-gray-500">{raidCountdownStr} — Phase {raidPhase}</p>
+            <p className="text-xs font-bold text-white truncate">{raidCfg.name}</p>
+            <p className="text-[10px] font-mono text-gray-500">{raidCountdownStr} — Phase {raidPhase}</p>
           </div>
-          <span className="text-[8px] font-mono shrink-0" style={{ color: raidCfg.color }}>
+          <span className="text-[10px] font-mono shrink-0" style={{ color: raidCfg.color }}>
             {raidHpPct.toFixed(0)}% HP
           </span>
         </div>
@@ -197,56 +196,57 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
         )}
       </AnimatePresence>
 
-      {/* Center zone — Timer + Controls at true screen center */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 gap-6">
-        <Timer />
+      {/* Center zone — Timer + Controls, bottom zone pinned to nav */}
+      <div className="flex-1 flex flex-col px-4">
+        {/* Timer centered in remaining space */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-8 pb-8">
+          <Timer />
 
-        <div className="flex flex-col items-center gap-5">
-          <SessionControls glowPulse={showWelcome && status === 'idle'} />
-          <AnimatePresence>
-            {status !== 'idle' && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: MOTION.duration.verySlow, ease: MOTION.easingSoft }}
-                className="flex flex-col items-center gap-3"
-              >
-                <CurrentActivity />
-              </motion.div>
+          <div className="flex flex-col items-center gap-4">
+            <SessionControls glowPulse={showWelcome && status === 'idle'} />
+            <AnimatePresence>
+              {status !== 'idle' && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: MOTION.duration.verySlow, ease: MOTION.easingSoft }}
+                  className="flex flex-col items-center gap-3"
+                >
+                  <CurrentActivity />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Ambient activity bar — farm/craft/cook status */}
+        {showAmbientBar && (
+          <div className="flex justify-center gap-1.5 pb-2">
+            {farmReady > 0 && (
+              <button type="button" onClick={() => navigateTo?.('farm')} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-mono border border-lime-500/40 bg-lime-500/[0.07] text-lime-400 hover:bg-lime-500/15 transition-colors">
+                🌾 {farmReady} ready
+              </button>
             )}
-          </AnimatePresence>
-        </div>
-      </div>
+            {craftJob && (
+              <button type="button" onClick={() => navigateTo?.('craft')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-mono border transition-colors ${craftRemaining === 0 ? 'border-cyber-neon/50 bg-cyber-neon/[0.07] text-cyber-neon hover:bg-cyber-neon/15' : 'border-white/20 bg-white/[0.04] text-gray-400 hover:bg-white/[0.07]'}`}>
+                ⚒ {craftRemaining === 0 ? 'done' : `${craftRemaining} left`}
+              </button>
+            )}
+            {cookJob && (
+              <button type="button" onClick={() => navigateTo?.('cooking')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-mono border transition-colors ${cookRemaining === 0 ? 'border-cyber-neon/50 bg-cyber-neon/[0.07] text-cyber-neon hover:bg-cyber-neon/15' : 'border-white/20 bg-white/[0.04] text-gray-400 hover:bg-white/[0.07]'}`}>
+                🍳 {cookRemaining === 0 ? 'done' : `${cookRemaining} left`}
+              </button>
+            )}
+          </div>
+        )}
 
-      {/* Ambient activity bar — farm/craft/cook status */}
-      {showAmbientBar && (
-        <div className="flex justify-center gap-1.5 px-4 pb-2">
-          {farmReady > 0 && (
-            <button type="button" onClick={() => navigateTo?.('farm')} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-mono border border-lime-500/40 bg-lime-500/[0.07] text-lime-400 hover:bg-lime-500/15 transition-colors">
-              🌾 {farmReady} ready
-            </button>
-          )}
-          {craftJob && (
-            <button type="button" onClick={() => navigateTo?.('craft')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-mono border transition-colors ${craftRemaining === 0 ? 'border-cyber-neon/50 bg-cyber-neon/[0.07] text-cyber-neon hover:bg-cyber-neon/15' : 'border-white/20 bg-white/[0.04] text-gray-400 hover:bg-white/[0.07]'}`}>
-              ⚒ {craftRemaining === 0 ? 'done' : `${craftRemaining} left`}
-            </button>
-          )}
-          {cookJob && (
-            <button type="button" onClick={() => navigateTo?.('cooking')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-mono border transition-colors ${cookRemaining === 0 ? 'border-cyber-neon/50 bg-cyber-neon/[0.07] text-cyber-neon hover:bg-cyber-neon/15' : 'border-white/20 bg-white/[0.04] text-gray-400 hover:bg-white/[0.07]'}`}>
-              🍳 {cookRemaining === 0 ? 'done' : `${cookRemaining} left`}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Bottom zone — Goal + Focus anchored at bottom */}
-      <div className="flex flex-col items-center px-4 pb-20 w-full">
-        <div className="w-full max-w-xs space-y-2">
+        {/* Bottom zone — pinned just above nav bar */}
+        <div className="pb-4 w-full max-w-sm mx-auto space-y-2">
           {showStreakWarning && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/[0.07] border border-amber-500/20">
               <span className="shrink-0">🔥</span>
-              <span className="text-[10px] font-mono text-amber-500/80 leading-snug">
+              <span className="text-xs font-mono text-amber-500/80 leading-snug">
                 Maintain your streak — {dailyTotal - dailyDone} quest{dailyTotal - dailyDone !== 1 ? 's' : ''} left, resets at midnight
               </span>
             </div>
@@ -255,24 +255,24 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
             <button type="button" onClick={handleOpenQuests} className="w-full space-y-1 group">
               {dailyTotal > 0 && (
                 <div className="flex items-center gap-2 px-0.5">
-                  <span className="text-[10px] font-mono text-gray-600 group-hover:text-gray-400 transition-colors shrink-0 w-10">Daily</span>
+                  <span className="text-xs font-mono text-gray-600 group-hover:text-gray-400 transition-colors shrink-0 w-12">Daily</span>
                   <div className="flex gap-0.5 flex-1">
                     {Array.from({ length: dailyTotal }).map((_, i) => (
                       <div key={i} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${i < dailyDone ? 'bg-cyber-neon' : 'bg-white/[0.08]'}`} />
                     ))}
                   </div>
-                  <span className={`text-[10px] font-mono shrink-0 tabular-nums ${dailyDone === dailyTotal ? 'text-cyber-neon' : 'text-gray-600'}`}>{dailyDone}/{dailyTotal}</span>
+                  <span className={`text-xs font-mono shrink-0 tabular-nums ${dailyDone === dailyTotal ? 'text-cyber-neon' : 'text-gray-600'}`}>{dailyDone}/{dailyTotal}</span>
                 </div>
               )}
               {weeklyTotal > 0 && (
                 <div className="flex items-center gap-2 px-0.5">
-                  <span className="text-[10px] font-mono text-gray-600 group-hover:text-gray-400 transition-colors shrink-0 w-10">Weekly</span>
+                  <span className="text-xs font-mono text-gray-600 group-hover:text-gray-400 transition-colors shrink-0 w-12">Weekly</span>
                   <div className="flex gap-0.5 flex-1">
                     {Array.from({ length: weeklyTotal }).map((_, i) => (
                       <div key={i} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${i < weeklyDone ? 'bg-discord-purple' : 'bg-white/[0.08]'}`} />
                     ))}
                   </div>
-                  <span className={`text-[10px] font-mono shrink-0 tabular-nums ${weeklyDone === weeklyTotal ? 'text-discord-purple' : 'text-gray-600'}`}>{weeklyDone}/{weeklyTotal}</span>
+                  <span className={`text-xs font-mono shrink-0 tabular-nums ${weeklyDone === weeklyTotal ? 'text-discord-purple' : 'text-gray-600'}`}>{weeklyDone}/{weeklyTotal}</span>
                 </div>
               )}
             </button>

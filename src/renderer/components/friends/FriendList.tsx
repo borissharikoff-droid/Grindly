@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MessageCircle } from '../../lib/icons'
 import type { FriendProfile } from '../../hooks/useFriends'
 import { getSkillByName, MAX_TOTAL_SKILL_LEVEL } from '../../lib/skills'
 import { playClickSound } from '../../lib/sounds'
 import { parseFriendPresence, formatSessionDurationCompact } from '../../lib/friendPresence'
 import { AvatarWithFrame } from '../shared/AvatarWithFrame'
+import { usePartyStore } from '../../stores/partyStore'
+import { useToastStore } from '../../stores/toastStore'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface FriendListProps {
   friends: FriendProfile[]
@@ -17,6 +20,32 @@ interface FriendListProps {
 
 export function FriendList({ friends, onSelectFriend, onMessageFriend, unreadByFriendId = {} }: FriendListProps) {
   const [nowMs, setNowMs] = useState(() => Date.now())
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; friend: FriendProfile } | null>(null)
+  const [inviting, setInviting] = useState<string | null>(null)
+  const ctxRef = useRef<HTMLDivElement>(null)
+  const partyMembers = usePartyStore((s) => s.members)
+  const sendInvite = usePartyStore((s) => s.sendInvite)
+  const pushToast = useToastStore((s) => s.push)
+
+  useEffect(() => {
+    if (!ctxMenu) return
+    const close = (e: MouseEvent) => {
+      if (ctxRef.current && !ctxRef.current.contains(e.target as Node)) setCtxMenu(null)
+    }
+    const closeKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setCtxMenu(null) }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', closeKey)
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', closeKey) }
+  }, [ctxMenu])
+
+  const handleInviteToParty = async (friendId: string) => {
+    setCtxMenu(null)
+    playClickSound()
+    setInviting(friendId)
+    const result = await sendInvite(friendId)
+    setInviting(null)
+    pushToast({ kind: 'generic', message: result.ok ? 'Party invite sent!' : (result.error ?? 'Invite failed'), type: result.ok ? 'success' : 'error' })
+  }
 
   useEffect(() => {
     const hasLiveSessions = friends.some((f) => f.is_online && Boolean(parseFriendPresence(f.current_activity).sessionStartMs))
@@ -55,7 +84,7 @@ export function FriendList({ friends, onSelectFriend, onMessageFriend, unreadByF
 
   return (
     <div className="space-y-2">
-      {sorted.map((f, i) => {
+      {sorted.map((f) => {
         const { activityLabel, appName, sessionStartMs } = parseFriendPresence(f.current_activity ?? null)
         const isLeveling = f.is_online && activityLabel.startsWith('Leveling ')
         const levelingSkill = isLeveling ? activityLabel.replace('Leveling ', '') : null
@@ -67,6 +96,7 @@ export function FriendList({ friends, onSelectFriend, onMessageFriend, unreadByF
         return (
           <div
             key={f.id}
+            onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, friend: f }) }}
             className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${
               f.is_online
                 ? 'bg-discord-card/90 border-white/10 hover:border-white/20 hover:-translate-y-[1px]'
@@ -100,7 +130,7 @@ export function FriendList({ friends, onSelectFriend, onMessageFriend, unreadByF
               <div className="flex items-center gap-1.5 mb-0.5">
                 <span className="text-sm font-semibold text-white truncate">{f.username || 'Anonymous'}</span>
                 {f.guild_tag && (
-                  <span className="text-[9px] px-1 py-[1px] rounded font-bold border border-amber-500/40 bg-amber-500/10 text-amber-400 shrink-0" title={`Guild: ${f.guild_tag}`}>
+                  <span className="text-[10px] px-1 py-[1px] rounded font-bold border border-amber-500/40 bg-amber-500/10 text-amber-400 shrink-0" title={`Guild: ${f.guild_tag}`}>
                     [{f.guild_tag}]
                   </span>
                 )}
@@ -164,6 +194,49 @@ export function FriendList({ friends, onSelectFriend, onMessageFriend, unreadByF
           </div>
         )
       })}
+      <AnimatePresence>
+        {ctxMenu && (() => {
+          const f = ctxMenu.friend
+          const alreadyInParty = partyMembers.some((m) => m.user_id === f.id)
+          const canInvite = !alreadyInParty && partyMembers.length < 5
+          const menuW = 152
+          const menuH = 130
+          const x = Math.min(ctxMenu.x, window.innerWidth - menuW - 8)
+          const y = Math.min(ctxMenu.y, window.innerHeight - menuH - 8)
+          return (
+            <motion.div
+              ref={ctxRef}
+              key="friend-ctx"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.08 }}
+              className="fixed z-[60] min-w-[144px] rounded-lg bg-[#0d1117] border border-white/10 shadow-2xl overflow-hidden"
+              style={{ top: y, left: x }}
+            >
+              <div className="px-2.5 py-1 border-b border-white/[0.06]">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider truncate">{f.username ?? 'Friend'}</p>
+              </div>
+              <button type="button" onClick={() => { setCtxMenu(null); playClickSound(); onSelectFriend(f) }}
+                className="w-full text-left px-2.5 py-1.5 text-[10px] font-mono text-gray-300 hover:bg-white/[0.06] transition-colors">
+                View profile
+              </button>
+              {onMessageFriend && (
+                <button type="button" onClick={() => { setCtxMenu(null); playClickSound(); onMessageFriend(f) }}
+                  className="w-full text-left px-2.5 py-1.5 text-[10px] font-mono text-indigo-300 hover:bg-indigo-500/10 transition-colors">
+                  Message
+                </button>
+              )}
+              {canInvite && (
+                <button type="button" disabled={inviting === f.id} onClick={() => handleInviteToParty(f.id)}
+                  className="w-full text-left px-2.5 py-1.5 text-[10px] font-mono text-cyber-neon hover:bg-cyber-neon/10 transition-colors disabled:opacity-40">
+                  {inviting === f.id ? 'Inviting...' : 'Invite to party'}
+                </button>
+              )}
+            </motion.div>
+          )
+        })()}
+      </AnimatePresence>
     </div>
   )
 }

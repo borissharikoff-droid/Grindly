@@ -104,7 +104,7 @@ function SkillXPCard({ gain, index }: { gain: SkillXPGain; index: number }) {
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ delay: (delayMs + 380) / 1000, ...MOTION.spring.pop }}
-                  className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-cyber-neon/50 text-cyber-neon bg-cyber-neon/15 leading-tight"
+                  className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-cyber-neon/50 text-cyber-neon bg-cyber-neon/15 leading-tight"
                 >
                   LVL UP
                 </motion.span>
@@ -128,10 +128,10 @@ function SkillXPCard({ gain, index }: { gain: SkillXPGain; index: number }) {
 
           {/* Level / percent */}
           <div className="flex justify-between items-center mt-1">
-            <span className="text-[9px] font-mono text-gray-600">
+            <span className="text-[10px] font-mono text-gray-600">
               {leveledUp ? `Lvl.${gain.levelBefore} → Lvl.${gain.levelAfter}` : `Lvl.${gain.levelAfter}`}
             </span>
-            <span className="text-[9px] font-mono text-gray-600">{Math.round(widthAfter)}%</span>
+            <span className="text-[10px] font-mono text-gray-600">{Math.round(widthAfter)}%</span>
           </div>
         </div>
       </div>
@@ -285,7 +285,7 @@ export function SessionComplete({ onNavigateFriends }: SessionCompleteProps = {}
                 transition={{ delay: 0.7 }}
                 className="space-y-1.5"
               >
-                <p className="text-[9px] font-mono text-amber-400/60 uppercase tracking-widest text-center">
+                <p className="text-[10px] font-mono text-amber-400/60 uppercase tracking-widest text-center">
                   Achievement{newAchievements.length > 1 ? 's' : ''} unlocked
                 </p>
                 {newAchievements.map((ach, i) => (
@@ -299,7 +299,7 @@ export function SessionComplete({ onNavigateFriends }: SessionCompleteProps = {}
                     <span className="text-base shrink-0">🏆</span>
                     <div className="flex-1 min-w-0">
                       <div className="text-[11px] font-semibold text-amber-300 truncate">{ach.name}</div>
-                      <div className="text-[9px] text-gray-500 truncate">{ach.description}</div>
+                      <div className="text-[10px] text-gray-500 truncate">{ach.description}</div>
                     </div>
                     {ach.xpReward > 0 && (
                       <span className="text-[10px] font-mono text-cyber-neon shrink-0">+{ach.xpReward}</span>
@@ -320,7 +320,7 @@ export function SessionComplete({ onNavigateFriends }: SessionCompleteProps = {}
                 {sessionRewards.map((reward, i) => (
                   <span
                     key={i}
-                    className="text-[9px] px-1.5 py-0.5 rounded-md bg-cyber-neon/10 border border-cyber-neon/20 text-cyber-neon"
+                    className="text-[10px] px-1.5 py-0.5 rounded-md bg-cyber-neon/10 border border-cyber-neon/20 text-cyber-neon"
                   >
                     {reward.avatar && reward.avatar} {reward.title && `"${reward.title}"`}
                   </span>

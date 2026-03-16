@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useEscapeHandler } from '../../hooks/useEscapeHandler'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LOOT_ITEMS, getRarityTheme, getItemPower, MARKETPLACE_BLOCKED_ITEMS, getItemPerkDescription, isValidItemId, type LootRarity } from '../../lib/loot'
+import { LOOT_ITEMS, CHEST_DEFS, getRarityTheme, getItemPower, MARKETPLACE_BLOCKED_ITEMS, getItemPerkDescription, isValidItemId, type LootRarity } from '../../lib/loot'
 import { getFarmItemDisplay, isSeedId, isSeedZipId, seedZipTierFromItemId } from '../../lib/farming'
 import { SKILLS } from '../../lib/skills'
 import { fetchActiveListings, partialBuyListing, cancelListing, expireOldListings, fetchTradeHistory, fetchPriceHistory, type ListingWithSeller, type CancelListingResult, type TradeHistoryEntry, type PriceHistoryEntry } from '../../services/marketplaceService'
@@ -41,12 +41,13 @@ function getItemName(itemId: string) {
 function getItemMeta(itemId: string) {
   const item = LOOT_ITEMS.find((x) => x.id === itemId)
   const farm = !item ? getFarmItemDisplay(itemId) : null
+  const chest = !item && !farm ? CHEST_DEFS[itemId as keyof typeof CHEST_DEFS] : null
   return {
     item, farm,
-    name: item?.name ?? farm?.name ?? itemId,
-    rarity: item?.rarity ?? farm?.rarity ?? 'common' as LootRarity,
-    icon: item?.icon ?? farm?.icon ?? '📦',
-    image: item?.image ?? farm?.image,
+    name: item?.name ?? farm?.name ?? chest?.name ?? itemId,
+    rarity: (item?.rarity ?? farm?.rarity ?? chest?.rarity ?? 'common') as LootRarity,
+    icon: item?.icon ?? farm?.icon ?? chest?.icon ?? '📦',
+    image: item?.image ?? farm?.image ?? chest?.image,
     scale: item?.renderScale ?? 1,
   }
 }
@@ -142,7 +143,7 @@ function OrderBookTile({ row, onOpenOffers, index }: { row: OrderBookRow; onOpen
         <LootVisualShared icon={meta.icon} image={meta.image} className="w-6 h-6 object-contain" scale={meta.scale} />
         {row.totalQty > 1 && (
           <span
-            className="absolute -top-1.5 -right-1.5 text-[8px] font-bold px-1 py-px rounded-full border leading-none"
+            className="absolute -top-1.5 -right-1.5 text-[10px] font-bold px-1 py-px rounded-full border leading-none"
             style={{ color: theme.color, backgroundColor: '#11111b', borderColor: theme.border }}
           >
             ×{row.totalQty}
@@ -154,15 +155,15 @@ function OrderBookTile({ row, onOpenOffers, index }: { row: OrderBookRow; onOpen
         <p className="text-[11px] font-semibold text-white truncate">{meta.name}</p>
         <div className="flex items-center gap-1.5 mt-0.5">
           <span
-            className="text-[8px] font-medium px-1.5 py-px rounded capitalize"
+            className="text-[10px] font-medium px-1.5 py-px rounded capitalize"
             style={{ color: theme.color, backgroundColor: `${theme.color}18` }}
           >
             {meta.rarity}
           </span>
           {meta.item && !['consumable', 'plant', 'material'].includes(meta.item.slot) && (
-            <span className="text-[9px] text-gray-500">IP {getItemPower(meta.item)}</span>
+            <span className="text-[10px] text-gray-500">IP {getItemPower(meta.item)}</span>
           )}
-          <span className="text-[9px] text-gray-600 truncate">
+          <span className="text-[10px] text-gray-600 truncate">
             {row.offers.length > 1
               ? `${row.offers.length} offers · ${allSellers.length === 1 ? allSellers[0] : `${allSellers.length} sellers`}`
               : (allSellers[0] ?? 'Unknown')}
@@ -214,7 +215,7 @@ function MyListingRow({ group, cancellingId, onCancel, index }: {
         <LootVisualShared icon={meta.icon} image={meta.image} className="w-6 h-6 object-contain" scale={meta.scale} />
         {group.totalQty > 1 && (
           <span
-            className="absolute -top-1.5 -right-1.5 text-[8px] font-bold px-1 py-px rounded-full border leading-none"
+            className="absolute -top-1.5 -right-1.5 text-[10px] font-bold px-1 py-px rounded-full border leading-none"
             style={{ color: theme.color, backgroundColor: '#11111b', borderColor: theme.border }}
           >
             ×{group.totalQty}
@@ -223,7 +224,7 @@ function MyListingRow({ group, cancellingId, onCancel, index }: {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[11px] font-semibold text-white truncate">{meta.name}</p>
-        <p className="text-[9px] text-gray-500 mt-0.5">
+        <p className="text-[10px] text-gray-500 mt-0.5">
           {group.ids.length > 1 ? `${group.ids.length} orders · ` : ''}{group.pricePerUnit}🪙{group.totalQty > 1 ? '/ea' : ''}
         </p>
       </div>
@@ -292,7 +293,7 @@ function HistoryRow({ entry, userId, index }: { entry: TradeHistoryEntry; userId
         <p className="text-[11px] font-semibold text-white truncate">
           {meta.name}{entry.quantity > 1 ? ` ×${entry.quantity}` : ''}
         </p>
-        <p className="text-[9px] text-gray-500 truncate mt-0.5">
+        <p className="text-[10px] text-gray-500 truncate mt-0.5">
           {isSeller ? `→ ${otherUser}` : `← ${otherUser}`} · {timeAgo(entry.created_at)}
         </p>
       </div>
@@ -303,7 +304,7 @@ function HistoryRow({ entry, userId, index }: { entry: TradeHistoryEntry; userId
           </span>
         )}
         <span
-          className="text-[9px] font-medium px-1.5 py-0.5 rounded-md border"
+          className="text-[10px] font-medium px-1.5 py-0.5 rounded-md border"
           style={{ color: statusColor, borderColor: `${statusColor}30`, backgroundColor: `${statusColor}12` }}
         >
           {statusLabel}
@@ -471,12 +472,12 @@ function SellTab({ onListed, onToast, floorPriceMap }: { onListed: () => void; o
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-semibold text-gray-100 leading-tight truncate">{meta.name}</p>
             <div className="flex items-center gap-1 mt-0.5">
-              <span className="text-[8px] font-mono uppercase" style={{ color: theme.color }}>{meta.rarity}</span>
+              <span className="text-[10px] font-mono uppercase" style={{ color: theme.color }}>{meta.rarity}</span>
             </div>
-            {perkChip && <p className="text-[8px] text-gray-500 truncate mt-0.5">{perkChip}</p>}
+            {perkChip && <p className="text-[10px] text-gray-500 truncate mt-0.5">{perkChip}</p>}
           </div>
           {/* Qty + Sell label */}
-          {entry.qty > 1 && <span className="text-[9px] font-mono font-bold shrink-0" style={{ color: theme.color }}>×{entry.qty}</span>}
+          {entry.qty > 1 && <span className="text-[10px] font-mono font-bold shrink-0" style={{ color: theme.color }}>×{entry.qty}</span>}
           <span className="text-[10px] text-amber-400/70 font-medium shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">Sell</span>
         </button>
         {/* Quick List button — only shown when active floor exists */}
@@ -485,7 +486,7 @@ function SellTab({ onListed, onToast, floorPriceMap }: { onListed: () => void; o
             type="button"
             onClick={(e) => handleQuickList(e, entry)}
             title={`Quick list at ${activeFloor - 1}g (floor − 1)`}
-            className="absolute top-0.5 right-0.5 px-1 py-0.5 rounded text-[8px] font-bold border text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 transition-colors leading-none z-10"
+            className="absolute top-0.5 right-0.5 px-1 py-0.5 rounded text-[10px] font-bold border text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 transition-colors leading-none z-10"
           >
             ⚡
           </button>
@@ -528,7 +529,7 @@ function SellTab({ onListed, onToast, floorPriceMap }: { onListed: () => void; o
               key={f.id}
               type="button"
               onClick={() => { playClickSound(); setFilterBy(f.id) }}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded-md border text-[9px] font-medium transition-all ${
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-medium transition-all ${
                 active
                   ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
                   : 'border-white/[0.08] bg-discord-darker/30 text-gray-400 hover:text-gray-200 hover:border-white/20'
@@ -536,7 +537,7 @@ function SellTab({ onListed, onToast, floorPriceMap }: { onListed: () => void; o
             >
               <span className="text-[10px] leading-none">{f.icon}</span>
               <span>{f.label}</span>
-              {!active && count > 0 && <span className="ml-0.5 text-[8px] font-mono opacity-50">{count}</span>}
+              {!active && count > 0 && <span className="ml-0.5 text-[10px] font-mono opacity-50">{count}</span>}
             </button>
           )
         })}
@@ -558,10 +559,10 @@ function SellTab({ onListed, onToast, floorPriceMap }: { onListed: () => void; o
           </p>
         </motion.div>
       ) : grouped ? (
-        <div className="grid grid-cols-2 gap-1">
+        <div className="grid grid-cols-3 gap-1">
           {grouped.map(({ key, label, icon, items: grpItems }) => (
             <React.Fragment key={key}>
-              <div className="col-span-full text-[9px] font-mono uppercase tracking-widest text-gray-500 pt-1 pb-0.5 flex items-center gap-2">
+              <div className="col-span-full text-[10px] font-mono uppercase tracking-widest text-gray-500 pt-1 pb-0.5 flex items-center gap-2">
                 <span className="flex items-center gap-1.5">{icon} {label}</span>
                 <div className="flex-1 border-t border-white/[0.05]" />
                 <span>{grpItems.length}</span>
@@ -571,7 +572,7 @@ function SellTab({ onListed, onToast, floorPriceMap }: { onListed: () => void; o
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-1">
+        <div className="grid grid-cols-3 gap-1">
           {filtered.map((entry, i) => renderSellCard(entry, i))}
         </div>
       )}
@@ -585,11 +586,9 @@ function SellTab({ onListed, onToast, floorPriceMap }: { onListed: () => void; o
           activeFloorPrice={floorPriceMap.get(selectedItem)}
           onClose={() => { setSelectedItem(null); setQuickListPrice(undefined) }}
           onListed={() => {
-            const name = getItemMeta(selectedItem).name
             setSelectedItem(null)
             setQuickListPrice(undefined)
             onListedRef.current()
-            onToastRef.current(`Listed ${name} on marketplace`, 'success')
           }}
           onDeductItem={isSeedId(selectedItem) ? (qty) => useFarmStore.getState().removeSeed(selectedItem, qty)
             : isSeedZipId(selectedItem) ? (qty) => {
@@ -643,6 +642,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
   const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'newest'>('price_asc')
   const [filtersExpanded, setFiltersExpanded] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
+  const [showFloorBoard, setShowFloorBoard] = useState(false)
   const infoRef = useRef<HTMLDivElement>(null)
 
   const gold = useGoldStore((s) => s.gold)
@@ -984,7 +984,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                       'Listings expire after 7 days.',
                     ].map((tip) => (
                       <li key={tip} className="flex items-start gap-1.5">
-                        <span className="text-cyber-neon/60 mt-px text-[9px] leading-tight shrink-0">▸</span>
+                        <span className="text-cyber-neon/60 mt-px text-[10px] leading-tight shrink-0">▸</span>
                         <span className="text-[11px] text-gray-300 leading-snug">{tip}</span>
                       </li>
                     ))}
@@ -1024,7 +1024,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
             <span className="relative z-10">
               {tab.label}
               {tab.count != null && tab.count > 0 && (
-                <span className="ml-1 text-[9px] opacity-50">{tab.count}</span>
+                <span className="ml-1 text-[10px] opacity-50">{tab.count}</span>
               )}
             </span>
           </button>
@@ -1139,7 +1139,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                   className="rounded-lg border border-white/[0.07] bg-[#11111b]/60 p-2 space-y-1.5 overflow-hidden"
                 >
                   <div className="flex items-center gap-1 flex-wrap">
-                    <span className="text-[9px] font-mono uppercase tracking-wider text-gray-600 mr-1">Rarity</span>
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-gray-600 mr-1">Rarity</span>
                     {RARITY_ORDER.map((r) => {
                       const t = RARITY_THEME[normalizeRarity(r)]
                       const active = rarityFilter === r
@@ -1159,7 +1159,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                     })}
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-mono uppercase tracking-wider text-gray-600 mr-1">Price 🪙</span>
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-gray-600 mr-1">Price 🪙</span>
                     <input
                       type="number" min={0} value={priceMin}
                       onChange={(e) => setPriceMin(e.target.value)}
@@ -1227,9 +1227,50 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
               </motion.div>
             ) : (
               <div className="space-y-1.5">
-                {orderBook.map((row, i) => (
-                  <OrderBookTile key={row.itemId} row={row} onOpenOffers={(r) => { playClickSound(); setOffersTarget(r) }} index={i} />
-                ))}
+                {/* Floor Board toggle */}
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-[10px] text-gray-600 font-mono">{orderBook.length} item{orderBook.length !== 1 ? 's' : ''}</span>
+                  <button
+                    type="button"
+                    onClick={() => { playClickSound(); setShowFloorBoard((v) => !v) }}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-mono transition-colors ${showFloorBoard ? 'bg-green-500/15 border-green-500/35 text-green-400' : 'border-white/10 text-gray-500 hover:border-white/20 hover:text-gray-400'}`}
+                  >
+                    🏷 {showFloorBoard ? 'List' : 'Floors'}
+                  </button>
+                </div>
+
+                {showFloorBoard ? (
+                  /* ── Compact floor board ── */
+                  <div className="rounded-xl border border-white/[0.07] bg-[#11111b]/60 overflow-hidden">
+                    <div className="flex items-center px-3 py-1.5 border-b border-white/[0.05]">
+                      <span className="text-[10px] uppercase tracking-widest text-gray-600 font-mono flex-1">Item</span>
+                      <span className="text-[10px] uppercase tracking-widest text-gray-600 font-mono w-12 text-right">Floor</span>
+                      <span className="text-[10px] uppercase tracking-widest text-gray-600 font-mono w-10 text-right">Qty</span>
+                    </div>
+                    {orderBook.map((row) => {
+                      const m = getItemMeta(row.itemId)
+                      const theme = getRarityTheme(m.rarity)
+                      return (
+                        <button
+                          key={row.itemId}
+                          type="button"
+                          onClick={() => { playClickSound(); setOffersTarget(row) }}
+                          className="w-full flex items-center px-3 py-1.5 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors gap-2"
+                        >
+                          <span className="text-sm shrink-0">{m.icon}</span>
+                          <span className="flex-1 text-[10px] text-gray-300 truncate text-left">{m.name}</span>
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: theme.color }} />
+                          <span className="w-12 text-right text-[11px] font-bold font-mono text-green-400">{row.floorPrice.toLocaleString()}</span>
+                          <span className="w-10 text-right text-[10px] text-gray-600 font-mono">×{row.totalQty}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  orderBook.map((row, i) => (
+                    <OrderBookTile key={row.itemId} row={row} onOpenOffers={(r) => { playClickSound(); setOffersTarget(r) }} index={i} />
+                  ))
+                )}
               </div>
             )}
           </motion.div>
@@ -1358,12 +1399,15 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-white truncate">{meta.name}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                             <span
-                              className="text-[8px] font-medium px-1.5 py-px rounded capitalize"
+                              className="text-[10px] font-medium px-1.5 py-px rounded capitalize"
                               style={{ color: theme.color, backgroundColor: `${theme.color}18` }}
                             >{meta.rarity}</span>
-                            <span className="text-[9px] text-gray-500">{offersTarget.offers.length} offer{offersTarget.offers.length !== 1 ? 's' : ''} · {offersTarget.totalQty} total</span>
+                            <span className="text-[10px] text-gray-500">{offersTarget.offers.length} offer{offersTarget.offers.length !== 1 ? 's' : ''} · {offersTarget.totalQty} total</span>
+                            <span className="flex items-center gap-0.5 px-1.5 py-px rounded bg-green-500/12 border border-green-500/25 text-[10px] font-bold text-green-400 font-mono">
+                              🏷 {offersTarget.floorPrice.toLocaleString()}g
+                            </span>
                           </div>
                         </div>
                         <button
@@ -1377,7 +1421,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                       {priceHistory.length >= 2 && (
                         <div className="flex flex-col items-center gap-1 mb-3 pb-3 border-b border-white/[0.06]">
                           <PriceSparkline prices={priceHistory.map((p) => p.price_gold)} width={120} height={28} />
-                          <p className="text-[8px] text-gray-600 font-mono">last {priceHistory.length} sales</p>
+                          <p className="text-[10px] text-gray-600 font-mono">last {priceHistory.length} sales</p>
                         </div>
                       )}
 
@@ -1386,23 +1430,30 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                         {offersTarget.offers.map((offer, i) => {
                           const canAfford = (gold ?? 0) >= offer.pricePerUnit
                           const isFloor = i === 0
+                          const aboveFloor = !isFloor ? offer.pricePerUnit - offersTarget.floorPrice : 0
+                          const abovePct = !isFloor && offersTarget.floorPrice > 0 ? Math.round((aboveFloor / offersTarget.floorPrice) * 100) : 0
                           return (
                             <div
                               key={offer.pricePerUnit}
-                              className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg border border-white/[0.07] bg-white/[0.02]"
+                              className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg border transition-colors ${isFloor ? 'border-green-500/20 bg-green-500/[0.04]' : 'border-white/[0.07] bg-white/[0.02]'}`}
                             >
                               {/* Price */}
-                              <div className={`flex items-center gap-1 px-2 py-1 rounded-md border shrink-0 ${isFloor ? 'bg-green-500/10 border-green-500/25' : 'bg-amber-500/8 border-amber-500/15'}`}>
-                                <span className={`text-[10px] ${isFloor ? 'text-green-400' : 'text-amber-400'}`}>🪙</span>
-                                <span className={`font-bold text-[11px] tabular-nums ${isFloor ? 'text-green-400' : 'text-amber-400'}`}>{offer.pricePerUnit.toLocaleString()}</span>
-                                {isFloor && <span className="text-[7px] font-mono text-green-400/55 ml-0.5">floor</span>}
+                              <div className="shrink-0 flex flex-col items-center gap-0.5">
+                                <div className={`flex items-center gap-1 px-2 py-1 rounded-md border ${isFloor ? 'bg-green-500/10 border-green-500/25' : 'bg-amber-500/8 border-amber-500/15'}`}>
+                                  <span className={`text-[10px] ${isFloor ? 'text-green-400' : 'text-amber-400'}`}>🪙</span>
+                                  <span className={`font-bold text-[11px] tabular-nums ${isFloor ? 'text-green-400' : 'text-amber-400'}`}>{offer.pricePerUnit.toLocaleString()}</span>
+                                </div>
+                                {isFloor
+                                  ? <span className="text-[10px] font-mono text-green-400/70 tracking-wide">floor</span>
+                                  : <span className="text-[10px] font-mono text-gray-600">+{aboveFloor}g ({abovePct}%)</span>
+                                }
                               </div>
                               {/* Info */}
                               <div className="flex-1 min-w-0">
                                 <p className="text-[10px] text-gray-300 truncate">
                                   {offer.sellers.length === 1 ? offer.sellers[0] : `${offer.sellers.length} sellers`}
                                 </p>
-                                <p className="text-[9px] text-gray-600">×{offer.totalQty} available</p>
+                                <p className="text-[10px] text-gray-600">×{offer.totalQty} available</p>
                               </div>
                               {/* Buy button */}
                               <button
@@ -1462,7 +1513,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                         </div>
                         <p className="text-sm font-semibold text-white text-center">{meta.name}</p>
                         <span
-                          className="inline-flex mt-1 text-[9px] px-2 py-0.5 rounded-md border font-mono uppercase tracking-wide"
+                          className="inline-flex mt-1 text-[10px] px-2 py-0.5 rounded-md border font-mono uppercase tracking-wide"
                           style={{ color: theme.color, borderColor: theme.border, backgroundColor: `${theme.color}1A` }}
                         >
                           {meta.rarity}
@@ -1474,7 +1525,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                         {priceHistory.length >= 2 && (
                           <div className="flex flex-col items-center gap-1 mt-2">
                             <PriceSparkline prices={priceHistory.map((p) => p.price_gold)} width={120} height={28} />
-                            <p className="text-[8px] text-gray-600 font-mono">last {priceHistory.length} sales</p>
+                            <p className="text-[10px] text-gray-600 font-mono">last {priceHistory.length} sales</p>
                           </div>
                         )}
                       </div>

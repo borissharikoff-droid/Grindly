@@ -510,16 +510,6 @@ const DOC_READING_TITLE = /readme|documentation|docs|wiki|manual|guide|api refer
 const TERMINAL_APP = /^(windowsterminal|terminal|powershell|pwsh|cmd|bash|zsh|wsl|wezterm|alacritty|hyper|conhost|mintty|putty|mobaxterm)$/i
 const TERMINAL_WORK_TITLE = /npm|pnpm|yarn|bun|node|python|pip|poetry|cargo|rust|go\s(test|run|build)|javac|gradle|maven|dotnet|tsc|vite|webpack|docker|kubectl|git|ssh|make|cmake|build|test|serve|dev/i
 
-/** Passive activities (reading, learning) get extended AFK threshold so you don't lose XP while focused on content. */
-function getEffectiveAfkThreshold(windowTitle: string, previousCategory: ActivityCategory | null): number {
-  const lowerTitle = windowTitle.toLowerCase()
-  const isPassiveReading =
-    DOC_READING_TITLE.test(lowerTitle) ||
-    /\.pdf|\.epub|\.mobi|kindle|reader|sumatrapdf|acrobat|foxit|calibre/i.test(lowerTitle)
-  const isPassiveCategory = previousCategory === 'learning'
-  // 10× for reading/learning: ~30 min idle before AFK vs 3 min for active work
-  return isPassiveReading || isPassiveCategory ? afkThresholdMs * 10 : afkThresholdMs
-}
 
 interface AiRefinementCacheEntry {
   category: ActivityCategory
@@ -819,14 +809,11 @@ function poll(): void {
     currentSegmentKeystrokes += keys
 
     // AFK detection: real idle = no mouse/keyboard (GetLastInputInfo from detector)
+    // Threshold is always 3 min regardless of activity type — only real input resets the timer
     const idleMs = latestWinInfo.idleMs ?? 0
-    const effectiveAfkThresholdMs = getEffectiveAfkThreshold(
-      windowTitle,
-      (lastActivity?.category as ActivityCategory | undefined) ?? null,
-    )
-    if (idleMs >= effectiveAfkThresholdMs && !isIdle) {
+    if (idleMs >= afkThresholdMs && !isIdle) {
       emitIdle(true)
-    } else if (idleMs < effectiveAfkThresholdMs && isIdle) {
+    } else if (idleMs < afkThresholdMs && isIdle) {
       emitIdle(false)
     }
 

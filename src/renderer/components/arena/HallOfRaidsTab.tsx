@@ -45,7 +45,7 @@ export function HallOfRaidsTab() {
       <div className="text-center py-10">
         <p className="text-3xl mb-2">🏛️</p>
         <p className="text-[11px] font-semibold text-gray-400">No raids completed yet</p>
-        <p className="text-[9px] text-gray-600 font-mono mt-1">Complete your first raid to see it here.</p>
+        <p className="text-[10px] text-gray-600 font-mono mt-1">Complete your first raid to see it here.</p>
       </div>
     )
   }
@@ -64,7 +64,7 @@ export function HallOfRaidsTab() {
         ].map((stat) => (
           <div key={stat.label} className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2 text-center">
             <p className="text-[13px] font-bold" style={{ color: stat.color }}>{stat.value}</p>
-            <p className="text-[8px] font-mono text-gray-600 mt-0.5">{stat.label}</p>
+            <p className="text-[10px] font-mono text-gray-600 mt-0.5">{stat.label}</p>
           </div>
         ))}
       </div>
@@ -87,11 +87,11 @@ export function HallOfRaidsTab() {
               </span>
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] font-semibold text-white">{cfg.name}</p>
-                <p className="text-[8px] font-mono text-gray-600">{date}</p>
+                <p className="text-[10px] font-mono text-gray-600">{date}</p>
               </div>
               <div className="text-right shrink-0">
                 <p className="text-[10px] font-mono font-bold" style={{ color: cfg.color }}>{dmgStr} dmg</p>
-                <p className={`text-[8px] font-mono ${entry.survived ? 'text-green-400' : 'text-red-400'}`}>
+                <p className={`text-[10px] font-mono ${entry.survived ? 'text-green-400' : 'text-red-400'}`}>
                   {entry.survived ? '✓ survived' : '✗ fell'}
                 </p>
               </div>

@@ -226,7 +226,7 @@ export function BulkChestOpenModal({ open, chestType, result, onClose }: BulkChe
                           </div>
                           <div className="relative text-left min-w-0">
                             <p className="text-[11px] font-medium text-white/90 truncate leading-tight">{entry.def.name}</p>
-                            <p className="text-[9px] font-mono uppercase" style={{ color: theme.color }}>
+                            <p className="text-[10px] font-mono uppercase" style={{ color: theme.color }}>
                               {entry.def.rarity}{entry.qty > 1 ? ` ×${entry.qty}` : ''}
                             </p>
                           </div>
@@ -249,7 +249,7 @@ export function BulkChestOpenModal({ open, chestType, result, onClose }: BulkChe
                   <span className="text-2xl">🪙</span>
                   <div className="text-left">
                     <p className="text-lg font-bold text-amber-400 tabular-nums">+{result.totalGold}</p>
-                    <p className="text-[9px] font-mono text-amber-500/60 uppercase tracking-widest">Gold</p>
+                    <p className="text-[10px] font-mono text-amber-500/60 uppercase tracking-widest">Gold</p>
                   </div>
                 </motion.div>
               )}
@@ -282,7 +282,7 @@ export function BulkChestOpenModal({ open, chestType, result, onClose }: BulkChe
                             )}
                           </div>
                           <span className="relative text-sm font-bold tabular-nums" style={{ color: theme.color }}>×{mat.qty}</span>
-                          <span className="relative text-[9px] text-center leading-tight text-gray-400 truncate w-full">{mat.def.name}</span>
+                          <span className="relative text-[10px] text-center leading-tight text-gray-400 truncate w-full">{mat.def.name}</span>
                         </motion.div>
                       )
                     })}
@@ -310,7 +310,7 @@ export function BulkChestOpenModal({ open, chestType, result, onClose }: BulkChe
                               : <span className="text-xl">{display.icon}</span>}
                           </div>
                           <span className="text-[11px] font-bold tabular-nums" style={{ color: theme.color }}>×{sz.qty}</span>
-                          <span className="text-[8px] text-center leading-tight text-gray-400 truncate w-full">{display.name}</span>
+                          <span className="text-[10px] text-center leading-tight text-gray-400 truncate w-full">{display.name}</span>
                         </div>
                       )
                     })}

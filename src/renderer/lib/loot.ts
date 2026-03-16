@@ -255,8 +255,6 @@ const ITEM_DROP_CHANCE: Record<ChestType, number> = {
   legendary_chest: 0.80,
 }
 
-const INLINE_LOOT_IMAGES = {} as Record<string, string>
-
 import { CRAFT_LOOT_ITEMS, CRAFT_INTERMEDIATE_ITEMS } from './crafting'
 import { FOOD_ITEMS } from './cooking'
 

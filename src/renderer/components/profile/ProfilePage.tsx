@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
 import { ACHIEVEMENTS, getAchievementProgress, type AchievementProgressContext } from '../../lib/xp'
-import { computeTotalSkillLevel, MAX_TOTAL_SKILL_LEVEL, skillLevelFromXP } from '../../lib/skills'
+import { computeTotalSkillLevel, skillLevelFromXP } from '../../lib/skills'
 import type { AchievementDef } from '../../lib/xp'
 import { useAlertStore } from '../../stores/alertStore'
 import { playClickSound } from '../../lib/sounds'
@@ -55,7 +55,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
 
   // Stats
   const [totalSkillLevel, setTotalSkillLevel] = useState(0)
-  const [persona, setPersona] = useState<{ emoji: string; label: string; description: string } | null>(null)
+  const [_persona, setPersona] = useState<{ emoji: string; label: string; description: string } | null>(null)
 
   // Achievements
   const [unlockedIds, setUnlockedIds] = useState<string[]>([])
@@ -122,7 +122,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
 
     // Load profile
     if (supabase && user) {
-      supabase.from('profiles').select('username, avatar_url').eq('id', user.id).single().then(({ data }) => {
+      void Promise.resolve(supabase.from('profiles').select('username, avatar_url').eq('id', user.id).single()).then(({ data }) => {
         if (data) {
           const nextUsername = (data.username || 'Grindly').trim()
           const nextAvatar = data.avatar_url || '🤖'
@@ -316,8 +316,6 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
     persistCosmeticsToSupabase(newFrame)
   }
 
-  // Find the active frame
-  const activeFrame = FRAMES.find(f => f.id === equippedFrameId)
   const equippedLootItems = (Object.entries(equippedBySlot) as Array<[LootSlot, string]>)
     .map(([slot, itemId]) => ({ slot, item: LOOT_ITEMS.find((x) => x.id === itemId) }))
     .filter((entry): entry is { slot: LootSlot; item: (typeof LOOT_ITEMS)[number] } => Boolean(entry.item))
@@ -339,7 +337,6 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
   const dailyActivities = useMemo(() => getDailyActivities(), [activeTab, inventory, chests])
   const weeklyActivities = useMemo(() => getWeeklyActivities(), [activeTab, inventory, chests])
   const hasClaimableQuest = dailyActivities.some((m) => m.completed && !m.claimed) || weeklyActivities.some((m) => m.completed && !m.claimed)
-  const hasQuestAttention = hasClaimableQuest || dailyActivities.some((m) => !m.claimed)
 
   const [inspectItemId, setInspectItemId] = useState<string | null>(null)
   const inspectItem = inspectItemId ? (LOOT_ITEMS.find((x) => x.id === inspectItemId) ?? null) : null
@@ -521,9 +518,9 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
                             <div className="flex-1 h-1 rounded-full bg-white/[0.08] overflow-hidden">
                               <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${Math.min(100, (b.progress / b.targetCount) * 100)}%`, backgroundColor: done ? '#84cc16' : '#6366f1' }} />
                             </div>
-                            <span className="text-[9px] text-gray-400 font-mono shrink-0">{b.progress}/{b.targetCount}</span>
+                            <span className="text-[10px] text-gray-400 font-mono shrink-0">{b.progress}/{b.targetCount}</span>
                           </div>
-                          <p className="text-[9px] text-gray-500 font-mono mt-0.5">+{b.goldReward}g{b.chestReward ? ` · ${b.chestReward.replace('_chest', ' chest')}` : ''}</p>
+                          <p className="text-[10px] text-gray-500 font-mono mt-0.5">+{b.goldReward}g{b.chestReward ? ` · ${b.chestReward.replace('_chest', ' chest')}` : ''}</p>
                         </div>
                         {done && !b.claimed && (
                           <button
@@ -555,7 +552,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
             <div className="rounded-xl border border-white/[0.10] bg-discord-card p-3">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[10px] uppercase tracking-wider text-amber-400 font-mono">Weekly Challenges</p>
-                <span className="text-[9px] text-gray-500 font-mono">resets in {weeklyDaysLeft}d</span>
+                <span className="text-[10px] text-gray-500 font-mono">resets in {weeklyDaysLeft}d</span>
               </div>
               {weeklyBounties.length > 0 ? (
                 <div className="space-y-2">
@@ -574,9 +571,9 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
                             <div className="flex-1 h-1 rounded-full bg-white/[0.08] overflow-hidden">
                               <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${Math.min(100, (b.progress / b.targetCount) * 100)}%`, backgroundColor: done ? '#f59e0b' : '#6366f1' }} />
                             </div>
-                            <span className="text-[9px] text-gray-400 font-mono shrink-0">{b.progress}/{b.targetCount}</span>
+                            <span className="text-[10px] text-gray-400 font-mono shrink-0">{b.progress}/{b.targetCount}</span>
                           </div>
-                          <p className="text-[9px] text-gray-500 font-mono mt-0.5">+{b.goldReward}g{b.chestReward ? ` · ${b.chestReward.replace('_chest', ' chest')}` : ''}</p>
+                          <p className="text-[10px] text-gray-500 font-mono mt-0.5">+{b.goldReward}g{b.chestReward ? ` · ${b.chestReward.replace('_chest', ' chest')}` : ''}</p>
                         </div>
                         {done && !b.claimed && (
                           <button
@@ -650,7 +647,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
             >
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono">Collection</p>
-                <p className="text-[9px] text-gray-600 font-mono">
+                <p className="text-[10px] text-gray-600 font-mono">
                   {unlockedFrameIds.length + getUnlockedAvatarEmojis().length} / {FRAMES.length + LOCKED_AVATARS.length} unlocked
                 </p>
               </div>
@@ -665,13 +662,13 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
               <div className="flex gap-4 mt-2.5">
                 <div className="flex items-center gap-1.5">
                   <div className="w-2 h-2 rounded-full bg-cyber-neon/60" />
-                  <span className="text-[9px] text-gray-500 font-mono">
+                  <span className="text-[10px] text-gray-500 font-mono">
                     <span className="text-cyber-neon font-semibold">{unlockedFrameIds.length}</span>/{FRAMES.length} Frames
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2 h-2 rounded-full bg-purple-400/60" />
-                  <span className="text-[9px] text-gray-500 font-mono">
+                  <span className="text-[10px] text-gray-500 font-mono">
                     <span className="text-purple-400 font-semibold">{getUnlockedAvatarEmojis().length}</span>/{LOCKED_AVATARS.length} Avatars
                   </span>
                 </div>
@@ -690,7 +687,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
             >
               <div className="flex items-center justify-between">
                 <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono">Avatar Frames</p>
-                <p className="text-[9px] text-gray-600 font-mono">{unlockedFrameIds.length}/{FRAMES.length} unlocked</p>
+                <p className="text-[10px] text-gray-600 font-mono">{unlockedFrameIds.length}/{FRAMES.length} unlocked</p>
               </div>
 
               {(['Rare', 'Epic', 'Legendary'] as const).map((rarity) => {
@@ -700,12 +697,12 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
                 return (
                   <div key={rarity} className="space-y-2">
                     <div className="flex items-center gap-2 px-0.5">
-                      <span className="text-[8px] font-bold uppercase tracking-widest" style={{ color: `${rarityColors[rarity]}90` }}>
+                      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: `${rarityColors[rarity]}90` }}>
                         {rarity === 'Legendary' ? '\u2605' : rarity === 'Epic' ? '\u25C6' : '\u25CF'} {rarity}
                       </span>
                       <div className="flex-1 h-px" style={{ backgroundColor: `${rarityColors[rarity]}15` }} />
                     </div>
-                    <div className="grid grid-cols-2 gap-2.5">
+                    <div className="grid grid-cols-3 gap-2.5">
                       {rarityFrames.map((frame) => {
                         const isUnlocked = unlockedFrameIds.includes(frame.id) || (frame.achievementId ? unlockedIds.includes(frame.achievementId) : false)
                         const isActive = equippedFrameId === frame.id
@@ -745,7 +742,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
                                 Active
                               </span>
                             ) : !isUnlocked ? (
-                              <span className="absolute top-2 right-2 z-10 text-[9px] opacity-60">{'\uD83D\uDD12'}</span>
+                              <span className="absolute top-2 right-2 z-10 text-[10px] opacity-60">{'\uD83D\uDD12'}</span>
                             ) : null}
 
                             <div className="relative mx-auto w-14 h-14 mb-2">
@@ -767,11 +764,11 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
                             </div>
 
                             <p className={`text-[11px] font-bold relative ${isUnlocked ? 'text-white' : 'text-gray-500'}`}>{frame.name}</p>
-                            <p className="text-[8px] font-mono relative mt-0.5 capitalize" style={{ color: `${frame.color}${isUnlocked ? '80' : '50'}` }}>
+                            <p className="text-[10px] font-mono relative mt-0.5 capitalize" style={{ color: `${frame.color}${isUnlocked ? '80' : '50'}` }}>
                               {frame.style}
                             </p>
                             {!isUnlocked && (
-                              <p className="text-[8px] font-mono mt-1 relative text-gray-500/80">{frame.unlockHint}</p>
+                              <p className="text-[10px] font-mono mt-1 relative text-gray-500/80">{frame.unlockHint}</p>
                             )}
                           </motion.button>
                         )
@@ -791,11 +788,11 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
             >
               <div className="flex items-center justify-between">
                 <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono">Avatars</p>
-                <p className="text-[9px] text-gray-600 font-mono">{FREE_AVATARS.length + getUnlockedAvatarEmojis().length} available</p>
+                <p className="text-[10px] text-gray-600 font-mono">{FREE_AVATARS.length + getUnlockedAvatarEmojis().length} available</p>
               </div>
 
               <div>
-                <p className="text-[8px] text-gray-600 font-mono mb-1.5 uppercase tracking-wider">Default</p>
+                <p className="text-[10px] text-gray-600 font-mono mb-1.5 uppercase tracking-wider">Default</p>
                 <div className="flex flex-wrap gap-1.5">
                   {FREE_AVATARS.map((a) => {
                     const isCurrent = avatar === a
@@ -819,7 +816,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
               </div>
 
               <div>
-                <p className="text-[8px] text-gray-600 font-mono mb-1.5 uppercase tracking-wider">Achievements</p>
+                <p className="text-[10px] text-gray-600 font-mono mb-1.5 uppercase tracking-wider">Achievements</p>
                 <div className="flex flex-wrap gap-1.5">
                   {LOCKED_AVATARS.map((la) => {
                     const isUnlocked = unlockedIds.includes(la.achievementId) || unlockedAvatarSet.has(la.emoji)
@@ -840,12 +837,12 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
                         >
                           <span style={{ opacity: isUnlocked ? 1 : 0.15 }}>{la.emoji}</span>
                           {!isUnlocked && (
-                            <span className="absolute inset-0 flex items-center justify-center text-[9px] opacity-70">{'\uD83D\uDD12'}</span>
+                            <span className="absolute inset-0 flex items-center justify-center text-[10px] opacity-70">{'\uD83D\uDD12'}</span>
                           )}
                           {isCurrent && isUnlocked && <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-cyber-neon" />}
                         </button>
                         {!isUnlocked && (
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 rounded-md bg-discord-darker border border-white/10 text-[8px] text-gray-400 font-mono whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 rounded-md bg-discord-darker border border-white/10 text-[10px] text-gray-400 font-mono whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
                             {la.unlockHint}
                           </div>
                         )}
@@ -857,7 +854,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
 
               {bonusAvatars.length > 0 && (
                 <div>
-                  <p className="text-[8px] text-purple-400/60 font-mono mb-1.5 uppercase tracking-wider">Bonus</p>
+                  <p className="text-[10px] text-purple-400/60 font-mono mb-1.5 uppercase tracking-wider">Bonus</p>
                   <div className="flex flex-wrap gap-1.5">
                     {bonusAvatars.map((a) => {
                       const isCurrent = avatar === a
@@ -1028,14 +1025,14 @@ function FlexCard({ avatar, username, frameId, equippedLootItems, unlockedCount,
               <button type="button" onClick={onUsernameClick} className="text-[13px] font-bold text-white hover:text-cyber-neon transition-colors cursor-pointer" title="Click to edit">{username}</button>
             )}
             {guildTag && (
-              <span className="text-[9px] px-1.5 py-[1px] rounded font-bold border border-amber-500/40 bg-amber-500/10 text-amber-400" title={`Guild: ${guildTag}`}>
+              <span className="text-[10px] px-1.5 py-[1px] rounded font-bold border border-amber-500/40 bg-amber-500/10 text-amber-400" title={`Guild: ${guildTag}`}>
                 [{guildTag}]
               </span>
             )}
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             {totalIP > 0 && (
-              <span className="text-[8px] font-mono text-amber-400/80 px-1.5 py-0.5 rounded-md border border-amber-400/15 bg-amber-400/5">
+              <span className="text-[10px] font-mono text-amber-400/80 px-1.5 py-0.5 rounded-md border border-amber-400/15 bg-amber-400/5">
                 {totalIP} IP
               </span>
             )}
@@ -1076,7 +1073,7 @@ function FlexCard({ avatar, username, frameId, equippedLootItems, unlockedCount,
                     ? <img src={item.image} alt="" className="w-4 h-4 object-contain" style={{ imageRendering: 'pixelated' }} draggable={false} />
                     : <span className="text-sm leading-none">{item.icon}</span>}
                   <div className="min-w-0 text-left">
-                    <p className="text-[9px] font-medium text-white/90 truncate max-w-[65px]">{item.name}</p>
+                    <p className="text-[10px] font-medium text-white/90 truncate max-w-[65px]">{item.name}</p>
                     <p className="text-[7px] font-mono uppercase" style={{ color: rt.color }}>{item.rarity}</p>
                   </div>
                 </button>
@@ -1090,17 +1087,17 @@ function FlexCard({ avatar, username, frameId, equippedLootItems, unlockedCount,
       {(totalBossKills > 0 || clearedZones.length > 0) && (
         <div className="px-4 pb-3 flex items-center gap-3 relative">
           {totalBossKills > 0 && (
-            <span className="text-[8px] font-mono text-red-400/70 inline-flex items-center gap-1">
+            <span className="text-[10px] font-mono text-red-400/70 inline-flex items-center gap-1">
               {'\uD83D\uDC80'} {totalBossKills} boss kills
             </span>
           )}
           {clearedZones.length > 0 && (
-            <span className="text-[8px] font-mono text-purple-400/70 inline-flex items-center gap-1">
+            <span className="text-[10px] font-mono text-purple-400/70 inline-flex items-center gap-1">
               {'\uD83C\uDFF0'} {clearedZones.length} dungeons cleared
             </span>
           )}
           {rarestItem && (
-            <span className="text-[8px] font-mono inline-flex items-center gap-1 ml-auto" style={{ color: getRarityTheme(rarestItem.item.rarity).color }}>
+            <span className="text-[10px] font-mono inline-flex items-center gap-1 ml-auto" style={{ color: getRarityTheme(rarestItem.item.rarity).color }}>
               {'\u2B50'} {rarestItem.item.rarity}
             </span>
           )}
@@ -1176,7 +1173,7 @@ function NextUnlockTracker({ unlockedIds, progressCtx }: {
           {isAlmostThere ? '\u26A1 Almost there' : 'Next unlocks'}
         </p>
         {isAlmostThere && (
-          <span className="text-[8px] font-mono text-cyber-neon/70 animate-pulse">{Math.round(closest.pct)}% complete</span>
+          <span className="text-[10px] font-mono text-cyber-neon/70 animate-pulse">{Math.round(closest.pct)}% complete</span>
         )}
       </div>
       {candidates.map(({ achievement, progress, cosmetic, pct }, i) => {
@@ -1195,9 +1192,9 @@ function NextUnlockTracker({ unlockedIds, progressCtx }: {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-[10px] font-medium text-white truncate">{achievement.name}</span>
-                  <span className="text-[8px] font-mono tabular-nums" style={{ color: rewardColor }}>{Math.round(pct)}%</span>
+                  <span className="text-[10px] font-mono tabular-nums" style={{ color: rewardColor }}>{Math.round(pct)}%</span>
                 </div>
-                <span className="text-[8px] text-gray-500">{progress!.label}</span>
+                <span className="text-[10px] text-gray-500">{progress!.label}</span>
               </div>
             </div>
             <div className="h-1 rounded-full bg-white/5 overflow-hidden mb-1.5">
@@ -1212,24 +1209,24 @@ function NextUnlockTracker({ unlockedIds, progressCtx }: {
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-1.5 flex-wrap">
                 {frame && (
-                  <span className="text-[8px] font-mono px-1.5 py-0.5 rounded border"
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border"
                     style={{ borderColor: `${frame.color}30`, color: frame.color, backgroundColor: `${frame.color}08` }}>
                     {frame.name} frame
                   </span>
                 )}
                 {badge && (
-                  <span className="text-[8px] font-mono px-1.5 py-0.5 rounded border"
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border"
                     style={{ borderColor: `${badge.color}30`, color: badge.color, backgroundColor: `${badge.color}08` }}>
                     {badge.icon} {badge.name}
                   </span>
                 )}
                 {cosmetic.avatarEmoji && (
-                  <span className="text-[8px] font-mono px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-gray-400">
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-white/10 bg-white/5 text-gray-400">
                     {cosmetic.avatarEmoji} avatar
                   </span>
                 )}
               </div>
-              <span className="text-[8px] text-gray-500 italic shrink-0">{hint}</span>
+              <span className="text-[10px] text-gray-500 italic shrink-0">{hint}</span>
             </div>
           </div>
         )
@@ -1268,7 +1265,7 @@ function RarityBreakdown({ unlockedFrameIds }: {
           const pct = totalFrames > 0 ? (ownedFrames / totalFrames) * 100 : 0
           return (
             <div key={rarity} className="flex items-center gap-2">
-              <span className="text-[8px] font-mono w-[70px] shrink-0" style={{ color: `${color}b0` }}>
+              <span className="text-[10px] font-mono w-[70px] shrink-0" style={{ color: `${color}b0` }}>
                 {rarityIcons[rarity]} {rarity}
               </span>
               <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
@@ -1277,7 +1274,7 @@ function RarityBreakdown({ unlockedFrameIds }: {
                   style={{ width: `${pct}%`, backgroundColor: `${color}80` }}
                 />
               </div>
-              <span className="text-[8px] font-mono tabular-nums w-8 text-right" style={{ color: ownedFrames === totalFrames && totalFrames > 0 ? color : '#6B7280' }}>
+              <span className="text-[10px] font-mono tabular-nums w-8 text-right" style={{ color: ownedFrames === totalFrames && totalFrames > 0 ? color : '#6B7280' }}>
                 {ownedFrames}/{totalFrames}
               </span>
             </div>

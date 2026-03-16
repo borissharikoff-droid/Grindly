@@ -44,6 +44,7 @@ import { useNavigationStore } from './stores/navigationStore'
 import { useEscapeHandler } from './hooks/useEscapeHandler'
 import { useWhatsNew, WhatsNewModal } from './components/WhatsNewModal'
 import { useRemotePatchNotes } from './hooks/useRemotePatchNotes'
+import { PartyHUD } from './components/party/PartyHUD'
 
 // Apply cached admin overrides before first render (populated after first Supabase sync)
 applyAdminConfig(LOOT_ITEMS, BOSSES, ZONES, CRAFT_RECIPES)
@@ -402,6 +403,7 @@ export default function App() {
               </div>
             </div>
           )}
+          <PartyHUD />
           <main className="flex-1 overflow-y-auto overflow-x-hidden">
             <>
               {activeTab === 'home' && (

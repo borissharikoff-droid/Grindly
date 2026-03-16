@@ -559,7 +559,7 @@ export function StatsPage() {
             {/* 1/5 Health Snapshot */}
             <div className="rounded-2xl bg-discord-card/85 border border-white/10 p-4 space-y-3">
               <p className="text-xs font-semibold tracking-wide text-gray-300">Health Snapshot</p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 <div className="rounded-xl border border-white/10 bg-discord-darker/60 p-3">
                   <p className="text-[11px] text-gray-400">Tracked time</p>
                   <p className="text-white text-base font-semibold">⏱ {formatDuration(totalSeconds)}</p>
@@ -685,7 +685,7 @@ export function StatsPage() {
                   ))}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+                <div className="grid grid-cols-2 gap-2 mb-3">
                   <div className="rounded-xl border border-cyber-neon/20 bg-cyber-neon/5 p-2.5">
                     <p className="text-[10px] uppercase tracking-wider text-cyber-neon/80 mb-1">Top productive categories</p>
                     {topProductive.length > 0 ? (
@@ -753,9 +753,9 @@ export function StatsPage() {
                                       <div className="pl-4 space-y-0.5">
                                         {app.titles.map((t, ti) => (
                                           <div key={ti} className="flex items-center gap-1.5 py-0.5">
-                                            <span className="text-[9px] text-gray-700 shrink-0">—</span>
+                                            <span className="text-[10px] text-gray-700 shrink-0">—</span>
                                             <span className="text-[10px] text-gray-500 truncate flex-1 min-w-0">{t.window_title}</span>
-                                            <span className="text-[9px] text-gray-600 font-mono shrink-0">{formatMs(t.total_ms)}</span>
+                                            <span className="text-[10px] text-gray-600 font-mono shrink-0">{formatMs(t.total_ms)}</span>
                                           </div>
                                         ))}
                                       </div>
@@ -824,7 +824,7 @@ export function StatsPage() {
             {/* 4/5 Distraction Patterns */}
             <div className="rounded-xl bg-discord-card/80 border border-white/10 p-3">
               <p className="text-xs font-semibold tracking-wide text-gray-300 mb-2">Distraction Patterns</p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 <div className="rounded-xl border border-white/10 bg-discord-darker/60 p-3">
                   <p className="text-[10px] text-gray-500 font-mono">Distraction time</p>
                   <p className="text-amber-300 font-mono text-sm">{formatDuration(distractionSeconds)}</p>

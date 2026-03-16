@@ -138,15 +138,15 @@ export function RaidFightModal({ tier, onClose, onComplete }: Props) {
           <span className="text-2xl" style={{ filter: `drop-shadow(0 0 6px ${cfg.color})` }}>{cfg.icon}</span>
           <div className="flex-1 min-w-0">
             <p className="text-[12px] font-bold text-white">{cfg.name}</p>
-            <p className="text-[9px] font-mono" style={{ color: `${cfg.color}cc` }}>
+            <p className="text-[10px] font-mono" style={{ color: `${cfg.color}cc` }}>
               {phase === 'backpack' ? 'Prepare Backpack' : `Daily Attack — ${baseBoss.name}`}
             </p>
           </div>
           <div className="flex flex-col items-end gap-0.5">
-            <span className="text-[8px] font-mono text-gray-600 uppercase tracking-wider">
+            <span className="text-[10px] font-mono text-gray-600 uppercase tracking-wider">
               {phase === 'fighting' ? `${Math.floor(elapsed)}s` : phase === 'result' ? (victory ? 'WIN' : 'DEFEAT') : 'READY'}
             </span>
-            <span className={`text-[8px] font-mono font-bold ${currentPhase === 1 ? 'text-gray-500' : currentPhase === 2 ? 'text-amber-400' : 'text-red-400'}`}>
+            <span className={`text-[10px] font-mono font-bold ${currentPhase === 1 ? 'text-gray-500' : currentPhase === 2 ? 'text-amber-400' : 'text-red-400'}`}>
               {currentPhase === 1 ? 'Phase 1' : currentPhase === 2 ? '⚠ Phase 2 — Enraged' : '🔥 Phase 3 — Berserk'}
             </span>
           </div>
@@ -157,8 +157,8 @@ export function RaidFightModal({ tier, onClose, onComplete }: Props) {
           <div className="px-4 py-4 space-y-4">
             {/* Player stats preview */}
             <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5">
-              <p className="text-[9px] font-mono text-gray-500 mb-1.5">Your stats</p>
-              <div className="flex gap-4 text-[9px] font-mono">
+              <p className="text-[10px] font-mono text-gray-500 mb-1.5">Your stats</p>
+              <div className="flex gap-4 text-[10px] font-mono">
                 <span className="text-red-400">ATK {(player.atk + foodBuffSummary.atk).toFixed(1)}{foodBuffSummary.atk > 0 && <span className="text-green-400 ml-0.5">(+{foodBuffSummary.atk})</span>}</span>
                 <span className="text-blue-400">DEF {(player.def + foodBuffSummary.def)}{foodBuffSummary.def > 0 && <span className="text-green-400 ml-0.5">(+{foodBuffSummary.def})</span>}</span>
                 <span className="text-green-400">Regen {(player.hpRegen + foodBuffSummary.regen).toFixed(1)}/s{foodBuffSummary.regen > 0 && <span className="text-green-400 ml-0.5">(+{foodBuffSummary.regen})</span>}</span>
@@ -170,19 +170,19 @@ export function RaidFightModal({ tier, onClose, onComplete }: Props) {
               <span className="text-2xl">{boss.icon}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] font-semibold text-white">{boss.name}</p>
-                <p className="text-[9px] font-mono text-gray-500">ATK {boss.atk.toFixed(1)} · HP {boss.hp}</p>
+                <p className="text-[10px] font-mono text-gray-500">ATK {boss.atk.toFixed(1)} · HP {boss.hp}</p>
               </div>
-              <p className="text-[9px] font-mono" style={{ color: outcome.willWin ? '#4ade80' : '#f87171' }}>
+              <p className="text-[10px] font-mono" style={{ color: outcome.willWin ? '#4ade80' : '#f87171' }}>
                 {outcome.willWin ? `~${outcome.tWinSeconds.toFixed(0)}s win` : 'Risky'}
               </p>
             </div>
 
             {/* Food selector */}
             <div>
-              <p className="text-[9px] font-mono text-gray-500 mb-1.5">Pack food <span className="text-gray-700">(consumed on use)</span></p>
+              <p className="text-[10px] font-mono text-gray-500 mb-1.5">Pack food <span className="text-gray-700">(consumed on use)</span></p>
               <FoodSelector slots={foodSlots} onChange={setFoodSlots} ownedItems={ownedItems} />
               {!activeFood.length && (
-                <p className="text-[9px] text-gray-700 font-mono mt-1.5">No food packed — fight with base stats.</p>
+                <p className="text-[10px] text-gray-700 font-mono mt-1.5">No food packed — fight with base stats.</p>
               )}
             </div>
 
@@ -197,7 +197,7 @@ export function RaidFightModal({ tier, onClose, onComplete }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="w-full text-[9px] text-gray-600 hover:text-gray-400 transition-colors font-mono text-center"
+              className="w-full text-[10px] text-gray-600 hover:text-gray-400 transition-colors font-mono text-center"
             >
               cancel
             </button>
@@ -223,7 +223,7 @@ export function RaidFightModal({ tier, onClose, onComplete }: Props) {
                   >
                     ⚔️
                   </div>
-                  <p className="text-[9px] text-gray-400 font-mono mt-1.5">You</p>
+                  <p className="text-[10px] text-gray-400 font-mono mt-1.5">You</p>
                   <div className="h-1.5 rounded-full bg-white/[0.08] overflow-hidden mt-1">
                     <motion.div
                       className="h-full rounded-full transition-all duration-300"
@@ -233,7 +233,7 @@ export function RaidFightModal({ tier, onClose, onComplete }: Props) {
                       }}
                     />
                   </div>
-                  <p className="text-[8px] font-mono text-gray-600 mt-0.5">{Math.ceil(state.playerHp)}/{player.hp} HP</p>
+                  <p className="text-[10px] font-mono text-gray-600 mt-0.5">{Math.ceil(state.playerHp)}/{player.hp} HP</p>
                 </div>
 
                 {/* VS */}
@@ -263,19 +263,19 @@ export function RaidFightModal({ tier, onClose, onComplete }: Props) {
                   >
                     {boss.icon}
                   </div>
-                  <p className="text-[9px] font-mono mt-1.5" style={{ color: `${cfg.color}cc` }}>{boss.name}</p>
+                  <p className="text-[10px] font-mono mt-1.5" style={{ color: `${cfg.color}cc` }}>{boss.name}</p>
                   <div className="h-1.5 rounded-full bg-white/[0.08] overflow-hidden mt-1">
                     <motion.div
                       className="h-full rounded-full transition-all duration-300"
                       style={{ width: `${bossHpPct}%`, background: cfg.color }}
                     />
                   </div>
-                  <p className="text-[8px] font-mono text-gray-600 mt-0.5">{Math.ceil(state.bossHp)}/{boss.hp} HP</p>
+                  <p className="text-[10px] font-mono text-gray-600 mt-0.5">{Math.ceil(state.bossHp)}/{boss.hp} HP</p>
                 </div>
               </div>
 
               {/* Stats row */}
-              <div className="mt-3 flex justify-center gap-4 text-[9px] font-mono text-gray-600">
+              <div className="mt-3 flex justify-center gap-4 text-[10px] font-mono text-gray-600">
                 <span>ATK {player.atk.toFixed(1)}</span>
                 <span>DEF {player.def}</span>
                 <span>Regen {player.hpRegen.toFixed(1)}/s</span>
@@ -286,7 +286,7 @@ export function RaidFightModal({ tier, onClose, onComplete }: Props) {
 
               {/* Prediction */}
               {phase === 'fighting' && (
-                <p className="text-center text-[9px] font-mono mt-2" style={{ color: outcome.willWin ? '#4ade8088' : '#f8717188' }}>
+                <p className="text-center text-[10px] font-mono mt-2" style={{ color: outcome.willWin ? '#4ade8088' : '#f8717188' }}>
                   {outcome.willWin ? `Est. win in ${outcome.tWinSeconds.toFixed(0)}s` : 'Outcome uncertain — gear up!'}
                 </p>
               )}
@@ -311,7 +311,7 @@ export function RaidFightModal({ tier, onClose, onComplete }: Props) {
                       +{(RAID_TIER_CONFIGS[tier].contribution_per_win / 1_000).toFixed(0)}K raid damage dealt
                     </p>
                     {activeFood.length > 0 && (
-                      <p className="text-[9px] font-mono text-gray-600 mt-1">{activeFood.length} food consumed</p>
+                      <p className="text-[10px] font-mono text-gray-600 mt-1">{activeFood.length} food consumed</p>
                     )}
                   </div>
                   <button
@@ -335,11 +335,11 @@ export function RaidFightModal({ tier, onClose, onComplete }: Props) {
                     <p className="text-4xl mb-2">💀</p>
                     <p className="text-[14px] font-bold text-red-400">You Fell in Battle</p>
                     <p className="text-[10px] text-gray-500 mt-1 font-mono">No damage dealt today.</p>
-                    <p className="text-[9px] text-gray-600 mt-2 font-mono leading-relaxed">
+                    <p className="text-[10px] text-gray-600 mt-2 font-mono leading-relaxed">
                       Your party fights on...<br />Return tomorrow with better gear.
                     </p>
                     {activeFood.length > 0 && (
-                      <p className="text-[9px] font-mono text-gray-700 mt-1">{activeFood.length} food consumed</p>
+                      <p className="text-[10px] font-mono text-gray-700 mt-1">{activeFood.length} food consumed</p>
                     )}
                   </div>
                   <button
@@ -360,7 +360,7 @@ export function RaidFightModal({ tier, onClose, onComplete }: Props) {
                 <button
                   type="button"
                   onClick={onClose}
-                  className="text-[9px] text-gray-600 hover:text-gray-400 transition-colors font-mono"
+                  className="text-[10px] text-gray-600 hover:text-gray-400 transition-colors font-mono"
                 >
                   cancel
                 </button>

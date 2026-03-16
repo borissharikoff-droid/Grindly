@@ -29,6 +29,9 @@ import { useInventoryStore } from './inventoryStore'
 import { useAuthStore } from './authStore'
 import { useBountyStore } from './bountyStore'
 import { useWeeklyStore } from './weeklyStore'
+import { track } from '../lib/analytics'
+import { getGuildFarmYieldBonus } from '../lib/guildBuffs'
+import { useGuildStore } from './guildStore'
 
 export interface PlantedSlot {
   seedId: string
@@ -272,8 +275,9 @@ export const useFarmStore = create<FarmState>()(
         const isComposted = !!slot.composted
         let qty = randomBetween(seed.yieldMin, seed.yieldMax)
         if (isComposted) qty = Math.ceil(qty * 1.2)
-        // Farmhouse yield bonus
+        // Farmhouse + guild hall yield bonus (additive)
         const yieldBonus = getFarmhouseBonuses(farmhouseLevel).yieldBonusPct
+          + getGuildFarmYieldBonus(useGuildStore.getState().hallLevel)
         if (yieldBonus > 0) qty = Math.ceil(qty * (1 + yieldBonus / 100))
         useInventoryStore.getState().addItem(seed.yieldPlantId, qty)
 
@@ -304,6 +308,7 @@ export const useFarmStore = create<FarmState>()(
         useBountyStore.getState().incrementFarm(1)
         useWeeklyStore.getState().incrementFarm(1)
         import('./guildStore').then(({ useGuildStore }) => useGuildStore.getState().incrementRaidProgress('farm', 1)).catch(() => {})
+        track('farm_harvest', { seed_id: slot.seedId, yield_count: qty })
         return { yieldPlantId: seed.yieldPlantId, qty, xpGained: xp, seedZipTier, composted: isComposted, compostDrop, seedDrop }
       },
 
@@ -313,6 +318,7 @@ export const useFarmStore = create<FarmState>()(
         const newZips = { ...seedZips }
         const results: HarvestResult[] = []
         const yieldBonus = getFarmhouseBonuses(farmhouseLevel).yieldBonusPct
+          + getGuildFarmYieldBonus(useGuildStore.getState().hallLevel)
 
         for (const [idxStr, slot] of Object.entries(planted)) {
           if (!slot) continue
@@ -341,6 +347,7 @@ export const useFarmStore = create<FarmState>()(
           const seedDrop = Math.random() < HARVEST_SEED_RETURN_CHANCE ? seed.id : undefined
           if (seedDrop) useInventoryStore.getState().addItem(seedDrop, 1)
 
+          track('farm_harvest', { seed_id: slot.seedId, yield_count: qty })
           results.push({ yieldPlantId: seed.yieldPlantId, qty, xpGained: xp, seedZipTier, composted: isComposted, compostDrop, seedDrop })
         }
 

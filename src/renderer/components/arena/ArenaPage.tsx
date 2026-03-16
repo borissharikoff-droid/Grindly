@@ -15,6 +15,7 @@ import { useInventoryStore } from '../../stores/inventoryStore'
 import { ChestOpenModal } from '../animations/ChestOpenModal'
 import { AutoFarmLootModal } from '../animations/AutoFarmLootModal'
 import { useArenaStore, type AutoRunResult } from '../../stores/arenaStore'
+import { useRaidStore } from '../../stores/raidStore'
 import { setAutoAcc } from '../../hooks/useArenaBattleTick'
 import { useAdminConfigStore } from '../../stores/adminConfigStore'
 import { SKILLS, skillLevelFromXP } from '../../lib/skills'
@@ -24,7 +25,6 @@ import { Sword } from '../../lib/icons'
 import { BackpackButton } from '../shared/BackpackButton'
 import { GoldDisplay } from '../marketplace/GoldDisplay'
 import { InventoryPage } from '../inventory/InventoryPage'
-import { MOTION } from '../../lib/motion'
 import { playClickSound } from '../../lib/sounds'
 import { logFriendActivity } from '../../services/friendActivityService'
 import { useAuthStore } from '../../stores/authStore'
@@ -65,6 +65,7 @@ function ZoneCard({
   lastInsuranceUsed,
   isHotZone,
   playerAtk,
+  inActiveRaid,
 }: {
   zone: ZoneDef
   skillLevels: Record<string, number>
@@ -88,6 +89,7 @@ function ZoneCard({
   lastInsuranceUsed?: boolean
   isHotZone?: boolean
   playerAtk?: number
+  inActiveRaid?: boolean
 }) {
   const unlocked = isZoneUnlocked(zone, skillLevels, clearedZones, ownedItems)
   const cleared = clearedZones.includes(zone.id)
@@ -186,23 +188,23 @@ function ZoneCard({
                   {zone.name}
                 </p>
                 {cleared && !isActive && killCount > 0 && (
-                  <span className="text-[8px] font-mono px-1.5 py-0.5 rounded-full border border-amber-500/50 text-amber-400/80">×{killCount}</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full border border-amber-500/50 text-amber-400/80">×{killCount}</span>
                 )}
                 {isActive && (
-                  <span className="text-[8px] font-semibold font-mono px-1.5 py-0.5 rounded-full animate-pulse"
+                  <span className="text-[10px] font-semibold font-mono px-1.5 py-0.5 rounded-full animate-pulse"
                     style={{ color: tc, border: `1px solid ${tc}40`, background: `${tc}15` }}>
                     ● {isAutoMode ? 'AUTO' : 'ACTIVE'}
                   </span>
                 )}
                 {isHotZone && (
-                  <span className="text-[8px] font-bold font-mono px-1.5 py-0.5 rounded-full border border-orange-500/60 text-orange-400 bg-orange-500/10 animate-pulse">
+                  <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded-full border border-orange-500/60 text-orange-400 bg-orange-500/10 animate-pulse">
                     🔥 HOT
                   </span>
                 )}
               </div>
 
               {/* Boss name as lore text */}
-              <p className="text-[9px] text-gray-500 mt-0.5 leading-snug italic">
+              <p className="text-[10px] text-gray-500 mt-0.5 leading-snug italic">
                 {zone.boss.name}
               </p>
             </div>
@@ -210,7 +212,7 @@ function ZoneCard({
 
           {/* Stats row */}
           {!isActive && (
-            <div className="flex gap-3 mt-3 text-[9px] font-mono text-gray-500">
+            <div className="flex gap-3 mt-3 text-[10px] font-mono text-gray-500">
               <span>Boss HP <span className="text-white">{formatShort(zone.boss.hp)}</span></span>
               <span>Reward <span className="text-amber-400">{zone.boss.rewards.chestTier.replace('_chest', '')}</span></span>
               <span>Mobs <span className="text-white">{zone.mobs.length} + boss</span></span>
@@ -234,7 +236,7 @@ function ZoneCard({
                   </span>
                 )
               })}
-              <span className="text-[8px] text-gray-600 font-mono mx-0.5">›</span>
+              <span className="text-[10px] text-gray-600 font-mono mx-0.5">›</span>
               <span className={`text-sm leading-none transition-all ${isBossFight ? '' : 'opacity-45'}`}
                 style={isBossFight ? { filter: 'drop-shadow(0 0 5px gold)' } : undefined}>
                 {zone.boss.image
@@ -260,14 +262,14 @@ function ZoneCard({
                     <div className="h-full rounded-full transition-all duration-700"
                       style={{ width: `${barPct}%`, background: barColor, boxShadow: `0 0 6px ${barColor}70` }} />
                   </div>
-                  <span className="text-[9px] font-mono font-semibold shrink-0 w-12 text-right" style={{ color: barColor }}>{label}</span>
+                  <span className="text-[10px] font-mono font-semibold shrink-0 w-12 text-right" style={{ color: barColor }}>{label}</span>
                 </div>
               )
             })()}
 
             {/* Requirements section */}
             <div className="px-4 pb-3 space-y-1.5 border-t" style={{ borderColor: `${tc}12` }}>
-              <p className="text-[8px] uppercase tracking-wider font-mono text-gray-600 mt-2.5">Requirements</p>
+              <p className="text-[10px] uppercase tracking-wider font-mono text-gray-600 mt-2.5">Requirements</p>
 
               {/* Prev zone unlock */}
               {zone.prevZoneId && (() => {
@@ -315,7 +317,7 @@ function ZoneCard({
                     <span className="text-[10px] text-gray-400">
                       {item?.icon ?? '📦'} {item?.name ?? c.itemId} ×{c.quantity}
                     </span>
-                    <span className="ml-auto text-[9px] font-mono text-gray-600">
+                    <span className="ml-auto text-[10px] font-mono text-gray-600">
                       {owned}/{c.quantity} available
                     </span>
                   </div>
@@ -324,7 +326,7 @@ function ZoneCard({
 
               {/* No requirements */}
               {!zone.prevZoneId && !zone.warriorLevelRequired && (!zone.gateItems?.length) && (!zone.entryCost?.length) && (
-                <p className="text-[9px] font-mono text-gray-600 italic">No requirements</p>
+                <p className="text-[10px] font-mono text-gray-600 italic">No requirements</p>
               )}
             </div>
 
@@ -337,7 +339,11 @@ function ZoneCard({
 
             {/* CTA */}
             <div className="px-4 pb-4">
-              {unlocked && !activeBattle && affordable ? (
+              {inActiveRaid ? (
+                <div className="w-full py-2.5 rounded-xl text-[10px] font-mono text-center text-amber-500/70 border border-amber-500/20 bg-amber-500/05">
+                  🔒 Raid in progress — dungeons locked
+                </div>
+              ) : unlocked && !activeBattle && affordable ? (
                 <div className="flex gap-1.5">
                   <button
                     type="button"
@@ -433,7 +439,7 @@ function ZoneCard({
                   }}
                 >
                   {isBossFight && (
-                    <span className="text-[7px] font-mono uppercase tracking-widest text-amber-400/55 leading-none">boss</span>
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400/55 leading-none">boss</span>
                   )}
                   <span
                     className="text-5xl leading-none select-none"
@@ -446,7 +452,7 @@ function ZoneCard({
                       : currentEnemy.icon}
                   </span>
                   <span
-                    className="text-[8px] font-mono tabular-nums leading-none"
+                    className="text-[10px] font-mono tabular-nums leading-none"
                     style={{ color: bossFlash ? '#fed7aa' : `${tc}88` }}
                   >
                     {Math.max(0, Math.round((battleState.bossHp / activeBattle.bossSnapshot.hp) * 100))}%
@@ -460,14 +466,14 @@ function ZoneCard({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-[12px] font-semibold text-white leading-tight">{currentEnemy.name}</p>
-                    <p className="text-[9px] font-mono" style={{ color: `${tc}aa` }}>
+                    <p className="text-[10px] font-mono" style={{ color: `${tc}aa` }}>
                       {isBossFight ? 'Boss' : `Mob ${mobIndex + 1} of 3`}
                       {!isBossFight && activeBattle.mobDef?.xpReward ? ` · +${formatShort(activeBattle.mobDef.xpReward)} XP` : ''}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">
                     {activeDungeon && activeDungeon.goldEarned > 0 && (
-                      <span className="text-[9px] font-mono text-yellow-400 leading-none">
+                      <span className="text-[10px] font-mono text-yellow-400 leading-none">
                         🪙 {activeDungeon.goldEarned}g
                       </span>
                     )}
@@ -496,7 +502,7 @@ function ZoneCard({
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <span className={`text-[10px] font-semibold transition-colors duration-100 ${playerFlash ? 'text-red-300' : playerDanger ? 'text-yellow-400' : 'text-green-400'}`}>
-                        You {playerDanger && <span className="text-[8px]">⚠</span>}
+                        You {playerDanger && <span className="text-[10px]">⚠</span>}
                       </span>
                       <span className="text-[10px] text-gray-400 font-mono tabular-nums">
                         {formatShort(battleState.playerHp)} / {formatShort(activeBattle.playerSnapshot.hp)}
@@ -591,7 +597,7 @@ function ZoneCard({
 
                 {/* Combat stats + footer row */}
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-[9px] font-mono flex-wrap">
+                  <div className="flex items-center gap-2 text-[10px] font-mono flex-wrap">
                     <span style={{ color: '#4ade80bb' }}>⚔ {activeBattle.playerSnapshot.atk}/s</span>
                     <span style={{ color: '#f87171bb' }}>♥ −{activeBattle.bossSnapshot.atk}/s</span>
                     {activeBattle.playerSnapshot.hpRegen > 0 && (
@@ -610,7 +616,7 @@ function ZoneCard({
                   {confirmForfeit ? (
                     <div className="flex flex-col gap-1 items-end">
                       {activeDungeon && activeDungeon.goldEarned > 0 && (
-                        <p className="text-[9px] font-mono text-red-400/80">
+                        <p className="text-[10px] font-mono text-red-400/80">
                           lose {activeDungeon.goldEarned}g accumulated
                         </p>
                       )}
@@ -635,7 +641,7 @@ function ZoneCard({
                     <button
                       type="button"
                       onClick={() => { playClickSound(); setConfirmForfeit(true) }}
-                      className="text-[9px] text-gray-400 hover:text-red-400 transition-colors font-mono underline-offset-2 hover:underline"
+                      className="text-[10px] text-gray-400 hover:text-red-400 transition-colors font-mono underline-offset-2 hover:underline"
                     >
                       forfeit
                     </button>
@@ -662,6 +668,7 @@ export function ArenaPage() {
   const activeBattle = useArenaStore((s) => s.activeBattle)
   const activeDungeon = useArenaStore((s) => s.activeDungeon)
   const clearedZones = useArenaStore((s) => s.clearedZones)
+  const inActiveRaid = useRaidStore((s) => s.activeRaid?.status === 'active')
   const getBattleState = useArenaStore((s) => s.getBattleState)
   const endBattle = useArenaStore((s) => s.endBattle)
   const startDungeon = useArenaStore((s) => s.startDungeon)
@@ -1256,9 +1263,9 @@ export function ArenaPage() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <p className="text-[11px] font-semibold text-orange-400">🔥 Hot Zone this week: {hotZone.name}</p>
-              <span className="text-[8px] font-bold font-mono px-1 py-0.5 rounded bg-orange-500/20 text-orange-300 border border-orange-500/30 animate-pulse">LIVE</span>
+              <span className="text-[10px] font-bold font-mono px-1 py-0.5 rounded bg-orange-500/20 text-orange-300 border border-orange-500/30 animate-pulse">LIVE</span>
             </div>
-            <p className="text-[9px] text-gray-400 font-mono">2× gold · 2× drops · +1 chest tier · resets in {hotZoneDaysLeft}d</p>
+            <p className="text-[10px] text-gray-400 font-mono">2× gold · 2× drops · +1 chest tier · resets in {hotZoneDaysLeft}d</p>
           </div>
         </motion.div>
       )}
@@ -1282,6 +1289,7 @@ export function ArenaPage() {
             confirmForfeit={confirmForfeit}
             setConfirmForfeit={setConfirmForfeit}
             onEnter={(zoneId) => {
+              if (inActiveRaid) return
               const inv = useInventoryStore.getState()
               for (const slot of foodSlots) { if (slot) inv.deleteItem(slot.foodId, 1) }
               startDungeon(zoneId, null, foodSlots.some(Boolean) ? foodSlots : undefined)
@@ -1292,6 +1300,7 @@ export function ArenaPage() {
             onForfeit={handleForfeit}
             passCount={passCount}
             isAutoMode={isAutoMode}
+            inActiveRaid={inActiveRaid}
             lastInsuranceUsed={lastInsuranceUsed}
             isHotZone={zone.id === hotZoneId}
             playerAtk={playerAtk}
@@ -1300,7 +1309,7 @@ export function ArenaPage() {
       </div>
 
       <div className="text-center">
-        <p className="text-[9px] text-gray-400 font-mono">
+        <p className="text-[10px] text-gray-400 font-mono">
           Daily zone boss: {ZONES.find((z) => z.boss.id === dailyBossId)?.name ?? '—'}
         </p>
       </div>
