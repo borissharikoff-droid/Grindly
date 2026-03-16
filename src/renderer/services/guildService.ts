@@ -21,8 +21,16 @@ export interface GuildMember {
   role: 'owner' | 'officer' | 'member'
   joined_at: string
   contribution_gold: number
+  // Profile fields (fetched from profiles join)
   username?: string | null
   avatar_url?: string | null
+  is_online?: boolean
+  current_activity?: string | null
+  streak_count?: number
+  equipped_frame?: string | null
+  total_skill_level?: number | null
+  skills_sync_status?: 'synced' | 'pending'
+  last_seen_at?: string | null
 }
 
 export interface GuildChestItem {
@@ -42,6 +50,27 @@ export interface GuildActivityLogEntry {
   payload: Record<string, unknown>
   created_at: string
   username?: string | null
+}
+
+/** Fetch a map of userId → { tag, name } for the given user IDs. Returns empty map on error. */
+export async function fetchGuildTagsForUsers(userIds: string[]): Promise<Record<string, { tag: string; name: string }>> {
+  if (!supabase || userIds.length === 0) return {}
+  try {
+    const { data } = await supabase
+      .from('guild_members')
+      .select('user_id, guilds(tag, name)')
+      .in('user_id', userIds)
+    if (!data) return {}
+    const map: Record<string, { tag: string; name: string }> = {}
+    for (const row of data) {
+      const gRaw = row.guilds
+      const g = (Array.isArray(gRaw) ? gRaw[0] : gRaw) as { tag: string; name: string } | null | undefined
+      if (g && row.user_id) map[row.user_id] = { tag: g.tag, name: g.name }
+    }
+    return map
+  } catch {
+    return {}
+  }
 }
 
 // Helper: fire-and-forget a Supabase query without .catch() issues
@@ -211,20 +240,40 @@ export async function fetchGuildMembers(guildId: string): Promise<GuildMember[]>
   const userIds = (members as GuildMember[]).map((m) => m.user_id)
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('id, username, avatar_url')
+    .select('id, username, avatar_url, is_online, current_activity, streak_count, equipped_frame, total_skill_level, skills_sync_status, last_seen_at, updated_at')
     .in('id', userIds)
 
-  const profileMap = new Map(
-    (profiles || []).map((p: { id: string; username?: string; avatar_url?: string }) => [
-      p.id, { username: p.username ?? null, avatar_url: p.avatar_url ?? null },
-    ]),
+  const ONLINE_STALE_MS = 3 * 60 * 1000
+  type RawProfile = {
+    id: string; username?: string | null; avatar_url?: string | null
+    is_online?: boolean; current_activity?: string | null; streak_count?: number
+    equipped_frame?: string | null; total_skill_level?: number | null
+    skills_sync_status?: string | null; last_seen_at?: string | null; updated_at?: string | null
+  }
+  const profileMap = new Map<string, RawProfile>(
+    ((profiles as RawProfile[]) || []).map((p) => [p.id, p]),
   )
 
-  return (members as GuildMember[]).map((m) => ({
-    ...m,
-    username: profileMap.get(m.user_id)?.username ?? null,
-    avatar_url: profileMap.get(m.user_id)?.avatar_url ?? null,
-  }))
+  return (members as GuildMember[]).map((m) => {
+    const p = profileMap.get(m.user_id)
+    const isOnlineRaw = p?.is_online ?? false
+    const updatedAt = p?.updated_at ?? null
+    const isFreshOnline = isOnlineRaw && typeof updatedAt === 'string'
+      ? Date.now() - Date.parse(updatedAt) <= ONLINE_STALE_MS
+      : false
+    return {
+      ...m,
+      username: p?.username ?? null,
+      avatar_url: p?.avatar_url ?? null,
+      is_online: isFreshOnline,
+      current_activity: p?.current_activity ?? null,
+      streak_count: p?.streak_count ?? 0,
+      equipped_frame: p?.equipped_frame ?? null,
+      total_skill_level: p?.total_skill_level ?? null,
+      skills_sync_status: (p?.skills_sync_status === 'synced' ? 'synced' : 'pending') as 'synced' | 'pending',
+      last_seen_at: p?.last_seen_at ?? null,
+    }
+  })
 }
 
 export async function fetchGuildActivityLog(guildId: string, limit = 20): Promise<GuildActivityLogEntry[]> {

@@ -7,6 +7,7 @@ export {
   BarChart3,
   Settings,
   MoreHorizontal,
+  UtensilsCrossed,
   // Pages
   Sword,
   ShoppingCart,

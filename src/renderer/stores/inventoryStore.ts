@@ -50,6 +50,8 @@ interface InventoryState {
   rollSkillGrindDrop: (context: LootDropContext, elapsedSeconds: number) => PendingReward | null
   rollSessionChestDrop: (context: LootDropContext) => { rewardId: string; chestType: ChestType; estimatedDropRate: number }
   openChestAndGrantItem: (chestType: ChestType, context: LootDropContext) => { itemId: string | null; estimatedDropRate: number; goldDropped: number; bonusMaterials: BonusMaterial[] } | null
+  /** Grant a chest reward directly (no chest-count guard). Used by quests/bounties. */
+  grantAndOpenChest: (chestType: ChestType, context: LootDropContext) => { itemId: string | null; estimatedDropRate: number; goldDropped: number; bonusMaterials: BonusMaterial[] }
   deleteChest: (chestType: ChestType, amount?: number) => void
   equipItem: (itemId: string) => void
   deleteItem: (itemId: string, amount?: number) => void
@@ -70,7 +72,7 @@ const SKILL_DROP_COOLDOWN_MS = 3_600_000
 const BASE_DROP_PER_MINUTE = 0.0005
 
 
-const initialState: Omit<InventoryState, 'hydrate' | 'addItem' | 'addChest' | 'claimPendingReward' | 'claimAllPendingRewards' | 'rollSkillGrindDrop' | 'rollSessionChestDrop' | 'openChestAndGrantItem' | 'equipItem' | 'unequipSlot' | 'mergeFromCloud' | 'consumePotion' | 'deletePendingReward' | 'deleteChest' | 'deleteItem'> = {
+const initialState: Omit<InventoryState, 'hydrate' | 'addItem' | 'addChest' | 'claimPendingReward' | 'claimAllPendingRewards' | 'rollSkillGrindDrop' | 'rollSessionChestDrop' | 'openChestAndGrantItem' | 'grantAndOpenChest' | 'equipItem' | 'unequipSlot' | 'mergeFromCloud' | 'consumePotion' | 'deletePendingReward' | 'deleteChest' | 'deleteItem'> = {
   items: {},
   chests: {
     common_chest: 0,
@@ -303,6 +305,27 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     }
     set(nextState)
     saveSnapshot(nextState)
+    useGoldStore.getState().addGold(goldAmount)
+    const user = useAuthStore.getState().user
+    if (user) useGoldStore.getState().syncToSupabase(user.id).catch(() => {})
+    return { itemId: result.item?.id ?? null, estimatedDropRate: result.estimatedDropRate, goldDropped: goldAmount, bonusMaterials: result.bonusMaterials }
+  },
+
+  grantAndOpenChest(chestType, context) {
+    const result = openChest(chestType, context)
+    const goldAmount = getChestGoldDrop(chestType)
+    set((state) => {
+      const nextItems = { ...state.items }
+      if (result.item) {
+        nextItems[result.item.id] = (nextItems[result.item.id] ?? 0) + 1
+      }
+      for (const mat of result.bonusMaterials) {
+        nextItems[mat.itemId] = (nextItems[mat.itemId] ?? 0) + mat.qty
+      }
+      const next: InventoryState = { ...state, items: nextItems }
+      saveSnapshot(next)
+      return next
+    })
     useGoldStore.getState().addGold(goldAmount)
     const user = useAuthStore.getState().user
     if (user) useGoldStore.getState().syncToSupabase(user.id).catch(() => {})

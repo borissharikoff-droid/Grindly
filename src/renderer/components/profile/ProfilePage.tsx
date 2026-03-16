@@ -13,19 +13,21 @@ import { syncCosmeticsToSupabase } from '../../services/supabaseSync'
 import { PageHeader } from '../shared/PageHeader'
 import { User } from '../../lib/icons'
 import { InlineSuccess } from '../shared/InlineSuccess'
-import { getEquippedPerkRuntime, getItemPower, getRarityTheme, LOOT_ITEMS, type LootSlot } from '../../lib/loot'
+import { getEquippedPerkRuntime, getItemPower, getRarityTheme, LOOT_ITEMS, type LootSlot, type ChestType, type LootItemDef, type BonusMaterial } from '../../lib/loot'
 import { computePlayerStats } from '../../lib/combat'
 import { useGoldStore } from '../../stores/goldStore'
 import { useArenaStore } from '../../stores/arenaStore'
 import { ensureInventoryHydrated, useInventoryStore } from '../../stores/inventoryStore'
 import { getDailyActivities, getWeeklyActivities, getBestStreak } from '../../services/dailyActivityService'
 import { QuestsSection } from '../quests/QuestsSection'
+import { ChestOpenModal } from '../animations/ChestOpenModal'
 import { AvatarWithFrame } from '../shared/AvatarWithFrame'
 import { ItemInspectModal } from '../shared/ItemInspectModal'
 import { useBountyStore } from '../../stores/bountyStore'
 import { useWeeklyStore } from '../../stores/weeklyStore'
 import { hotZoneResetsInDays } from '../../lib/hotZone'
 import { useNavigationStore } from '../../stores/navigationStore'
+import { useGuildStore } from '../../stores/guildStore'
 
 type ProfileTab = 'quests' | 'achievements' | 'cosmetics'
 
@@ -33,9 +35,11 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
   const inventory = useInventoryStore((s) => s.items)
   const chests = useInventoryStore((s) => s.chests)
   const equippedBySlot = useInventoryStore((s) => s.equippedBySlot)
+  const openChestAndGrantItem = useInventoryStore((s) => s.openChestAndGrantItem)
 
   const { user } = useAuthStore()
   const pushAlert = useAlertStore((s) => s.push)
+  const myGuildTag = useGuildStore((s) => s.myGuild?.tag ?? null)
 
   // Profile data
   const [username, setUsername] = useState('Grindly')
@@ -78,6 +82,11 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
       setProfileInitialTab(null)
     }
   }, [profileInitialTab, setProfileInitialTab])
+
+  // Bounty chest modal
+  const [bountyModal, setBountyModal] = useState<{
+    chestType: ChestType; item: LootItemDef | null; goldDropped: number; bonusMaterials: BonusMaterial[]
+  } | null>(null)
 
   // Daily bounties
   const bounties = useBountyStore((s) => s.bounties)
@@ -359,6 +368,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
         onDraftCancel={() => { setDraftUsername(username); setIsUsernameEditing(false) }}
         onItemInspect={(itemId) => { playClickSound(); setInspectItemId(itemId) }}
         syncButton={null}
+        guildTag={myGuildTag}
       />
 
       <ItemInspectModal item={inspectItem} onClose={() => setInspectItemId(null)} />
@@ -491,6 +501,56 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
             exit={{ opacity: 0, y: -8 }}
             className="space-y-3"
           >
+            {/* Daily Bounties */}
+            <div className="rounded-xl border border-white/[0.10] bg-discord-card p-3">
+              <p className="text-[10px] uppercase tracking-wider text-gray-400 font-mono mb-2">Daily Bounties</p>
+              {bounties.length > 0 ? (
+                <div className="space-y-2">
+                  {[...bounties].sort((a, b) => {
+                    const rank = (x: typeof a) => (!x.claimed && x.progress >= x.targetCount) ? 0 : !x.claimed ? 1 : 2
+                    return rank(a) - rank(b)
+                  }).map((b) => {
+                    const done = b.progress >= b.targetCount
+                    const typeIcon = b.type === 'craft' ? '⚒️' : b.type === 'farm' ? '🌱' : '🍳'
+                    return (
+                      <div key={b.id} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg border ${b.claimed ? 'border-white/[0.06] opacity-50' : done ? 'border-lime-500/40 bg-lime-500/[0.08]' : 'border-white/[0.08]'}`}>
+                        <span className="text-base shrink-0">{typeIcon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] text-white font-medium leading-tight">{b.description}</p>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <div className="flex-1 h-1 rounded-full bg-white/[0.08] overflow-hidden">
+                              <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${Math.min(100, (b.progress / b.targetCount) * 100)}%`, backgroundColor: done ? '#84cc16' : '#6366f1' }} />
+                            </div>
+                            <span className="text-[9px] text-gray-400 font-mono shrink-0">{b.progress}/{b.targetCount}</span>
+                          </div>
+                          <p className="text-[9px] text-gray-500 font-mono mt-0.5">+{b.goldReward}g{b.chestReward ? ` · ${b.chestReward.replace('_chest', ' chest')}` : ''}</p>
+                        </div>
+                        {done && !b.claimed && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              claimBounty(b.id)
+                              if (b.chestReward) {
+                                const result = openChestAndGrantItem(b.chestReward, { source: 'bounty_reward' })
+                                if (result) {
+                                  const itemDef = result.itemId ? LOOT_ITEMS.find((x) => x.id === result.itemId) ?? null : null
+                                  setBountyModal({ chestType: b.chestReward!, item: itemDef, goldDropped: result.goldDropped, bonusMaterials: result.bonusMaterials })
+                                }
+                              }
+                            }}
+                            className="shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold bg-lime-500/20 border border-lime-500/50 text-lime-400 hover:bg-lime-500/30 transition-colors"
+                          >Claim</button>
+                        )}
+                        {b.claimed && <span className="shrink-0 text-[10px] text-gray-500 font-mono">✓</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-[10px] text-gray-500 font-mono">Generating bounties…</p>
+              )}
+            </div>
+
             {/* Weekly Challenges */}
             <div className="rounded-xl border border-white/[0.10] bg-discord-card p-3">
               <div className="flex items-center justify-between mb-2">
@@ -519,7 +579,20 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
                           <p className="text-[9px] text-gray-500 font-mono mt-0.5">+{b.goldReward}g{b.chestReward ? ` · ${b.chestReward.replace('_chest', ' chest')}` : ''}</p>
                         </div>
                         {done && !b.claimed && (
-                          <button type="button" onClick={() => claimWeekly(b.id)} className="shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-500/20 border border-amber-500/50 text-amber-400 hover:bg-amber-500/30 transition-colors">Claim</button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              claimWeekly(b.id)
+                              if (b.chestReward) {
+                                const result = openChestAndGrantItem(b.chestReward, { source: 'bounty_reward' })
+                                if (result) {
+                                  const itemDef = result.itemId ? LOOT_ITEMS.find((x) => x.id === result.itemId) ?? null : null
+                                  setBountyModal({ chestType: b.chestReward!, item: itemDef, goldDropped: result.goldDropped, bonusMaterials: result.bonusMaterials })
+                                }
+                              }
+                            }}
+                            className="shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-500/20 border border-amber-500/50 text-amber-400 hover:bg-amber-500/30 transition-colors"
+                          >Claim</button>
                         )}
                         {b.claimed && <span className="shrink-0 text-[10px] text-gray-500 font-mono">✓</span>}
                       </div>
@@ -531,42 +604,14 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
               )}
             </div>
 
-            {/* Daily Bounties */}
-            <div className="rounded-xl border border-white/[0.10] bg-discord-card p-3">
-              <p className="text-[10px] uppercase tracking-wider text-gray-400 font-mono mb-2">Daily Bounties</p>
-              {bounties.length > 0 ? (
-                <div className="space-y-2">
-                  {[...bounties].sort((a, b) => {
-                    const rank = (x: typeof a) => (!x.claimed && x.progress >= x.targetCount) ? 0 : !x.claimed ? 1 : 2
-                    return rank(a) - rank(b)
-                  }).map((b) => {
-                    const done = b.progress >= b.targetCount
-                    const typeIcon = b.type === 'craft' ? '⚒️' : b.type === 'farm' ? '🌱' : '🍳'
-                    return (
-                      <div key={b.id} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg border ${b.claimed ? 'border-white/[0.06] opacity-50' : done ? 'border-lime-500/40 bg-lime-500/[0.08]' : 'border-white/[0.08]'}`}>
-                        <span className="text-base shrink-0">{typeIcon}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] text-white font-medium leading-tight">{b.description}</p>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <div className="flex-1 h-1 rounded-full bg-white/[0.08] overflow-hidden">
-                              <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${Math.min(100, (b.progress / b.targetCount) * 100)}%`, backgroundColor: done ? '#84cc16' : '#6366f1' }} />
-                            </div>
-                            <span className="text-[9px] text-gray-400 font-mono shrink-0">{b.progress}/{b.targetCount}</span>
-                          </div>
-                          <p className="text-[9px] text-gray-500 font-mono mt-0.5">+{b.goldReward}g{b.chestReward ? ` · ${b.chestReward.replace('_chest', ' chest')}` : ''}</p>
-                        </div>
-                        {done && !b.claimed && (
-                          <button type="button" onClick={() => claimBounty(b.id)} className="shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold bg-lime-500/20 border border-lime-500/50 text-lime-400 hover:bg-lime-500/30 transition-colors">Claim</button>
-                        )}
-                        {b.claimed && <span className="shrink-0 text-[10px] text-gray-500 font-mono">✓</span>}
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <p className="text-[10px] text-gray-500 font-mono">Generating bounties…</p>
-              )}
-            </div>
+            <ChestOpenModal
+              open={bountyModal !== null}
+              chestType={bountyModal?.chestType ?? null}
+              item={bountyModal?.item ?? null}
+              goldDropped={bountyModal?.goldDropped ?? 0}
+              bonusMaterials={bountyModal?.bonusMaterials ?? []}
+              onClose={() => setBountyModal(null)}
+            />
           </motion.div>
         )}
 
@@ -848,7 +893,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
 // ── Flex Card ─────────────────────────────────────────────────────────────────
 
 function FlexCard({ avatar, username, frameId, equippedLootItems, unlockedCount, totalSkillLevel,
-  onAvatarClick, onUsernameClick, isUsernameEditing, draftUsername, onDraftChange, onDraftSubmit, onDraftCancel, syncButton, onItemInspect,
+  onAvatarClick, onUsernameClick, isUsernameEditing, draftUsername, onDraftChange, onDraftSubmit, onDraftCancel, syncButton, onItemInspect, guildTag,
 }: {
   avatar: string
   username: string
@@ -865,6 +910,7 @@ function FlexCard({ avatar, username, frameId, equippedLootItems, unlockedCount,
   onDraftCancel?: () => void
   syncButton?: React.ReactNode
   onItemInspect?: (itemId: string) => void
+  guildTag?: string | null
 }) {
   const gold = useGoldStore((s) => s.gold)
   const killCounts = useArenaStore((s) => s.killCounts)
@@ -980,6 +1026,11 @@ function FlexCard({ avatar, username, frameId, equippedLootItems, unlockedCount,
               />
             ) : (
               <button type="button" onClick={onUsernameClick} className="text-[13px] font-bold text-white hover:text-cyber-neon transition-colors cursor-pointer" title="Click to edit">{username}</button>
+            )}
+            {guildTag && (
+              <span className="text-[9px] px-1.5 py-[1px] rounded font-bold border border-amber-500/40 bg-amber-500/10 text-amber-400" title={`Guild: ${guildTag}`}>
+                [{guildTag}]
+              </span>
             )}
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">

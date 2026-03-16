@@ -143,6 +143,9 @@ interface ChestOpenModalProps {
   onOpenNext?: () => void
   chainMessage?: string | null
   animationSeed?: number
+  /** Total remaining chests of this type (used to show Open All button) */
+  openAllCount?: number
+  onOpenAll?: () => void
 }
 
 export function ChestOpenModal({
@@ -158,6 +161,8 @@ export function ChestOpenModal({
   onOpenNext,
   chainMessage,
   animationSeed,
+  openAllCount = 0,
+  onOpenAll,
 }: ChestOpenModalProps) {
   const chest = chestType ? CHEST_DEFS[chestType] : null
   const chestRarity = chest?.rarity ?? 'common'
@@ -680,7 +685,34 @@ export function ChestOpenModal({
                   transition={{ duration: 0.28, delay: isRevealed ? 0.18 : 0, ease: 'easeOut' }}
                   style={{ pointerEvents: isRevealed ? 'auto' : 'none' }}
                 >
-                  {nextAvailable ? (
+                  {openAllCount > 1 && onOpenAll ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => { playClickSound(); onOpenAll() }}
+                        className="flex-1 h-10 rounded-xl text-[13px] font-semibold transition-all active:scale-[0.97]"
+                        style={{ color: chestTheme.color, border: `1px solid ${chestTheme.border}`, background: `${chestTheme.color}22` }}
+                      >
+                        Open All ({openAllCount})
+                      </button>
+                      {nextAvailable && (
+                        <button
+                          type="button"
+                          onClick={() => { playClickSound(); onOpenNext?.() }}
+                          className="h-10 px-3 rounded-xl text-[13px] font-semibold text-white/40 border border-white/10 bg-white/[0.04] hover:text-white/60 hover:bg-white/[0.07] transition-all active:scale-[0.97]"
+                        >
+                          +1
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => { playClickSound(); onClose() }}
+                        className="h-10 px-3 rounded-xl text-[13px] font-semibold text-white/40 border border-white/10 bg-white/[0.04] hover:text-white/60 hover:bg-white/[0.07] transition-all active:scale-[0.97]"
+                      >
+                        Done
+                      </button>
+                    </>
+                  ) : nextAvailable ? (
                     <>
                       <button
                         type="button"

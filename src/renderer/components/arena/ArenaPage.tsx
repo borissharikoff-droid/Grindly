@@ -6,10 +6,11 @@ import {
 } from '../../lib/combat'
 
 const RaidsTab = lazy(() => import('./RaidsTab').then((m) => ({ default: m.RaidsTab })))
+const HallOfRaidsTab = lazy(() => import('./HallOfRaidsTab').then((m) => ({ default: m.HallOfRaidsTab })))
 import { getHotZoneId, hotZoneResetsInDays } from '../../lib/hotZone'
 import { LOOT_ITEMS, type ChestType, type BonusMaterial } from '../../lib/loot'
-import { FOOD_ITEMS, type FoodItemDef } from '../../lib/cooking'
 import { computePlayerStats, type FoodLoadout, type FoodLoadoutSlot } from '../../lib/combat'
+import { FoodSelector } from '../shared/FoodSelector'
 import { useInventoryStore } from '../../stores/inventoryStore'
 import { ChestOpenModal } from '../animations/ChestOpenModal'
 import { AutoFarmLootModal } from '../animations/AutoFarmLootModal'
@@ -38,118 +39,6 @@ function formatShort(n: number): string {
 
 // ─── Food selector ───────────────────────────────────────────────────────────
 
-function FoodSelector({
-  slots,
-  onChange,
-  ownedItems,
-}: {
-  slots: (FoodLoadoutSlot | null)[]
-  onChange: (slots: (FoodLoadoutSlot | null)[]) => void
-  ownedItems: Record<string, number>
-}) {
-  const [pickerIdx, setPickerIdx] = useState<number | null>(null)
-
-  const hasAnyFood = FOOD_ITEMS.some((f) => (ownedItems[f.id] ?? 0) > 0)
-  const availableFood = FOOD_ITEMS.filter((f) => {
-    const owned = ownedItems[f.id] ?? 0
-    // Subtract food already in other slots
-    const usedInSlots = slots.reduce((sum, s) => sum + (s && s.foodId === f.id ? s.qty : 0), 0)
-    return owned - usedInSlots > 0
-  })
-
-  // Don't render if player has no food at all and no slots are filled
-  if (!hasAnyFood && !slots.some(Boolean)) return null
-
-  const handlePick = (idx: number, food: FoodItemDef) => {
-    const owned = ownedItems[food.id] ?? 0
-    const usedInOtherSlots = slots.reduce((sum, s, i) => sum + (i !== idx && s && s.foodId === food.id ? s.qty : 0), 0)
-    const available = owned - usedInOtherSlots
-    if (available <= 0) return
-    const next = [...slots]
-    next[idx] = { foodId: food.id, qty: Math.min(available, 10), effect: food.effect }
-    onChange(next)
-    setPickerIdx(null)
-  }
-
-  const handleClear = (idx: number) => {
-    const next = [...slots]
-    next[idx] = null
-    onChange(next)
-  }
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[9px] text-gray-500 font-mono">Food:</span>
-      {slots.map((slot, idx) => {
-        const food = slot ? FOOD_ITEMS.find((f) => f.id === slot.foodId) : null
-        return (
-          <div key={idx} className="relative">
-            <button
-              type="button"
-              onClick={() => setPickerIdx(pickerIdx === idx ? null : idx)}
-              className="w-7 h-7 rounded-lg border border-white/10 bg-white/[0.04] flex items-center justify-center text-xs hover:bg-white/[0.08] transition-colors"
-              title={food ? `${food.name} ×${slot!.qty}${food.effect.goldBonusPct ? ` · +${food.effect.goldBonusPct}% gold` : ''}${food.effect.dropBonusPct ? ` · +${food.effect.dropBonusPct}% drops` : ''}` : 'Empty slot'}
-            >
-              {food ? (
-                <>
-                  <span>{food.icon}</span>
-                  <span className="absolute -bottom-0.5 -right-0.5 text-[8px] font-bold text-white bg-black/60 rounded px-0.5">{slot!.qty}</span>
-                </>
-              ) : (
-                <span className="text-gray-600">+</span>
-              )}
-            </button>
-            {slot && (
-              <button
-                type="button"
-                onClick={() => handleClear(idx)}
-                className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500/80 text-[8px] text-white flex items-center justify-center hover:bg-red-500"
-              >×</button>
-            )}
-            {/* Picker dropdown */}
-            {pickerIdx === idx && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setPickerIdx(null)} />
-                <div className="absolute bottom-full left-0 mb-1 z-50 w-44 max-h-48 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1a2a] shadow-xl p-1">
-                  {availableFood.length === 0 ? (
-                    <p className="text-[10px] text-gray-500 text-center py-2">No food available</p>
-                  ) : (
-                    availableFood.map((f) => {
-                      const owned = ownedItems[f.id] ?? 0
-                      const usedOther = slots.reduce((sum, s, i) => sum + (i !== idx && s && s.foodId === f.id ? s.qty : 0), 0)
-                      return (
-                        <button
-                          key={f.id}
-                          type="button"
-                          onClick={() => handlePick(idx, f)}
-                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-white/[0.06] transition-colors"
-                        >
-                          <span className="text-base">{f.icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-semibold text-gray-200 truncate">{f.name}</p>
-                            <div className="flex flex-wrap gap-0.5 mt-0.5">
-                              {f.effect.heal && <span className="text-[8px] font-medium px-1 rounded" style={{ color: '#4ade80', background: 'rgba(74,222,128,0.12)' }}>+{f.effect.heal}HP</span>}
-                              {f.effect.buffAtk && <span className="text-[8px] font-medium px-1 rounded" style={{ color: '#f87171', background: 'rgba(248,113,113,0.12)' }}>+{f.effect.buffAtk}ATK</span>}
-                              {f.effect.buffDef && <span className="text-[8px] font-medium px-1 rounded" style={{ color: '#818cf8', background: 'rgba(129,140,248,0.12)' }}>+{f.effect.buffDef}DEF</span>}
-                              {f.effect.buffRegen && <span className="text-[8px] font-medium px-1 rounded" style={{ color: '#34d399', background: 'rgba(52,211,153,0.12)' }}>+{f.effect.buffRegen}reg</span>}
-                              {f.effect.goldBonusPct && <span className="text-[8px] font-medium px-1 rounded" style={{ color: '#fbbf24', background: 'rgba(251,191,36,0.12)' }}>+{f.effect.goldBonusPct}%g</span>}
-                              {f.effect.dropBonusPct && <span className="text-[8px] font-medium px-1 rounded" style={{ color: '#a78bfa', background: 'rgba(167,139,250,0.12)' }}>+{f.effect.dropBonusPct}%drop</span>}
-                            </div>
-                          </div>
-                          <span className="text-[9px] text-gray-400">×{owned - usedOther}</span>
-                        </button>
-                      )
-                    })
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
 
 // ─── Zone card ───────────────────────────────────────────────────────────────
 
@@ -768,7 +657,7 @@ function ZoneCard({
 export function ArenaPage() {
   useAdminConfigStore((s) => s.rev)
   const [showBackpack, setShowBackpack] = useState(false)
-  const [arenaTab, setArenaTab] = useState<'dungeons' | 'raids'>('dungeons')
+  const [arenaTab, setArenaTab] = useState<'dungeons' | 'raids' | 'hall'>('dungeons')
 
   const activeBattle = useArenaStore((s) => s.activeBattle)
   const activeDungeon = useArenaStore((s) => s.activeDungeon)
@@ -849,6 +738,7 @@ export function ArenaPage() {
 
     // Consume 1 dungeon_pass for the first run
     inv.deleteItem('dungeon_pass', 1)
+    for (const slot of foodSlots) { if (slot) inv.deleteItem(slot.foodId, 1) }
 
     const activeFood = foodSlots.some(Boolean) ? foodSlots : undefined
     const started = startDungeon(zoneId, null, activeFood)
@@ -1136,6 +1026,7 @@ export function ArenaPage() {
               const zone = ZONES.find((z) => z.id === auto.zoneId)
               if (passes > 0 && zone && canAffordEntry(zone, inv.items)) {
                 inv.deleteItem('dungeon_pass', 1)
+                if (auto.foodLoadout) { for (const slot of auto.foodLoadout) { if (slot) inv.deleteItem(slot.foodId, 1) } }
                 auto.remaining--
                 auto.passesUsed++
                 setTimeout(() => startDungeon(auto.zoneId, null, auto.foodLoadout), 800)
@@ -1317,18 +1208,22 @@ export function ArenaPage() {
 
       {/* ── Tab switcher ── */}
       <div className="flex gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/[0.07]">
-        {(['dungeons', 'raids'] as const).map((tab) => (
+        {([
+          { id: 'dungeons', label: '🗺 Dungeons', color: '#f87171' },
+          { id: 'raids',    label: '⚔ Raids',    color: '#f59e0b' },
+          { id: 'hall',     label: '🏛 Hall',     color: '#a78bfa' },
+        ] as const).map((tab) => (
           <button
-            key={tab}
+            key={tab.id}
             type="button"
-            onClick={() => { playClickSound(); setArenaTab(tab) }}
-            className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold capitalize transition-colors"
-            style={arenaTab === tab
-              ? { background: tab === 'raids' ? 'rgba(245,158,11,0.18)' : 'rgba(248,113,113,0.18)', color: tab === 'raids' ? '#f59e0b' : '#f87171', border: `1px solid ${tab === 'raids' ? 'rgba(245,158,11,0.35)' : 'rgba(248,113,113,0.35)'}` }
+            onClick={() => { playClickSound(); setArenaTab(tab.id) }}
+            className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition-colors"
+            style={arenaTab === tab.id
+              ? { background: `${tab.color}20`, color: tab.color, border: `1px solid ${tab.color}55` }
               : { color: '#6b7280' }
             }
           >
-            {tab === 'raids' ? '⚔ Raids' : '🗺 Dungeons'}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -1337,6 +1232,13 @@ export function ArenaPage() {
       {arenaTab === 'raids' && (
         <Suspense fallback={<p className="text-[10px] text-gray-600 font-mono text-center py-8 animate-pulse">Loading raids...</p>}>
           <RaidsTab />
+        </Suspense>
+      )}
+
+      {/* ── Hall of Raids Tab ── */}
+      {arenaTab === 'hall' && (
+        <Suspense fallback={<p className="text-[10px] text-gray-600 font-mono text-center py-8 animate-pulse">Loading hall...</p>}>
+          <HallOfRaidsTab />
         </Suspense>
       )}
 
@@ -1379,7 +1281,11 @@ export function ArenaPage() {
             bossFlash={bossFlash}
             confirmForfeit={confirmForfeit}
             setConfirmForfeit={setConfirmForfeit}
-            onEnter={(zoneId) => { startDungeon(zoneId, null, foodSlots.some(Boolean) ? foodSlots : undefined) }}
+            onEnter={(zoneId) => {
+              const inv = useInventoryStore.getState()
+              for (const slot of foodSlots) { if (slot) inv.deleteItem(slot.foodId, 1) }
+              startDungeon(zoneId, null, foodSlots.some(Boolean) ? foodSlots : undefined)
+            }}
             foodSlots={foodSlots}
             onFoodChange={setFoodSlots}
             onAutoFarm={handleAutoFarm}
@@ -1476,6 +1382,8 @@ export function ArenaPage() {
                 onClick={() => {
                   const zid = dungeonDeathModal.zoneId
                   setDungeonDeathModal(null)
+                  const inv2 = useInventoryStore.getState()
+                  for (const slot of foodSlots) { if (slot) inv2.deleteItem(slot.foodId, 1) }
                   startDungeon(zid, null, foodSlots.some(Boolean) ? foodSlots : undefined)
                 }}
                 className="flex-1 text-[12px] font-semibold px-3 py-2 rounded-xl border border-red-500/50 bg-red-500/15 text-red-300 hover:bg-red-500/25 transition-colors"

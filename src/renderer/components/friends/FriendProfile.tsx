@@ -356,8 +356,13 @@ export function FriendProfile({ profile, onBack, onMessage, onRetrySync }: Frien
               <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-discord-card ${profile.is_online ? 'bg-cyber-neon' : 'bg-gray-600'}`} />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-white font-bold text-[15px] truncate">{profile.username || 'Anonymous'}</h3>
+                {profile.guild_tag && (
+                  <span className="text-[9px] px-1 py-[1px] rounded font-bold border border-amber-500/40 bg-amber-500/10 text-amber-400 shrink-0" title={`Guild: ${profile.guild_tag}`}>
+                    [{profile.guild_tag}]
+                  </span>
+                )}
                 <span className="grindly-badge text-cyber-neon border-cyber-neon/30 bg-cyber-neon/10 text-[10px]" title="Total skill level">
                   {totalSkillLevel}/{MAX_TOTAL_SKILL_LEVEL}
                 </span>

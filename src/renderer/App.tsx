@@ -358,6 +358,26 @@ export default function App() {
     return unsub
   }, [])
 
+  // Dev helper: call window.__devMaxStats() from DevTools console to max all local state
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    ;(window as unknown as Record<string, unknown>).__devMaxStats = () => {
+      const MAX_XP = 3_600_000
+      const skills = ['warrior','developer','designer','gamer','communicator','researcher','creator','learner','listener']
+      const xpMap: Record<string, number> = {}
+      for (const s of skills) xpMap[s] = MAX_XP
+      localStorage.setItem('grindly_skill_xp', JSON.stringify(xpMap))
+      const arenaRaw = localStorage.getItem('grindly_arena_state')
+      const arena = arenaRaw ? JSON.parse(arenaRaw) : {}
+      const state = arena.state ?? arena
+      state.clearedZones = ['zone1','zone2','zone3','zone4','zone5','zone6','zone7','zone8']
+      state.killCounts = state.killCounts ?? {}
+      if (arena.state) arena.state = state; else Object.assign(arena, state)
+      localStorage.setItem('grindly_arena_state', JSON.stringify(arena))
+      console.log('%c[devMaxStats] ✅ All stats maxed — reload the app now', 'color: #22c55e; font-weight: bold')
+    }
+  }, [])
+
   return (
     <AuthGate>
       <MotionConfig reducedMotion="user" transition={{ duration: MOTION.duration.base, ease: MOTION.easing }}>

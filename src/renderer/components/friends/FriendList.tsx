@@ -99,6 +99,11 @@ export function FriendList({ friends, onSelectFriend, onMessageFriend, unreadByF
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 mb-0.5">
                 <span className="text-sm font-semibold text-white truncate">{f.username || 'Anonymous'}</span>
+                {f.guild_tag && (
+                  <span className="text-[9px] px-1 py-[1px] rounded font-bold border border-amber-500/40 bg-amber-500/10 text-amber-400 shrink-0" title={`Guild: ${f.guild_tag}`}>
+                    [{f.guild_tag}]
+                  </span>
+                )}
                 <span className="text-[10px] text-cyber-neon font-mono shrink-0" title={hasSyncedSkills ? 'Total skill level' : 'Skill sync pending'}>
                   {totalSkillDisplay}
                 </span>

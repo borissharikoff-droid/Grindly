@@ -329,6 +329,7 @@ function TierCard({ tier, onStart }: { tier: RaidTierId; onStart: () => void }) 
 function ActiveRaidPanel({ onAttack }: { onAttack: () => void }) {
   const activeRaid = useRaidStore((s) => s.activeRaid)
   const participants = useRaidStore((s) => s.participants)
+  const dismissRaid = useRaidStore((s) => s.dismissRaid)
   const user = useAuthStore((s) => s.user)
 
   if (!activeRaid) return null
@@ -424,9 +425,17 @@ function ActiveRaidPanel({ onAttack }: { onAttack: () => void }) {
         </div>
       </div>
 
-      {/* Attack button */}
-      {!isOver && (
-        <div className="px-4 pb-4">
+      {/* Attack / Dismiss button */}
+      <div className="px-4 pb-4">
+        {isOver ? (
+          <button
+            type="button"
+            onClick={() => { playClickSound(); dismissRaid(activeRaid.id) }}
+            className="w-full py-2.5 rounded-xl text-[11px] font-bold transition-all active:scale-[0.98] border border-white/10 text-gray-500 hover:text-gray-300 hover:border-white/20"
+          >
+            Dismiss
+          </button>
+        ) : (
           <button
             type="button"
             disabled={attackedToday}
@@ -441,8 +450,8 @@ function ActiveRaidPanel({ onAttack }: { onAttack: () => void }) {
           >
             {attackedToday ? '✓ Attacked today — comeback tomorrow' : '⚔ Attack Today'}
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </motion.div>
   )
 }

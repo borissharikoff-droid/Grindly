@@ -9,7 +9,6 @@ import { FriendProfile } from './FriendProfile'
 import { PendingRequests } from './PendingRequests'
 import { Leaderboard } from './Leaderboard'
 import { GuildTab } from './GuildTab'
-import { ActivityFeed } from './ActivityFeed'
 import { FriendCompare } from './FriendCompare'
 import { ChatThread } from './ChatThread'
 import { RaidPartyPanel } from './RaidPartyPanel'
@@ -39,7 +38,6 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
   const [profileFromChat, setProfileFromChat] = useState(false)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [showGuild, setShowGuild] = useState(false)
-  const [showFeed, setShowFeed] = useState(false)
   const hasActiveRaid = useRaidStore((s) => !!s.activeRaid)
   const fetchInvites = useRaidStore((s) => s.fetchInvites)
   const peerId = view === 'chat' && selected ? selected.id : null
@@ -95,22 +93,19 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
   }, [chat.markConversationRead, refresh])
 
   const incomingCount = pendingRequests.filter((r) => r.direction === 'incoming').length
-  const isSubview = view === 'chat' || view === 'profile' || view === 'compare'
+  const isSubview = view === 'chat' || view === 'profile' || view === 'compare' || showGuild || showLeaderboard
   const backToList = useCallback(() => {
     setView('list')
     setSelected(null)
   }, [])
 
   const handleBack = useCallback(() => {
-    if (view === 'compare') {
-      setView('profile')
-    } else if (view === 'profile' && profileFromChat) {
-      setProfileFromChat(false)
-      setView('chat')
-    } else {
-      backToList()
-    }
-  }, [view, profileFromChat, backToList])
+    if (showGuild) { setShowGuild(false) }
+    else if (showLeaderboard) { setShowLeaderboard(false) }
+    else if (view === 'compare') { setView('profile') }
+    else if (view === 'profile' && profileFromChat) { setProfileFromChat(false); setView('chat') }
+    else { backToList() }
+  }, [view, profileFromChat, backToList, showGuild, showLeaderboard])
 
   useEscapeHandler(handleBack, isSubview)
 
@@ -191,20 +186,12 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
       ) : (
         <div className="space-y-4">
           <PageHeader
-            title="Friends"
+            title="Social"
             icon={<Users className="w-4 h-4 text-indigo-400" />}
             rightSlot={(
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={() => { setShowFeed(!showFeed); setShowLeaderboard(false); setShowGuild(false) }}
-                  className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-                    showFeed ? 'border-discord-purple/50 text-discord-purple bg-discord-purple/10' : 'border-white/10 text-gray-400 hover:text-white'
-                  }`}
-                >
-                  Feed
-                </button>
-                <button
-                  onClick={() => { setShowLeaderboard(!showLeaderboard); setShowGuild(false); setShowFeed(false) }}
+                  onClick={() => { setShowLeaderboard(!showLeaderboard); setShowGuild(false) }}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors ${
                     showLeaderboard ? 'border-cyber-neon/50 text-cyber-neon bg-cyber-neon/10' : 'border-white/10 text-gray-400 hover:text-white'
                   }`}
@@ -212,7 +199,7 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
                   Leaderboard
                 </button>
                 <button
-                  onClick={() => { setShowGuild(!showGuild); setShowLeaderboard(false); setShowFeed(false) }}
+                  onClick={() => { setShowGuild(!showGuild); setShowLeaderboard(false) }}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors ${
                     showGuild ? 'border-amber-500/50 text-amber-400 bg-amber-500/10' : 'border-white/10 text-gray-400 hover:text-white'
                   }`}
@@ -223,8 +210,8 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
             )}
           />
 
-          {!showGuild && !showFeed && !showLeaderboard && <AddFriend onAdded={refresh} />}
-          {hasActiveRaid && !showLeaderboard && !showGuild && !showFeed && (
+          {!showGuild && !showLeaderboard && <AddFriend onAdded={refresh} />}
+          {hasActiveRaid && !showLeaderboard && !showGuild && (
             <RaidPartyPanel friends={friends} />
           )}
           {incomingCount > 0 && !showLeaderboard && !showGuild && (
@@ -235,12 +222,7 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
             />
           )}
 
-          {showFeed ? (
-            <div className="space-y-3">
-              <BackButton onClick={() => setShowFeed(false)} />
-              <ActivityFeed userId={user.id} />
-            </div>
-          ) : showGuild ? (
+          {showGuild ? (
             <div className="space-y-3">
               <BackButton onClick={() => setShowGuild(false)} />
               <GuildTab onSelectMember={(userId) => {

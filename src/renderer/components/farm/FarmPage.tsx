@@ -305,7 +305,7 @@ const ZIP_SCALE_FRAMES: Record<string, number[]> = Object.fromEntries(
   Object.entries(ZIP_OPEN_ANIM).map(([k, cfg]) => [k, zipScaleFrames(cfg.shakeCount)]),
 )
 
-function SeedZipRevealModal({ tier, seedId, remainingCount, onClose, onOpenAnother }: { tier: SeedZipTier; seedId: string; remainingCount: number; onClose: () => void; onOpenAnother?: () => void }) {
+function SeedZipRevealModal({ tier, seedId, remainingCount, onClose, onOpenAnother, onOpenAll }: { tier: SeedZipTier; seedId: string; remainingCount: number; onClose: () => void; onOpenAnother?: () => void; onOpenAll?: () => void }) {
   const seed = getSeedById(seedId)
   const plant = seed ? LOOT_ITEMS.find((x) => x.id === seed.yieldPlantId) : null
   const animCfg = ZIP_OPEN_ANIM[seed?.rarity ?? 'common'] ?? ZIP_OPEN_ANIM.common
@@ -532,21 +532,30 @@ function SeedZipRevealModal({ tier, seedId, remainingCount, onClose, onOpenAnoth
               transition={{ duration: 0.28, delay: isRevealed ? 0.18 : 0, ease: 'easeOut' }}
               style={{ pointerEvents: isRevealed ? 'auto' : 'none' }}
             >
+              {remainingCount > 1 && onOpenAll && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); playClickSound(); onOpenAll() }}
+                  className="w-full h-10 rounded-xl text-[13px] font-semibold transition-all active:scale-[0.97]"
+                  style={{ color: zipTheme.color, border: `1px solid ${zipTheme.border}`, background: `${zipTheme.color}22` }}
+                >
+                  Open All ({remainingCount} left)
+                </button>
+              )}
               {remainingCount > 0 && onOpenAnother && (
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); playClickSound(); onOpenAnother() }}
-                  className="w-full h-10 rounded-xl text-[13px] font-semibold transition-all active:scale-[0.97]"
-                  style={{ color: zipTheme.color, border: `1px solid ${zipTheme.border}`, background: `${zipTheme.color}22` }}
+                  className="w-full h-10 rounded-xl text-[13px] font-semibold transition-all active:scale-[0.97] text-white/50 border border-white/[0.08] bg-white/[0.04] hover:text-white/70 hover:bg-white/[0.07]"
                 >
-                  Open Another ({remainingCount} left)
+                  Open Another
                 </button>
               )}
               <button
                 type="button"
                 onClick={() => { playClickSound(); onClose() }}
-                className={`w-full h-10 rounded-xl text-[13px] font-semibold transition-all active:scale-[0.97] ${remainingCount > 0 && onOpenAnother ? 'text-gray-400 border border-white/[0.08] bg-white/[0.04]' : ''}`}
-                style={remainingCount > 0 && onOpenAnother ? undefined : { color: zipTheme.color, border: `1px solid ${zipTheme.border}`, background: `${zipTheme.color}22` }}
+                className={`w-full h-10 rounded-xl text-[13px] font-semibold transition-all active:scale-[0.97] ${remainingCount > 0 ? 'text-gray-400 border border-white/[0.08] bg-white/[0.04]' : ''}`}
+                style={remainingCount > 0 ? undefined : { color: zipTheme.color, border: `1px solid ${zipTheme.border}`, background: `${zipTheme.color}22` }}
               >
                 Done
               </button>
@@ -751,6 +760,24 @@ function SeedZipSection() {
     setTimeout(() => doOpen(tier), 80)
   }, [lastOpened, doOpen])
 
+  const handleOpenAll = useCallback(() => {
+    if (!lastOpened) return
+    const tier = lastOpened.tier
+    // Open all remaining of this tier (current already opened, open the rest)
+    const count = useFarmStore.getState().seedZips[tier] ?? 0
+    for (let i = 0; i < count; i++) {
+      openSeedZip(tier)
+    }
+    setLastOpened(null)
+    // Sync to Supabase
+    const user = useAuthStore.getState().user
+    if (supabase && user) {
+      const { items, chests } = useInventoryStore.getState()
+      const { seeds, seedZips: sz } = useFarmStore.getState()
+      syncInventoryToSupabase(items, chests, { merge: false, seeds, seedZips: sz }).catch(() => {})
+    }
+  }, [lastOpened, openSeedZip])
+
   if (totalZips === 0 && !lastOpened) return null
 
   return (
@@ -806,6 +833,7 @@ function SeedZipSection() {
             remainingCount={(seedZips[lastOpened.tier] ?? 0)}
             onClose={() => setLastOpened(null)}
             onOpenAnother={handleOpenAnother}
+            onOpenAll={handleOpenAll}
           />
         )}
       </AnimatePresence>
@@ -834,6 +862,8 @@ function HarvestRevealModal({ result, remaining = 0, onClose }: { result: Harves
   const compostDrops = result.compostDropCount ?? (result.compostDrop ? 1 : 0)
   const compostedCount = result.compostedCount ?? (result.composted ? 1 : 0)
   const plotCount = result.plotCount ?? 1
+  const seedDrops = result.seedDropCount ?? (result.seedDrop ? 1 : 0)
+  const seedDropId = result.seedDrop
 
   useEffect(() => {
     if (plant) playLootRaritySound(plant.rarity)
@@ -936,6 +966,20 @@ function HarvestRevealModal({ result, remaining = 0, onClose }: { result: Harves
               </div>
             </div>
           )}
+
+          {/* Seed return drop */}
+          {seedDrops > 0 && seedDropId && (() => {
+            const sd = getSeedById(seedDropId)
+            return sd ? (
+              <div className="flex items-center gap-2 rounded-lg border border-green-500/25 px-2.5 py-1.5 bg-green-500/8 relative">
+                <span className="text-base">{sd.icon}</span>
+                <div className="flex-1 text-left">
+                  <p className="text-[10px] font-bold text-green-400 leading-none">Seed returned!</p>
+                  <p className="text-[9px] text-gray-400 font-mono mt-0.5">{sd.name} ×{seedDrops}</p>
+                </div>
+              </div>
+            ) : null
+          })()}
 
           {/* Seed Zip drops */}
           {zipDrops.map(({ tier, count }) => {
@@ -2176,6 +2220,7 @@ export function FarmPage() {
                         existing.plotCount = (existing.plotCount ?? 1) + 1
                         if (r.composted) existing.compostedCount = (existing.compostedCount ?? (existing.composted ? 1 : 0)) + 1
                         if (r.compostDrop) existing.compostDropCount = (existing.compostDropCount ?? (existing.compostDrop ? 1 : 0)) + 1
+                        if (r.seedDrop) existing.seedDropCount = (existing.seedDropCount ?? (existing.seedDrop ? 1 : 0)) + 1
                         if (r.seedZipTier) {
                           if (!existing.seedZipDrops) {
                             existing.seedZipDrops = existing.seedZipTier ? [{ tier: existing.seedZipTier, count: 1 }] : []

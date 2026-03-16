@@ -27,6 +27,8 @@ interface RaidState {
   declineInvite: (inviteId: string) => Promise<{ ok: boolean }>
   /** Clear error */
   clearError: () => void
+  /** Dismiss a completed (won/failed) raid from the UI — persists to localStorage */
+  dismissRaid: (raidId: string) => void
 }
 
 export const useRaidStore = create<RaidState>()((set, get) => ({
@@ -38,12 +40,31 @@ export const useRaidStore = create<RaidState>()((set, get) => ({
 
   clearError: () => set({ error: null }),
 
+  dismissRaid(raidId) {
+    try {
+      const raw = localStorage.getItem('grindly_dismissed_raids') ?? '[]'
+      const ids: string[] = JSON.parse(raw)
+      if (!ids.includes(raidId)) {
+        ids.push(raidId)
+        localStorage.setItem('grindly_dismissed_raids', JSON.stringify(ids))
+      }
+    } catch { /* ignore */ }
+    set({ activeRaid: null, participants: [] })
+  },
+
   async fetchRaid() {
     const user = useAuthStore.getState().user
     if (!user) return
     set({ isLoading: true, error: null })
     try {
-      const { raid, participants } = await fetchActiveRaid(user.id)
+      let { raid, participants } = await fetchActiveRaid(user.id)
+      // Skip raids that have been explicitly dismissed by the user
+      if (raid && (raid.status === 'won' || raid.status === 'failed')) {
+        try {
+          const dismissed: string[] = JSON.parse(localStorage.getItem('grindly_dismissed_raids') ?? '[]')
+          if (dismissed.includes(raid.id)) { raid = null; participants = [] }
+        } catch { /* ignore */ }
+      }
       // Check for expiry
       if (raid?.status === 'active' && raid.ends_at) {
         await checkRaidExpiry(raid.id)

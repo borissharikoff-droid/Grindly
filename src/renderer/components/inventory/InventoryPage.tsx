@@ -375,6 +375,9 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
   const hasNextChestToOpen = (chestType: ChestType) =>
     pendingRewards.some((r) => !r.claimed && r.chestType === chestType) || (chests[chestType] ?? 0) > 0
 
+  const getRemainingChestCount = (chestType: ChestType) =>
+    pendingRewards.filter((r) => !r.claimed && r.chestType === chestType).length + (chests[chestType] ?? 0)
+
   const openNextChest = (chestType: ChestType) => {
     setChestChainMessage(null)
     const pending = pendingRewards.find((r) => !r.claimed && r.chestType === chestType)
@@ -1133,6 +1136,13 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
         nextAvailable={openChestModal ? hasNextChestToOpen(openChestModal.chestType) : false}
         chainMessage={chestChainMessage}
         animationSeed={chestModalAnimSeed}
+        openAllCount={openChestModal ? getRemainingChestCount(openChestModal.chestType) : 0}
+        onOpenAll={() => {
+          if (!openChestModal) return
+          setOpenChestModal(null)
+          setChestChainMessage(null)
+          openAllChests(openChestModal.chestType)
+        }}
         onOpenNext={() => {
           if (!openChestModal) return
           const opened = openNextChest(openChestModal.chestType)

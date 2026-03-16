@@ -345,7 +345,7 @@ export async function fetchActiveRaid(userId: string): Promise<{ raid: Raid | nu
       .from('raids')
       .select('*')
       .eq('leader_id', userId)
-      .in('status', ['forming', 'active'])
+      .in('status', ['forming', 'active', 'won', 'failed'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -362,7 +362,7 @@ export async function fetchActiveRaid(userId: string): Promise<{ raid: Raid | nu
     .from('raids')
     .select('*')
     .in('id', raidIds)
-    .in('status', ['forming', 'active'])
+    .in('status', ['forming', 'active', 'won', 'failed'])
     .order('created_at', { ascending: false })
     .limit(1)
 

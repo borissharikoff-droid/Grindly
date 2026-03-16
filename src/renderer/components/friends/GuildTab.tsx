@@ -7,6 +7,9 @@ import { searchGuilds, fetchTopGuilds, type Guild } from '../../services/guildSe
 import { playClickSound } from '../../lib/sounds'
 import { useToastStore } from '../../stores/toastStore'
 import { GUILD_BUFFS } from '../../lib/guildBuffs'
+import { AvatarWithFrame } from '../shared/AvatarWithFrame'
+import { parseFriendPresence, formatSessionDurationCompact } from '../../lib/friendPresence'
+import { MAX_TOTAL_SKILL_LEVEL } from '../../lib/skills'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -268,9 +271,13 @@ export function GuildTab({ onSelectMember }: GuildTabProps) {
 
   // Derived guild stats
   const totalContrib = members.reduce((s, m) => s + (m.contribution_gold ?? 0), 0)
+  // Guild power = sum of member total_skill_levels (null members count 0)
+  const guildPower = members.reduce((s, m) => s + (m.total_skill_level ?? 0), 0)
   const guildLevel = myGuild ? calcGuildLevel(totalContrib) : 1
   const [lvLo, lvHi] = guildLevelRange(guildLevel)
   const levelPct = lvHi > lvLo ? Math.round(((totalContrib - lvLo) / (lvHi - lvLo)) * 100) : 0
+  // Use actual member array length — myGuild.member_count can be stale
+  const memberCount = members.length || myGuild?.member_count || 0
 
   return (
     <div className="space-y-2.5">
@@ -380,9 +387,19 @@ export function GuildTab({ onSelectMember }: GuildTabProps) {
               <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-white/[0.05]">
                 <div className="flex items-center gap-1 text-[10px]">
                   <span>👥</span>
-                  <span className="font-semibold text-white">{myGuild.member_count}</span>
-                  <span className="text-gray-600">member{myGuild.member_count !== 1 ? 's' : ''}</span>
+                  <span className="font-semibold text-white">{memberCount}</span>
+                  <span className="text-gray-600">member{memberCount !== 1 ? 's' : ''}</span>
                 </div>
+                {guildPower > 0 && (
+                  <>
+                    <span className="text-white/10">·</span>
+                    <div className="flex items-center gap-1 text-[10px]" title="Sum of all members' total skill levels">
+                      <span className="text-cyber-neon/70">⚔️</span>
+                      <span className="font-semibold text-cyber-neon">{guildPower.toLocaleString()}</span>
+                      <span className="text-gray-600">power</span>
+                    </div>
+                  </>
+                )}
                 <span className="text-white/10">·</span>
                 <div className="flex items-center gap-1 text-[10px]">
                   <span className={membership?.role === 'owner' ? 'text-amber-400' : membership?.role === 'officer' ? 'text-blue-400' : 'text-gray-400'}>
@@ -508,79 +525,111 @@ export function GuildTab({ onSelectMember }: GuildTabProps) {
           )}
 
           {/* ── Members ── */}
-          <div className="rounded-xl border border-white/[0.08] bg-discord-card overflow-hidden">
-            <div className="px-3 pt-3 pb-2 flex items-center justify-between">
-              <p className="text-[9px] uppercase tracking-widest text-gray-500 font-mono">
-                Members <span className="text-gray-700 normal-case tracking-normal">({members.length})</span>
-              </p>
-              {totalContrib > 0 && (
-                <span className="text-[9px] text-gray-600 font-mono">{totalContrib.toLocaleString()}g contributed total</span>
-              )}
-            </div>
+          <div className="space-y-2">
+            {(membersExpanded ? members : members.slice(0, 12)).map((m) => {
+              const isMe = m.user_id === user?.id
+              const canKick = !isMe && m.role !== 'owner' && (isOwner || (isOfficer && m.role === 'member'))
+              const canPromote = isOwner && !isMe && m.role === 'member'
+              const canDemote = isOwner && !isMe && m.role === 'officer'
+              const confirmingKick = confirmKick === m.user_id
+              const { activityLabel, appName, sessionStartMs } = parseFriendPresence(m.current_activity ?? null)
+              const isLeveling = m.is_online && activityLabel.startsWith('Leveling ')
+              const liveDuration = m.is_online && sessionStartMs ? formatSessionDurationCompact(sessionStartMs, Date.now()) : null
+              const hasSyncedSkills = m.skills_sync_status === 'synced'
+              const totalSkillDisplay = hasSyncedSkills && m.total_skill_level != null
+                ? `${m.total_skill_level}/${MAX_TOTAL_SKILL_LEVEL}`
+                : null
 
-            <div className="px-2 pb-2 space-y-0.5">
-              {(membersExpanded ? members : members.slice(0, 12)).map((m) => {
-                const isMe = m.user_id === user?.id
-                const canKick = !isMe && m.role !== 'owner' && (isOwner || (isOfficer && m.role === 'member'))
-                const canPromote = isOwner && !isMe && m.role === 'member'
-                const canDemote = isOwner && !isMe && m.role === 'officer'
-                const confirmingKick = confirmKick === m.user_id
-
-                // Avatar background by role
-                const avatarCls = m.role === 'owner'
-                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                  : m.role === 'officer'
-                    ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
-                    : 'bg-white/[0.07] border-white/[0.10] text-gray-400'
-                const roleBadgeCls = m.role === 'owner'
-                  ? 'bg-amber-500/15 border-amber-500/30 text-amber-400'
-                  : m.role === 'officer'
-                    ? 'bg-blue-500/15 border-blue-500/30 text-blue-400'
-                    : 'bg-white/[0.03] border-white/[0.07] text-gray-600'
-
-                return (
-                  <div key={m.id} className="flex items-center gap-2 px-1 py-1.5 rounded-lg hover:bg-white/[0.04] transition-colors group">
-                    {/* Avatar */}
-                    <div className={`w-7 h-7 rounded-full border flex items-center justify-center text-[10px] font-semibold shrink-0 ${avatarCls}`}>
-                      {(m.username ?? '?')[0].toUpperCase()}
+              return (
+                <div
+                  key={m.id}
+                  className={`w-full flex items-center gap-3 rounded-xl border p-3 transition-all group ${
+                    m.is_online
+                      ? 'bg-discord-card/90 border-white/10 hover:border-white/20 hover:-translate-y-[1px]'
+                      : 'bg-discord-card/50 border-white/5 opacity-75 hover:opacity-95 hover:-translate-y-[1px]'
+                  }`}
+                >
+                  {/* Clickable left side: avatar + info */}
+                  <button
+                    type="button"
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left disabled:cursor-default"
+                    disabled={!onSelectMember}
+                    onClick={() => { if (onSelectMember) { playClickSound(); onSelectMember(m.user_id) } }}
+                  >
+                    {/* Avatar with frame + online dot */}
+                    <div className="relative shrink-0 overflow-visible">
+                      <AvatarWithFrame
+                        avatar={m.avatar_url || '🤖'}
+                        frameId={m.equipped_frame}
+                        sizeClass="w-10 h-10"
+                        textClass="text-lg"
+                        roundedClass="rounded-full"
+                        ringInsetClass="-inset-0.5"
+                        ringOpacity={0.95}
+                      />
+                      <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-discord-card ${
+                        m.is_online ? 'bg-cyber-neon' : 'bg-gray-600'
+                      }`} />
                     </div>
 
-                    {/* Name — clickable if callback provided */}
-                    <button
-                      type="button"
-                      className="flex-1 text-left min-w-0 disabled:cursor-default"
-                      disabled={!onSelectMember}
-                      onClick={() => { if (onSelectMember) { playClickSound(); onSelectMember(m.user_id) } }}
-                    >
-                      <span className={`text-[11px] truncate block ${onSelectMember ? 'text-white group-hover:text-cyber-neon transition-colors' : 'text-white'}`}>
-                        {m.username ?? 'Unknown'}
-                        {isMe && <span className="text-[9px] text-gray-600 ml-1 font-mono">(you)</span>}
-                      </span>
-                    </button>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                        <span className="text-sm font-semibold text-white truncate">
+                          {m.username ?? (isMe ? (user?.user_metadata?.username ?? user?.email?.split('@')[0] ?? 'You') : 'Unknown')}
+                          {isMe && <span className="text-[9px] text-gray-600 ml-1 font-mono">(you)</span>}
+                        </span>
+                        {totalSkillDisplay && (
+                          <span className="text-[10px] text-cyber-neon font-mono shrink-0">{totalSkillDisplay}</span>
+                        )}
+                        {(m.streak_count ?? 0) > 0 && (
+                          <span className="text-[10px] text-orange-400 font-mono shrink-0">🔥{m.streak_count}d</span>
+                        )}
+                        {/* Role badge */}
+                        <span className={`text-[8px] font-mono px-1 py-0.5 rounded border shrink-0 ${
+                          m.role === 'owner' ? 'bg-amber-500/15 border-amber-500/30 text-amber-400'
+                          : m.role === 'officer' ? 'bg-blue-500/15 border-blue-500/30 text-blue-400'
+                          : 'hidden'
+                        }`}>
+                          {m.role === 'owner' ? '👑 owner' : m.role === 'officer' ? '🔰 officer' : ''}
+                        </span>
+                      </div>
+                      {/* Status / activity */}
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-1.5">
+                          {m.is_online ? (
+                            isLeveling ? (
+                              <span className="text-[11px] text-gray-400">{activityLabel}{liveDuration ? ` • ${liveDuration}` : ''}</span>
+                            ) : activityLabel ? (
+                              <span className="text-[11px] text-blue-400 truncate">{activityLabel}</span>
+                            ) : (
+                              <span className="text-[11px] text-gray-400">Online</span>
+                            )
+                          ) : (
+                            <span className="text-[11px] text-gray-600">
+                              {m.contribution_gold > 0 ? `+${m.contribution_gold >= 1000 ? `${(m.contribution_gold / 1000).toFixed(1)}k` : m.contribution_gold}g contributed` : 'Offline'}
+                            </span>
+                          )}
+                        </div>
+                        {m.is_online && appName && (
+                          <span className="text-[10px] text-gray-500 truncate">
+                            Playing: {appName}{liveDuration ? ` • session ${liveDuration}` : ''}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
 
-                    {/* Role badge */}
-                    <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border shrink-0 ${roleBadgeCls}`}>
-                      {m.role === 'owner' ? '👑' : m.role === 'officer' ? '🔰' : ''}{m.role}
-                    </span>
-
-                    {/* Contribution */}
-                    {m.contribution_gold > 0 && (
-                      <span className="text-[9px] text-amber-400/50 font-mono shrink-0">
-                        +{m.contribution_gold >= 1000 ? `${(m.contribution_gold / 1000).toFixed(1)}k` : m.contribution_gold}g
-                      </span>
-                    )}
-
-                    {/* Promote/Demote */}
+                  {/* Right side: manage buttons */}
+                  <div className="shrink-0 flex items-center gap-1">
                     {canPromote && (
                       <button type="button" onClick={() => handlePromote(m.user_id)} title="Promote to officer"
-                        className="text-[10px] text-blue-400/50 hover:text-blue-400 px-0.5 transition-colors">↑</button>
+                        className="p-1 text-[10px] text-blue-400/50 hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100">↑</button>
                     )}
                     {canDemote && (
                       <button type="button" onClick={() => handleDemote(m.user_id)} title="Demote to member"
-                        className="text-[10px] text-gray-600 hover:text-gray-300 px-0.5 transition-colors">↓</button>
+                        className="p-1 text-[10px] text-gray-600 hover:text-gray-300 transition-colors opacity-0 group-hover:opacity-100">↓</button>
                     )}
-
-                    {/* Kick */}
                     {canKick && (
                       confirmingKick ? (
                         <div className="flex items-center gap-1">
@@ -588,25 +637,23 @@ export function GuildTab({ onSelectMember }: GuildTabProps) {
                           <button type="button" onClick={() => handleKick(m.user_id)}
                             className="text-[8px] px-1 py-0.5 rounded border border-red-500/40 text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors">✓</button>
                           <button type="button" onClick={() => setConfirmKick(null)}
-                            className="text-[8px] px-1 py-0.5 rounded border border-white/10 text-gray-500 hover:bg-white/5 transition-colors">✕</button>
+                            className="text-[8px] px-1 py-0.5 rounded border border-white/10 text-gray-500 transition-colors">✕</button>
                         </div>
                       ) : (
-                        <button type="button" onClick={() => setConfirmKick(m.user_id)} title="Kick member"
-                          className="text-[10px] text-red-500/30 hover:text-red-400 px-0.5 transition-colors opacity-0 group-hover:opacity-100">✕</button>
+                        <button type="button" onClick={() => setConfirmKick(m.user_id)} title="Kick"
+                          className="p-1 text-[10px] text-red-500/30 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">✕</button>
                       )
                     )}
                   </div>
-                )
-              })}
-            </div>
+                </div>
+              )
+            })}
 
             {members.length > 12 && (
-              <div className="px-3 pb-2.5">
-                <button type="button" onClick={() => setMembersExpanded((v) => !v)}
-                  className="text-[9px] text-gray-600 hover:text-gray-400 font-mono transition-colors">
-                  {membersExpanded ? '▲ show less' : `+ ${members.length - 12} more`}
-                </button>
-              </div>
+              <button type="button" onClick={() => setMembersExpanded((v) => !v)}
+                className="text-[9px] text-gray-600 hover:text-gray-400 font-mono transition-colors px-1">
+                {membersExpanded ? '▲ show less' : `+ ${members.length - 12} more`}
+              </button>
             )}
           </div>
 

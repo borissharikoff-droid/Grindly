@@ -74,9 +74,7 @@ export function QuestsSection({ unlockedIds, claimedIds, onClaimAchievement }: Q
   const dailyDoneCount = dailies.filter((d) => d.completed).length
   const weeklyDoneCount = weeklies.filter((w) => w.completed).length
 
-  const addChest = useInventoryStore((s) => s.addChest)
-  const claimPendingReward = useInventoryStore((s) => s.claimPendingReward)
-  const openChestAndGrantItem = useInventoryStore((s) => s.openChestAndGrantItem)
+  const grantAndOpenChest = useInventoryStore((s) => s.grantAndOpenChest)
 
   const [opened, setOpened] = useState<{
     chestType: ChestType; itemId: string | null; goldDropped?: number; bonusMaterials?: BonusMaterial[]
@@ -117,10 +115,8 @@ export function QuestsSection({ unlockedIds, claimedIds, onClaimAchievement }: Q
   // ── Claim handlers ──
 
   const openChest = (chestType: ChestType, source: string) => {
-    const rewardId = addChest(chestType, source as 'daily_activity', 100)
-    claimPendingReward(rewardId)
-    const result = openChestAndGrantItem(chestType, { source: source as 'daily_activity' })
-    if (result) setOpened({ chestType, itemId: result.itemId, goldDropped: result.goldDropped, bonusMaterials: result.bonusMaterials })
+    const result = grantAndOpenChest(chestType, { source: source as 'daily_activity' })
+    setOpened({ chestType, itemId: result.itemId, goldDropped: result.goldDropped, bonusMaterials: result.bonusMaterials })
   }
 
   const handleClaimDaily = (id: DailyActivityId) => {
