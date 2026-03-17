@@ -27,7 +27,7 @@ import { useToastStore } from '../../stores/toastStore'
 const RARITY_ORDER: LootRarity[] = ['common', 'rare', 'epic', 'legendary', 'mythic']
 type TabId = 'listings' | 'sell' | 'my_listings' | 'history'
 
-const MODAL_OVERLAY = { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.15 } }
+const MODAL_OVERLAY = { initial: { opacity: 0, pointerEvents: 'none' as const }, animate: { opacity: 1, pointerEvents: 'auto' as const }, exit: { opacity: 0, pointerEvents: 'none' as const }, transition: { duration: 0.15 } }
 const MODAL_CARD = { initial: { opacity: 0, scale: 0.95, y: 8 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.95, y: 8 }, transition: { duration: 0.18, ease: [0.16, 1, 0.3, 1] } }
 const LIST_ITEM = { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -4 } }
 
