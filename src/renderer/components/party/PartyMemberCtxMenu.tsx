@@ -25,7 +25,9 @@ interface Props {
 export function PartyMemberCtxMenu({ target, onClose, onMessage }: Props) {
   const user = useAuthStore((s) => s.user)
   const party = usePartyStore((s) => s.party)
-  const { leaveParty, kickMember, makeLeader } = usePartyStore()
+  const leaveParty = usePartyStore((s) => s.leaveParty)
+  const kickMember = usePartyStore((s) => s.kickMember)
+  const makeLeader = usePartyStore((s) => s.makeLeader)
   const pushToast = useToastStore((s) => s.push)
   const menuRef = useRef<HTMLDivElement>(null)
 

@@ -6,7 +6,8 @@ import { playClickSound } from '../../lib/sounds'
 
 function PartyInviteOverlay() {
   const pendingInvites = usePartyStore((s) => s.pendingInvites)
-  const { acceptInvite, declineInvite } = usePartyStore()
+  const acceptInvite = usePartyStore((s) => s.acceptInvite)
+  const declineInvite = usePartyStore((s) => s.declineInvite)
 
   const invite = pendingInvites[0] ?? null
 

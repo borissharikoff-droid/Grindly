@@ -496,12 +496,12 @@ function ActiveRaidPanel({ onAttack }: { onAttack: () => void }) {
 
   const handleHeal = async (items: { item_id: string; quantity: number }[], healAmount: number) => {
     setShowHealModal(false)
-    // Consume items from inventory
-    for (const { item_id, quantity } of items) {
-      deleteItem(item_id, quantity)
-    }
     const result = await healTank(items, healAmount)
     if (result.ok) {
+      // Consume items only after server confirms
+      for (const { item_id, quantity } of items) {
+        deleteItem(item_id, quantity)
+      }
       pushToast({ kind: 'generic', message: `💚 Healed party for +${healAmount} HP!`, type: 'success' })
     } else {
       pushToast({ kind: 'generic', message: result.error ?? 'Heal failed', type: 'error' })

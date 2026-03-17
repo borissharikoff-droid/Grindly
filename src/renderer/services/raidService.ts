@@ -542,6 +542,7 @@ export async function submitDailyAttack(
   if (!partRow) return { ok: false, raidWon: false, error: 'Participant not found' }
 
   const existingAttacks = (partRow.daily_attacks as DailyAttack[]) ?? []
+  if (existingAttacks.some((a) => a.date === today)) return { ok: false, raidWon: false, error: 'Already attacked today' }
   const updatedAttacks = [...existingAttacks, attack]
 
   await supabase

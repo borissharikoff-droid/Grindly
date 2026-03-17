@@ -169,6 +169,13 @@ export const useWeeklyStore = create<WeeklyState>()(
         const bounty = bounties.find((b) => b.id === bountyId)
         if (!bounty || bounty.claimed || bounty.progress < bounty.targetCount) return
 
+        // Mark claimed first to prevent duplicate grants on crash/restart
+        set((s) => ({
+          bounties: s.bounties.map((b) =>
+            b.id === bountyId ? { ...b, claimed: true } : b,
+          ),
+        }))
+
         if (bounty.goldReward > 0) {
           useGoldStore.getState().addGold(bounty.goldReward)
           const user = useAuthStore.getState().user
@@ -178,12 +185,6 @@ export const useWeeklyStore = create<WeeklyState>()(
         if (bounty.chestReward) {
           useInventoryStore.getState().addChest(bounty.chestReward, 'bounty_reward', 100)
         }
-
-        set((s) => ({
-          bounties: s.bounties.map((b) =>
-            b.id === bountyId ? { ...b, claimed: true } : b,
-          ),
-        }))
       },
     }),
     {
