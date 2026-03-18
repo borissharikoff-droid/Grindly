@@ -336,7 +336,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                       )}
                     </div>
                   </div>
-                ) : item.patchVersion ? (
+                ) : (item.patchVersion || item.type === 'update') ? (
                   <div key={item.id} className="px-2.5 py-1.5 border-b border-white/[0.03] last:border-0">
                     <div className="rounded-xl border border-green-400/20 bg-green-400/[0.06] px-3 py-2">
                       <div className="flex items-center gap-2.5">
