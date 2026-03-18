@@ -74,9 +74,7 @@ export function QuestsSection({ unlockedIds, claimedIds, onClaimAchievement }: Q
   const dailyDoneCount = dailies.filter((d) => d.completed).length
   const weeklyDoneCount = weeklies.filter((w) => w.completed).length
 
-  const addChest = useInventoryStore((s) => s.addChest)
-  const claimPendingReward = useInventoryStore((s) => s.claimPendingReward)
-  const openChestAndGrantItem = useInventoryStore((s) => s.openChestAndGrantItem)
+  const grantAndOpenChest = useInventoryStore((s) => s.grantAndOpenChest)
 
   const [opened, setOpened] = useState<{
     chestType: ChestType; itemId: string | null; goldDropped?: number; bonusMaterials?: BonusMaterial[]
@@ -117,10 +115,8 @@ export function QuestsSection({ unlockedIds, claimedIds, onClaimAchievement }: Q
   // ── Claim handlers ──
 
   const openChest = (chestType: ChestType, source: string) => {
-    const rewardId = addChest(chestType, source as 'daily_activity', 100)
-    claimPendingReward(rewardId)
-    const result = openChestAndGrantItem(chestType, { source: source as 'daily_activity' })
-    if (result) setOpened({ chestType, itemId: result.itemId, goldDropped: result.goldDropped, bonusMaterials: result.bonusMaterials })
+    const result = grantAndOpenChest(chestType, { source: source as 'daily_activity' })
+    setOpened({ chestType, itemId: result.itemId, goldDropped: result.goldDropped, bonusMaterials: result.bonusMaterials })
   }
 
   const handleClaimDaily = (id: DailyActivityId) => {
@@ -265,7 +261,7 @@ export function QuestsSection({ unlockedIds, claimedIds, onClaimAchievement }: Q
                   <span className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">
                     {catMeta?.icon} {catMeta?.label || cat}
                   </span>
-                  <span className="text-[9px] text-gray-600 font-mono">{catUnlocked}/{items.length}</span>
+                  <span className="text-[10px] text-gray-600 font-mono">{catUnlocked}/{items.length}</span>
                 </div>
                 {items.map((a) => {
                   const unlocked = unlockedIds.includes(a.id)
@@ -312,7 +308,7 @@ function SectionHeader({ title, subtitle, count, total, accent }: {
     <div className="flex items-center justify-between px-0.5">
       <div className="flex items-center gap-2">
         <p className="text-[10px] uppercase tracking-wider text-gray-400 font-mono">{title}</p>
-        <span className="text-[9px] font-mono text-gray-600">{subtitle}</span>
+        <span className="text-[10px] font-mono text-gray-600">{subtitle}</span>
       </div>
       <span className={`text-[10px] font-mono ${done ? accent === 'purple' ? 'text-purple-400' : 'text-cyber-neon' : 'text-gray-500'}`}>
         {count}/{total}
@@ -351,14 +347,14 @@ function QuestRow({ icon, title, description, progressText, pct, completed, clai
             <div className="flex items-center gap-1.5 min-w-0">
               <p className={`text-[11px] font-medium truncate ${claimed ? 'text-gray-500' : 'text-gray-200'}`}>{title}</p>
               {difficulty && !claimed && (
-                <span className={`text-[8px] font-mono ${difficulty.color} shrink-0`}>{difficulty.label}</span>
+                <span className={`text-[10px] font-mono ${difficulty.color} shrink-0`}>{difficulty.label}</span>
               )}
             </div>
             {claimed ? (
-              <span className="text-[8px] px-1.5 py-0.5 rounded border border-cyber-neon/20 bg-cyber-neon/8 text-cyber-neon font-mono shrink-0">Done</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded border border-cyber-neon/20 bg-cyber-neon/8 text-cyber-neon font-mono shrink-0">Done</span>
             ) : completed ? (
               <button type="button" onClick={onClaim}
-                className={`text-[9px] px-2 py-1 rounded-lg border font-semibold transition-colors shrink-0 ${
+                className={`text-[10px] px-2 py-1 rounded-lg border font-semibold transition-colors shrink-0 ${
                   isPurple ? 'border-purple-500/40 bg-purple-500/15 text-purple-300 hover:bg-purple-500/25'
                   : 'border-cyber-neon/40 bg-cyber-neon/15 text-cyber-neon hover:bg-cyber-neon/25'
                 }`}>
@@ -368,13 +364,13 @@ function QuestRow({ icon, title, description, progressText, pct, completed, clai
                 </span>
               </button>
             ) : (
-              <span className="text-[9px] text-gray-500 font-mono shrink-0">{progressText}</span>
+              <span className="text-[10px] text-gray-500 font-mono shrink-0">{progressText}</span>
             )}
           </div>
           <div className="flex items-center gap-2 mt-0.5">
-            <p className={`text-[9px] ${claimed ? 'text-gray-600' : 'text-gray-500'} truncate`}>{description}</p>
+            <p className={`text-[10px] ${claimed ? 'text-gray-600' : 'text-gray-500'} truncate`}>{description}</p>
             {!claimed && !completed && (
-              <span className="text-[8px] text-gray-600 font-mono shrink-0 inline-flex items-center gap-0.5">
+              <span className="text-[10px] text-gray-600 font-mono shrink-0 inline-flex items-center gap-0.5">
                 {chest.image ? <img src={chest.image} alt="" className="w-3 h-3 object-contain" style={{ imageRendering: 'pixelated' }} draggable={false} /> : chest.icon}
               </span>
             )}
@@ -415,15 +411,26 @@ function BonusRow({ claimed, canClaim, progress, total, onClaim }: {
                   ? <img src={legendaryChest.image} alt="" className="w-3 h-3 object-contain" style={{ imageRendering: 'pixelated' }} draggable={false} />
                   : <span className="text-[10px]">{legendaryChest.icon}</span>
               )}
+<<<<<<< HEAD
               <p className="text-[9px] text-gray-500">Legendary Chest bonus</p>
+=======
+              <p className="text-[10px] text-gray-500">Legendary Chest bonus</p>
+>>>>>>> 991eca094a4870ce5723ed76f1e7a5386c9342f1
             </div>
           </div>
         </div>
         {claimed ? (
+<<<<<<< HEAD
           <span className="text-[9px] px-2 py-1 rounded border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 font-mono shrink-0">Claimed</span>
         ) : canClaim ? (
           <button type="button" onClick={onClaim}
             className="text-[9px] px-3 py-1.5 rounded-lg border border-yellow-500/40 bg-yellow-500/15 text-yellow-400 font-semibold hover:bg-yellow-500/25 transition-colors animate-pulse shrink-0 flex items-center gap-1">
+=======
+          <span className="text-[10px] px-2 py-1 rounded border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 font-mono shrink-0">Claimed</span>
+        ) : canClaim ? (
+          <button type="button" onClick={onClaim}
+            className="text-[10px] px-3 py-1.5 rounded-lg border border-yellow-500/40 bg-yellow-500/15 text-yellow-400 font-semibold hover:bg-yellow-500/25 transition-colors animate-pulse shrink-0 flex items-center gap-1">
+>>>>>>> 991eca094a4870ce5723ed76f1e7a5386c9342f1
             Claim
             {legendaryChest && (
               legendaryChest.image
@@ -432,7 +439,11 @@ function BonusRow({ claimed, canClaim, progress, total, onClaim }: {
             )}
           </button>
         ) : (
+<<<<<<< HEAD
           <span className="text-[9px] text-gray-600 font-mono shrink-0">{progress}/{total}</span>
+=======
+          <span className="text-[10px] text-gray-600 font-mono shrink-0">{progress}/{total}</span>
+>>>>>>> 991eca094a4870ce5723ed76f1e7a5386c9342f1
         )}
       </div>
       {!claimed && (
@@ -465,7 +476,7 @@ function CosmeticRewardPreview({ achievementId, dimmed }: { achievementId: strin
           >
             {'\u2726'}
           </span>
-          <span className="text-[8px] font-mono" style={{ color: rarityColor }}>{frame.name}</span>
+          <span className="text-[10px] font-mono" style={{ color: rarityColor }}>{frame.name}</span>
         </span>
       )
     }
@@ -477,7 +488,7 @@ function CosmeticRewardPreview({ achievementId, dimmed }: { achievementId: strin
       parts.push(
         <span
           key="badge"
-          className="text-[8px] px-1 py-[1px] rounded font-medium border"
+          className="text-[10px] px-1 py-[1px] rounded font-medium border"
           style={{ borderColor: `${badge.color}40`, backgroundColor: `${badge.color}15`, color: badge.color }}
         >
           {badge.icon} {badge.label}
@@ -490,7 +501,7 @@ function CosmeticRewardPreview({ achievementId, dimmed }: { achievementId: strin
     parts.push(
       <span key="avatar" className="inline-flex items-center gap-0.5">
         <span className="text-sm leading-none">{unlock.avatarEmoji}</span>
-        {!unlock.frameId && !unlock.badgeId && <span className="text-[8px] font-mono text-gray-400">Avatar</span>}
+        {!unlock.frameId && !unlock.badgeId && <span className="text-[10px] font-mono text-gray-400">Avatar</span>}
       </span>
     )
   }
@@ -533,24 +544,24 @@ function AchievementRow({ achievement, unlocked, claimed, progress, skillIcon, o
             </p>
             {canClaim ? (
               <button type="button" onClick={onClaim}
-                className="text-[9px] px-2 py-1 rounded-lg border border-cyber-neon/40 bg-cyber-neon/15 text-cyber-neon font-semibold hover:bg-cyber-neon/25 transition-colors shrink-0 animate-pulse">
+                className="text-[10px] px-2 py-1 rounded-lg border border-cyber-neon/40 bg-cyber-neon/15 text-cyber-neon font-semibold hover:bg-cyber-neon/25 transition-colors shrink-0 animate-pulse">
                 CLAIM
               </button>
             ) : claimed ? (
-              <span className="text-[8px] px-1.5 py-0.5 rounded border border-cyber-neon/20 bg-cyber-neon/8 text-cyber-neon font-mono shrink-0">Done</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded border border-cyber-neon/20 bg-cyber-neon/8 text-cyber-neon font-mono shrink-0">Done</span>
             ) : progress ? (
-              <span className="text-[9px] text-gray-500 font-mono shrink-0">{progress.label}</span>
+              <span className="text-[10px] text-gray-500 font-mono shrink-0">{progress.label}</span>
             ) : null}
           </div>
           <div className="flex items-center gap-2 mt-1">
             <CosmeticRewardPreview achievementId={achievement.id} dimmed={claimed} />
             {achievement.reward && !ACHIEVEMENT_COSMETIC_UNLOCKS[achievement.id] && !claimed && (
-              <span className="text-[8px] text-gray-500 font-mono">{achievement.reward.label || achievement.reward.value}</span>
+              <span className="text-[10px] text-gray-500 font-mono">{achievement.reward.label || achievement.reward.value}</span>
             )}
-            <span className={`text-[8px] font-mono ${unlocked ? 'text-cyber-neon/60' : 'text-gray-600'}`}>+{achievement.xpReward}xp{skillIcon ? ` ${skillIcon}` : ''}</span>
+            <span className={`text-[10px] font-mono ${unlocked ? 'text-cyber-neon/60' : 'text-gray-600'}`}>+{achievement.xpReward}xp{skillIcon ? ` ${skillIcon}` : ''}</span>
           </div>
           {!unlocked && achievement.description && (
-            <p className="text-[9px] text-gray-600 mt-0.5 truncate">{achievement.description}</p>
+            <p className="text-[10px] text-gray-600 mt-0.5 truncate">{achievement.description}</p>
           )}
         </div>
       </div>

@@ -173,7 +173,7 @@ export function SessionControls({ glowPulse }: SessionControlsProps) {
                     whileTap={!starting ? MOTION.interactive.tap : undefined}
                     animate={starting ? { scale: 1.015 } : { scale: 1 }}
                     transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
-                    className={`relative min-w-[140px] px-10 py-3.5 rounded-2xl font-bold text-sm tracking-widest transition-colors duration-200 ${
+                    className={`relative min-w-[200px] px-12 py-4 rounded-2xl font-bold text-base tracking-widest transition-colors duration-200 ${
                       starting
                         ? 'bg-cyber-neon/60 text-discord-darker cursor-wait'
                         : 'bg-cyber-neon text-discord-darker shadow-glow hover:shadow-[0_0_30px_rgba(0,255,136,0.5)]'
@@ -209,7 +209,7 @@ export function SessionControls({ glowPulse }: SessionControlsProps) {
                     onClick={handlePauseResume}
                     whileHover={MOTION.interactive.hover}
                     whileTap={MOTION.interactive.tap}
-                    className={`px-5 py-3 rounded-2xl font-semibold text-sm tracking-wide transition-all duration-150 ${
+                    className={`px-8 py-3.5 rounded-2xl font-semibold text-sm tracking-wide transition-all duration-150 ${
                       isPaused
                         ? 'bg-cyber-neon/15 border border-cyber-neon/40 text-cyber-neon hover:bg-cyber-neon/25'
                         : 'bg-white/6 border border-white/12 text-gray-300 hover:bg-white/10 hover:border-white/20'
@@ -223,7 +223,7 @@ export function SessionControls({ glowPulse }: SessionControlsProps) {
                     onClick={handleStartStop}
                     whileHover={MOTION.interactive.hover}
                     whileTap={MOTION.interactive.tap}
-                    className="px-5 py-3 rounded-2xl font-semibold text-sm tracking-wide bg-red-500/12 border border-red-500/30 text-red-400 hover:bg-red-500/22 hover:border-red-500/50 transition-all duration-150"
+                    className="px-8 py-3.5 rounded-2xl font-semibold text-sm tracking-wide bg-red-500/12 border border-red-500/30 text-red-400 hover:bg-red-500/22 hover:border-red-500/50 transition-all duration-150"
                   >
                     STOP
                   </motion.button>
