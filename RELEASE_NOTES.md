@@ -1,17 +1,14 @@
-## What's new in v4.1.0
+## What's new in v4.1.1
 
-**New:**
-- Craft-to-dungeon progression loop — crafted items now gate zone access:
-  - Zone 2 (Goblin Outpost) requires Iron Helm
-  - Zone 7 (Shadow Crypt) requires Lich Ring
-  - Zone 8 (Celestial Spire) requires Lich Sword + Lich Helm
-- Zone 1 boss (Slime King) now drops Iron Ore ×2 — material source for Zone 2 gate
-- Recipe cards show 🏰 zone badge when that item unlocks a dungeon
-- Arena: missing gate items show a "Craft →" button to jump to the Craft tab
+**Fixed**
+- Friends now see **AFK** when you're idle (3+ min with no input), even when no session is running — previously showed "Online" indefinitely
 
-**Fixed:**
-- Party invites now arrive in real-time (Supabase Realtime subscription fix)
-- Consumed items no longer reappear after switching tabs
+**Improved**
+- Better skill recognition for more apps:
+  - **Communicator**: Zoom, Skype, Signal, Viber, Element and more
+  - **Developer**: Postman, Insomnia, DBeaver, DataGrip, TablePlus, GitKraken, SourceTree and more
+  - **Creator**: CapCut, Filmora, Lightroom, Darktable, Inkscape and more
+  - **Learner**: Logseq, Zotero, Calibre, RemNote + 15+ learning sites (arXiv, freeCodeCamp, Substack, etc.)
 
 ---
 Released: 2026-03-19
