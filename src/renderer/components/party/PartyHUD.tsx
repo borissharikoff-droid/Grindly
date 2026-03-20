@@ -72,13 +72,15 @@ export function PartyHUD() {
     if (!user) return
     fetchParty()
     fetchInvites()
-    // Real-time: show invite popup the moment someone sends us a party invite
+    // Real-time: fire immediately when invite INSERT or party_members change arrives
     subscribePartyInvitesRealtime(user.id, () => fetchInvites())
-    // Polling fallback in case Realtime misses an event
-    const poll = setInterval(() => fetchInvites(), 15_000)
+    // Polling fallbacks — Realtime can drop events; keep state fresh regardless
+    const invitePoll = setInterval(() => fetchInvites(), 5_000)
+    const partyPoll  = setInterval(() => fetchParty(),   10_000)
     return () => {
       unsubscribePartyInvitesRealtime()
-      clearInterval(poll)
+      clearInterval(invitePoll)
+      clearInterval(partyPoll)
     }
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 

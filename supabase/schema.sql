@@ -521,3 +521,10 @@ CREATE POLICY "raid_history_select" ON public.raid_history
 
 CREATE POLICY "raid_history_insert" ON public.raid_history
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- ── Realtime REPLICA IDENTITY ─────────────────────────────────────────────────
+-- Required for Supabase Realtime filtered subscriptions on DELETE/UPDATE events.
+-- Without FULL, DELETE events don't carry old row data → party_id/to_user_id
+-- filters never match → member-leave and invite events are silently dropped.
+ALTER TABLE public.party_members REPLICA IDENTITY FULL;
+ALTER TABLE public.party_invites REPLICA IDENTITY FULL;
