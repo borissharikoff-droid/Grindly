@@ -24,6 +24,19 @@ export const CHANGE_TYPE_META: Record<ChangeType, { label: string; color: string
 
 export const CHANGELOG: PatchNote[] = [
   {
+    version: '4.2.1',
+    date: '2026-03-23',
+    title: 'Onboarding tour, new mascot & patch note fix',
+    items: [
+      { type: 'new', text: 'Interactive onboarding tour — GRIND → chest drops → equip → arena → stop session' },
+      { type: 'new', text: 'Primary Skills widget on Home shows XP bars for skills picked in onboarding' },
+      { type: 'ui',  text: 'New mascot art across all screens (auth, welcome banner, onboarding)' },
+      { type: 'ui',  text: 'Tray, taskbar and notification icons updated with new mascot' },
+      { type: 'fix', text: 'Patch notes now correctly appear in the bell after an update' },
+      { type: 'fix', text: 'Mascot no longer stretches — fixed aspect ratio with object-contain' },
+    ],
+  },
+  {
     version: '4.2.0',
     date: '2026-03-22',
     title: 'Onboarding, Party Crafting & Visual Overhaul',
