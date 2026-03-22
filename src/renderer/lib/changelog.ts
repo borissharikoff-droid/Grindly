@@ -24,6 +24,23 @@ export const CHANGE_TYPE_META: Record<ChangeType, { label: string; color: string
 
 export const CHANGELOG: PatchNote[] = [
   {
+    version: '4.2.0',
+    date: '2026-03-22',
+    title: 'Onboarding, Party Crafting & Visual Overhaul',
+    items: [
+      { type: 'new', text: 'Onboarding wizard — pick your skills and daily goal on first launch' },
+      { type: 'new', text: 'Interactive tutorial — guided session → chest → equip → arena walkthrough' },
+      { type: 'new', text: 'Primary Skills widget on Home showing XP progress for your picked skills' },
+      { type: 'new', text: 'Party Crafting — start a craft session with your party, share XP on completion' },
+      { type: 'ui', text: 'Visual design system unified — surface palette, Discord accent, 4px radius everywhere' },
+      { type: 'ui', text: 'New mascot art updated across all screens' },
+      { type: 'balance', text: 'Crafting XP rebalanced — higher level items give proportionally more XP' },
+      { type: 'balance', text: 'Crafting times cut 5-10× for high-level recipes' },
+      { type: 'fix', text: 'Progression loop: Zone 4 chest balanced, wheat removed from craft gate recipes' },
+      { type: 'fix', text: 'Party invite reliability improved (Supabase REPLICA IDENTITY FULL + 15s polling)' },
+    ],
+  },
+  {
     version: '4.1.1',
     date: '2026-03-19',
     title: 'AFK status + better skill detection',
