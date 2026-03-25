@@ -703,20 +703,16 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
                 </div>
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-micro font-semibold text-gray-100 leading-tight truncate">{slot.title}</p>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <span className="text-micro font-mono uppercase" style={{ color: slotTheme.color }}>{rarityNorm}</span>
-                    {typeLabel && <span className="text-[7px] text-gray-600">·</span>}
-                    {typeLabel && <span className="text-[7px] font-mono text-gray-500 uppercase">{typeLabel}</span>}
+                  <p className="text-[10px] font-semibold text-gray-100 leading-tight truncate">{slot.title}</p>
+                  <div className="flex items-center gap-1 mt-0.5 min-w-0 overflow-hidden">
+                    <span className="text-[9px] font-mono uppercase shrink-0" style={{ color: slotTheme.color }}>{rarityNorm}</span>
+                    {slot.quantity > 1 && <span className="text-[9px] font-mono font-bold shrink-0" style={{ color: slotTheme.color }}>×{slot.quantity}</span>}
+                    {typeLabel && <span className="text-[8px] font-mono text-gray-500 uppercase truncate">{typeLabel}</span>}
                   </div>
                   {perkChip && (
-                    <p className="text-micro text-gray-500 truncate mt-0.5">{perkChip}</p>
+                    <p className="text-[9px] text-gray-500 truncate mt-0.5">{perkChip}</p>
                   )}
                 </div>
-                {/* Qty */}
-                {slot.quantity > 1 && (
-                  <span className="text-micro font-mono font-bold flex-shrink-0" style={{ color: slotTheme.color }}>×{slot.quantity}</span>
-                )}
                 {/* Left rarity accent */}
                 <div className="absolute left-0 top-1 bottom-1 w-[2px] rounded-full" style={{ background: slotTheme.color, opacity: rarityNorm === 'common' ? 0.3 : 0.7 }} />
               </button>
