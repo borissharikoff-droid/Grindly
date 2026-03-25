@@ -613,7 +613,11 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
             const onClickCard = () => { playClickSound(); setInspectSlotId(slot.id); setContextMenu(null) }
             const onRightClick = (e: React.MouseEvent) => {
               e.preventDefault()
-              setContextMenu({ x: Math.min(e.clientX, window.innerWidth - 216), y: Math.min(e.clientY, window.innerHeight - 270), slotId: slot.id })
+              const menuW = 216
+              const menuH = 270
+              const x = e.clientX + menuW > window.innerWidth - 8 ? e.clientX - menuW : e.clientX
+              const y = Math.min(e.clientY, window.innerHeight - menuH)
+              setContextMenu({ x, y, slotId: slot.id })
             }
 
             if (viewMode === 'list') {
