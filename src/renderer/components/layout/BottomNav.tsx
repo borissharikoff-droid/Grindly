@@ -184,7 +184,7 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
           <>
             <motion.div
               ref={popupRef}
-              className="fixed bottom-[58px] left-1/2 z-50 w-[280px] -translate-x-1/2 rounded-card border border-white/[0.08] bg-surface-2 shadow-popup overflow-hidden"
+              className="fixed bottom-[58px] left-[calc(50%-140px)] z-50 w-[280px] rounded-card border border-white/[0.08] bg-surface-2 shadow-popup overflow-hidden"
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
