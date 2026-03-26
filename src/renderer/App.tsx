@@ -7,8 +7,8 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { BottomNav } from './components/layout/BottomNav'
 import { HomePage } from './components/home/HomePage'
 import { StreakOverlay } from './components/animations/StreakOverlay'
-import { DailyLoginCalendar } from './components/quests/DailyLoginCalendar'
-import { canClaimToday } from './lib/dailyLoginRewards'
+import { DailyLoginCalendar, ClaimBurst } from './components/quests/DailyLoginCalendar'
+import { canClaimToday, type DailyLoginReward } from './lib/dailyLoginRewards'
 import { LootDrop } from './components/alerts/LootDrop'
 import { ChestDrop } from './components/alerts/ChestDrop'
 import { ToastStack } from './components/alerts/ToastStack'
@@ -172,6 +172,7 @@ export default function App() {
   const [showStreak, setShowStreak] = useState(false)
   const [streakCount, setStreakCount] = useState(0)
   const [showAppDailyLogin, setShowAppDailyLogin] = useState(false)
+  const [appClaimedReward, setAppClaimedReward] = useState<DailyLoginReward | null>(null)
   const [healthIssues, setHealthIssues] = useState<string[]>([])
   const [healthDismissed, setHealthDismissed] = useState(false)
   const [isBackground, setIsBackground] = useState(false)
@@ -595,7 +596,13 @@ export default function App() {
               }} />
             )}
             {showAppDailyLogin && (
-              <DailyLoginCalendar onClose={() => setShowAppDailyLogin(false)} />
+              <DailyLoginCalendar
+                onClose={() => setShowAppDailyLogin(false)}
+                onClaimed={(r) => { setShowAppDailyLogin(false); setAppClaimedReward(r) }}
+              />
+            )}
+            {appClaimedReward && (
+              <ClaimBurst reward={appClaimedReward} onDone={() => setAppClaimedReward(null)} />
             )}
           </AnimatePresence>
           <LootDrop />

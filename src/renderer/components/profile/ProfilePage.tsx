@@ -17,7 +17,8 @@ import { getEquippedPerkRuntime, getItemPower, getRarityTheme, LOOT_ITEMS, CHEST
 import { ensureInventoryHydrated, useInventoryStore } from '../../stores/inventoryStore'
 import { getDailyActivities, getWeeklyActivities } from '../../services/dailyActivityService'
 import { QuestsSection } from '../quests/QuestsSection'
-import { DailyLoginTrigger, DailyLoginCalendar } from '../quests/DailyLoginCalendar'
+import { DailyLoginTrigger, DailyLoginCalendar, ClaimBurst } from '../quests/DailyLoginCalendar'
+import type { DailyLoginReward } from '../../lib/dailyLoginRewards'
 import { ChestOpenModal } from '../animations/ChestOpenModal'
 import { AvatarWithFrame } from '../shared/AvatarWithFrame'
 import { ItemInspectModal } from '../shared/ItemInspectModal'
@@ -353,6 +354,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
   const [inspectItemId, setInspectItemId] = useState<string | null>(null)
   const inspectItem = inspectItemId ? (LOOT_ITEMS.find((x) => x.id === inspectItemId) ?? null) : null
   const [showDailyLogin, setShowDailyLogin] = useState(false)
+  const [profileClaimedReward, setProfileClaimedReward] = useState<DailyLoginReward | null>(null)
 
   return (
     <div
@@ -502,7 +504,15 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
 
       {/* Daily Login Reward — always visible above tabs */}
       <DailyLoginTrigger onClick={() => setShowDailyLogin(true)} />
-      {showDailyLogin && <DailyLoginCalendar onClose={() => setShowDailyLogin(false)} />}
+      {showDailyLogin && (
+        <DailyLoginCalendar
+          onClose={() => setShowDailyLogin(false)}
+          onClaimed={(r) => { setShowDailyLogin(false); setProfileClaimedReward(r) }}
+        />
+      )}
+      {profileClaimedReward && (
+        <ClaimBurst reward={profileClaimedReward} onDone={() => setProfileClaimedReward(null)} />
+      )}
 
       {/* Sub-tabs */}
       <div className="flex gap-1 bg-surface-0/50 rounded p-1">

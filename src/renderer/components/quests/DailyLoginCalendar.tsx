@@ -455,7 +455,7 @@ interface ClaimBurstProps {
   onDone: () => void
 }
 
-function ClaimBurst({ reward, onDone }: ClaimBurstProps) {
+export function ClaimBurst({ reward, onDone }: ClaimBurstProps) {
   const dayNum = getDailyLoginState().totalClaimed
   const scrollRef = useRef<HTMLDivElement>(null)
   const [scrollPos, setScrollPos] = useState<'start' | 'mid' | 'end'>('start')
@@ -666,13 +666,12 @@ function ClaimBurst({ reward, onDone }: ClaimBurstProps) {
 
 interface DailyLoginCalendarProps {
   onClose: () => void
+  onClaimed?: (reward: DailyLoginReward) => void
 }
 
-export function DailyLoginCalendar({ onClose }: DailyLoginCalendarProps) {
+export function DailyLoginCalendar({ onClose, onClaimed }: DailyLoginCalendarProps) {
   const [days, setDays] = useState<CalendarDay[]>(getCalendarDays)
   const [claimable, setClaimable] = useState(canClaimToday)
-  const [claimed, setClaimed] = useState<DailyLoginReward | null>(null)
-  const [showConfetti, setShowConfetti] = useState(false)
   const [selectedDay, setSelectedDay] = useState<CalendarDay>(() => {
     const d = getCalendarDays()
     return d.find(x => x.status === 'today') ?? d.find(x => x.status === 'future') ?? d[0]
@@ -702,14 +701,10 @@ export function DailyLoginCalendar({ onClose }: DailyLoginCalendarProps) {
       }
     }
 
-    setShowConfetti(true)
-    setClaimed(reward)
     setClaimable(false)
-    const newDays = getCalendarDays()
-    setDays(newDays)
-    setSelectedDay(prev => newDays.find(d => d.day === prev.day) ?? prev)
-    setTimeout(() => setShowConfetti(false), 2500)
-  }, [claimable, addGold, addItem, grantAndOpenChest])
+    onClaimed?.(reward)
+    onClose()
+  }, [claimable, addGold, addItem, grantAndOpenChest, onClaimed, onClose])
 
   return createPortal(
     <AnimatePresence>
@@ -752,7 +747,6 @@ export function DailyLoginCalendar({ onClose }: DailyLoginCalendarProps) {
 
           {/* Claim overlay — portal, rendered on top of everything */}
           <AnimatePresence>
-            {claimed && <ClaimBurst reward={claimed} onDone={() => setClaimed(null)} />}
           </AnimatePresence>
 
           {/* Fixed hero + progress — never scrolls */}
@@ -808,7 +802,7 @@ export function DailyLoginCalendar({ onClose }: DailyLoginCalendarProps) {
           </div>
 
           {/* Footer — claim button */}
-          {!claimed && claimable && todayDay && (
+          {claimable && todayDay && (
             <div className="px-5 pb-5 pt-3 border-t border-white/[0.06]">
               <motion.button
                 onClick={handleClaim}
