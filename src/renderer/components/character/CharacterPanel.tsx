@@ -31,7 +31,7 @@ function HSlot({
 
   const inner = (
     <div
-      className="flex items-center gap-2.5 h-full px-2.5 overflow-hidden"
+      className="flex items-center gap-3 h-full px-2.5 overflow-hidden"
       style={{
         borderLeft: `3px solid ${theme ? theme.color : 'rgba(255,255,255,0.10)'}`,
         background: theme
@@ -41,14 +41,14 @@ function HSlot({
       }}
     >
       <div
-        className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden"
+        className="w-11 h-11 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden"
         style={theme
           ? { background: `radial-gradient(circle at 50% 40%, ${theme.glow}55 0%, rgba(5,5,10,0.95) 65%)`, border: `1px solid ${theme.border}55` }
           : { background: 'rgba(0,0,0,0.40)', border: '1px solid rgba(255,255,255,0.07)' }}
       >
         {item
-          ? <LootVisual icon={item.icon} image={item.image} className="w-[18px] h-[18px] object-contain" scale={item.renderScale ?? 1} />
-          : <span className="text-sm leading-none" style={{ opacity: 0.12 }}>{meta.icon}</span>}
+          ? <LootVisual icon={item.icon} image={item.image} className="w-8 h-8 object-contain" scale={item.renderScale ?? 1} />
+          : <span className="text-xl leading-none" style={{ opacity: 0.12 }}>{meta.icon}</span>}
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[7px] font-mono uppercase tracking-widest leading-none" style={{ color: 'rgba(156,163,175,0.38)' }}>
@@ -111,14 +111,14 @@ function VSlot({
         {meta.label}
       </p>
       <div
-        className="w-14 h-14 rounded flex items-center justify-center overflow-hidden"
+        className="w-[72px] h-[72px] rounded flex items-center justify-center overflow-hidden"
         style={theme
           ? { background: `radial-gradient(circle at 50% 40%, ${theme.glow}55 0%, rgba(5,5,10,0.95) 70%)`, border: `1px solid ${theme.border}55` }
           : { background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.08)' }}
       >
         {item
-          ? <LootVisual icon={item.icon} image={item.image} className="w-10 h-10 object-contain" scale={item.renderScale ?? 1} />
-          : <span className="text-2xl leading-none" style={{ opacity: 0.12 }}>{meta.icon}</span>}
+          ? <LootVisual icon={item.icon} image={item.image} className="w-[56px] h-[56px] object-contain" scale={item.renderScale ?? 1} />
+          : <span className="text-3xl leading-none" style={{ opacity: 0.12 }}>{meta.icon}</span>}
       </div>
       <p className="text-micro font-mono leading-none text-center w-full truncate px-1"
         style={{ color: item ? 'rgba(255,255,255,0.65)' : 'rgba(156,163,175,0.25)' }}>
@@ -172,7 +172,7 @@ export function CharacterPanel({
   ]
 
   const p = { equippedBySlot, onSlotClick, locked }
-  const ROW_H = 46  // высота одной строки
+  const ROW_H = 56  // высота одной строки
   const GAP   = 6   // зазор между строками
   const TOTAL = ROW_H * 2 + GAP
 
@@ -182,7 +182,7 @@ export function CharacterPanel({
       <div className="flex gap-1.5" style={{ height: TOTAL }}>
 
         {/* Левая колонка — weapon (высокий) */}
-        <div style={{ width: 80 }}>
+        <div style={{ width: 96 }}>
           <VSlot slot="weapon" {...p} />
         </div>
 

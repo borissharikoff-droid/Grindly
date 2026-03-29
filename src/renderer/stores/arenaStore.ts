@@ -344,8 +344,13 @@ export const useArenaStore = create<ArenaState>()(
       },
 
       advanceDungeon(startTimeOverride?: number) {
-        const { activeDungeon } = get()
+        const { activeDungeon, activeBattle } = get()
         if (!activeDungeon) return
+        // Guard against double-advance: if a battle is already in progress, bail out.
+        // The safety net effect in ArenaPage can fire twice when endBattle() makes two
+        // set() calls (idempotency set + goldEarned update), creating two timers that
+        // both call advanceDungeon(). The second call must be a no-op.
+        if (activeBattle) return
 
         const zone = ZONES.find((z) => z.id === activeDungeon.zoneId)
         if (!zone) return

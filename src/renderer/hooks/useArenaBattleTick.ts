@@ -64,8 +64,10 @@ export function useArenaBattleTick(activeTab: TabId) {
       if (!state?.isComplete || completedRef.current) return
 
       const isAuto = useArenaStore.getState().isAutoRunning
-      // When on arena tab and NOT auto-running, ArenaPage handles resolution
-      if (activeTabRef.current === 'arena' && !isAuto) return
+      // Dungeon battles always defer to ArenaPage regardless of active tab —
+      // switching tabs mid-dungeon (e.g. chat banner Enter) must not bypass the chest modal.
+      // Non-dungeon battles on the arena tab also defer to ArenaPage.
+      if (!isAuto && (activeTabRef.current === 'arena' || activeBattle.dungeonZoneId)) return
 
       const bossName = activeBattle.bossSnapshot.name
 

@@ -89,10 +89,11 @@ public class WinApi {
         LASTINPUTINFO lii = new LASTINPUTINFO();
         lii.cbSize = (uint)Marshal.SizeOf(typeof(LASTINPUTINFO));
         if (!GetLastInputInfo(ref lii)) return 0;
-        // Use TickCount64 to avoid 32-bit overflow at ~49.7 days of uptime
-        long now = Environment.TickCount64;
-        long elapsed = now - lii.dwTime;
-        if (elapsed < 0) elapsed = 0; // guard against dwTime > now at startup
+        // Environment.TickCount is 32-bit (wraps ~49.7 days); use unchecked subtraction to handle wrap
+        long now = (long)(uint)Environment.TickCount;
+        long lastInput = (long)lii.dwTime;
+        long elapsed = unchecked(now - lastInput);
+        if (elapsed < 0) elapsed += 0x100000000L; // handle 32-bit wrap
         return (int)Math.Min(elapsed, int.MaxValue);
     }
     private static string GetProcessName(uint pid) {

@@ -123,16 +123,15 @@ function ToastItem({ toast, onDismiss, onNavigate }: { toast: Toast; onDismiss: 
       const matBonuses: BonusMaterial[] = d.materialDrop ? [{ itemId: d.materialDrop.id, qty: d.materialDrop.qty }] : []
       if (d.chest) {
         const result = openChestAndGrantItem(d.chest.type as ChestType, { source: 'session_complete', focusCategory: null })
-        if (result) {
-          setResultModal({
-            chestType: d.chest.type as ChestType,
-            itemId: result.itemId,
-            goldDropped: result.goldDropped + d.gold,
-            bonusMaterials: [...matBonuses, ...result.bonusMaterials],
-            warriorXP: d.warriorXP ?? 0,
-            pendingGold: 0,
-          })
-        }
+        // Always open the modal — even if openChestAndGrantItem returned null (empty pool edge case)
+        setResultModal({
+          chestType: result ? d.chest.type as ChestType : null,
+          itemId: result?.itemId ?? null,
+          goldDropped: (result?.goldDropped ?? 0) + d.gold,
+          bonusMaterials: result ? [...matBonuses, ...result.bonusMaterials] : matBonuses,
+          warriorXP: d.warriorXP ?? 0,
+          pendingGold: 0,
+        })
       } else {
         setResultModal({
           chestType: null,

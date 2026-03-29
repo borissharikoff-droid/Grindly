@@ -1,6 +1,6 @@
 {
   "name": "grindly",
-  "version": "4.5.0",
+  "version": "4.6.0",
   "description": "Windows productivity tracker with session timer, activity monitoring, and gamification",
   "main": "dist/main/main/index.js",
   "scripts": {
