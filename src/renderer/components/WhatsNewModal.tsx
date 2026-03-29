@@ -51,13 +51,13 @@ export function useWhatsNew() {
   const releasePending = useCallback(() => {
     if (pendingShow) {
       setPendingShow(false)
-      setTimeout(() => setShowModal(true), 400)
+      // Modal no longer auto-shows — notification is already in the bell
     }
   }, [pendingShow])
 
   const showRemotePatch = (p: PatchNote) => {
     setPatch(p)
-    setShowModal(true)
+    // Remote patch notes go only to the bell — no auto-popup
   }
 
   return { showModal, patch, closeModal: () => setShowModal(false), showRemotePatch, releasePending }
