@@ -5,6 +5,7 @@
 import { CHEST_DEFS, type LootItemDef, type LootItemPerk, type LootRarity, type LootSlot, type ChestType } from './loot'
 import { SEED_DEFS, SEED_ZIP_LABELS, SEED_ZIP_ICONS, SEED_ZIP_IMAGES, type SeedZipTier } from './farming'
 import type { BossDef, ZoneDef } from './combat'
+import type { FoodItemDef } from './cooking'
 
 const STORAGE_KEY = 'grindly_admin_config'
 
@@ -142,14 +143,25 @@ export async function syncAdminConfigFromSupabase(
   }
 }
 
-/** Apply overrides to LOOT_ITEMS, BOSSES, ZONES, and CRAFT_RECIPES in-place. Call once at app startup. */
-export function applyAdminConfig(items: LootItemDef[], bosses: BossDef[], zones?: ZoneDef[], craftRecipes?: { id: string; levelRequired: number; xpPerItem: number; secPerItem: number; ingredients: { id: string; qty: number }[] }[]): void {
+/** Apply overrides to LOOT_ITEMS, BOSSES, ZONES, CRAFT_RECIPES, and FOOD_ITEMS in-place. Call once at app startup. */
+export function applyAdminConfig(items: LootItemDef[], bosses: BossDef[], zones?: ZoneDef[], craftRecipes?: { id: string; levelRequired: number; xpPerItem: number; secPerItem: number; ingredients: { id: string; qty: number }[] }[], foodItems?: FoodItemDef[]): void {
   const cfg = loadAdminConfig()
 
-  // Patch existing items
+  // Patch existing loot items
   for (const [id, overrides] of Object.entries(cfg.itemOverrides ?? {})) {
     const item = items.find((x) => x.id === id)
     if (item) Object.assign(item, overrides)
+  }
+
+  // Patch food items (icon/image overrides)
+  if (foodItems) {
+    for (const [id, overrides] of Object.entries(cfg.itemOverrides ?? {})) {
+      const food = foodItems.find((x) => x.id === id)
+      if (food) {
+        if (overrides.icon !== undefined) food.icon = overrides.icon
+        if (overrides.image !== undefined) food.image = overrides.image
+      }
+    }
   }
 
   // Remove hidden items

@@ -7,6 +7,7 @@ export interface FoodItemDef {
   id: string
   name: string
   icon: string
+  image?: string
   rarity: LootRarity
   effect: FoodEffect
   description: string

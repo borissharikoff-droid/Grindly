@@ -229,9 +229,13 @@ function CookingStation({ onCancel }: { onCancel: (id: string) => void }) {
         {/* ── Info row: dish + count + xp ── */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <motion.span key={itemPop} className="text-lg"
+            <motion.span key={itemPop} className="text-lg flex items-center justify-center w-7 h-7"
               initial={itemPop > 0 ? { scale: 1.4 } : false}
-              animate={{ scale: 1 }}>{output?.icon ?? '🍳'}</motion.span>
+              animate={{ scale: 1 }}>
+              {output?.image
+                ? <LootVisual icon={output.icon} image={output.image} className="w-6 h-6 object-contain" scale={1} />
+                : (output?.icon ?? '🍳')}
+            </motion.span>
             <div>
               <p className="text-xs font-bold" style={{ color: K.cream }}>{output?.name ?? 'Cooking'}</p>
               <p className="text-micro" style={{ color: K.muted }}>
@@ -287,7 +291,9 @@ function CookingStation({ onCancel }: { onCancel: (id: string) => void }) {
               return (
                 <div key={job.id} className="flex items-center gap-1.5 px-1 py-0.5 text-micro font-mono" style={{ color: K.muted }}>
                   <span style={{ color: `${K.muted}80` }}>{i + 1}.</span>
-                  {qOut?.icon && <span>{qOut.icon}</span>}
+                  {qOut?.image
+                    ? <LootVisual icon={qOut.icon} image={qOut.image} className="w-4 h-4 object-contain" scale={1} />
+                    : (qOut?.icon && <span>{qOut.icon}</span>)}
                   <span className="truncate">{qOut?.name ?? job.outputItemId}</span>
                   <span className="ml-auto shrink-0" style={{ color: `${K.muted}80` }}>×{job.totalQty}</span>
                 </div>
@@ -399,12 +405,14 @@ function DishCard({
       <div className="p-3 relative">
         <div className="flex items-start gap-3">
           {/* Dish icon */}
-          <div className="w-11 h-11 rounded flex items-center justify-center text-2xl shrink-0"
+          <div className="w-11 h-11 rounded flex items-center justify-center text-2xl shrink-0 overflow-hidden"
             style={{
               background: !locked ? `${theme.glow}0a` : 'rgba(255,255,255,.02)',
               border: `1px solid ${!locked ? `${theme.border}20` : 'rgba(255,255,255,.04)'}`,
             }}>
-            {output.icon}
+            {output.image
+              ? <LootVisual icon={output.icon} image={output.image} className="w-9 h-9 object-contain" scale={1} />
+              : output.icon}
           </div>
 
           <div className="flex-1 min-w-0">

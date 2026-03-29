@@ -39,6 +39,7 @@ import { MOTION } from './lib/motion'
 import { PageLoading } from './components/shared/PageLoading'
 import { BOSSES, ZONES } from './lib/combat'
 import { CRAFT_RECIPES } from './lib/crafting'
+import { FOOD_ITEMS } from './lib/cooking'
 import { useAchievementStatsStore } from './stores/achievementStatsStore'
 import { useNavCustomizationStore } from './stores/navCustomizationStore'
 import { applyAdminConfig, syncAdminConfigFromSupabase } from './lib/itemConfig'
@@ -54,7 +55,7 @@ import { OnboardingWizard } from './components/onboarding/OnboardingWizard'
 import { OnboardingTour, getTourHighlightTab } from './components/onboarding/OnboardingTour'
 
 // Apply cached admin overrides before first render (populated after first Supabase sync)
-applyAdminConfig(LOOT_ITEMS, BOSSES, ZONES, CRAFT_RECIPES)
+applyAdminConfig(LOOT_ITEMS, BOSSES, ZONES, CRAFT_RECIPES, FOOD_ITEMS)
 
 class PageErrorBoundary extends Component<
   { children: ReactNode; onReset: () => void },
@@ -400,7 +401,7 @@ export default function App() {
     const { bump } = useAdminConfigStore.getState()
     const sync = () =>
       syncAdminConfigFromSupabase(supabase)
-        .then(() => { applyAdminConfig(LOOT_ITEMS, BOSSES, ZONES, CRAFT_RECIPES); bump() })
+        .then(() => { applyAdminConfig(LOOT_ITEMS, BOSSES, ZONES, CRAFT_RECIPES, FOOD_ITEMS); bump() })
         .catch(() => {})
     sync()
     const id = setInterval(sync, 5 * 60 * 1000)

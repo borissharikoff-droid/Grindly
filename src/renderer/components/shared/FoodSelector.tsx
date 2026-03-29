@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { FOOD_ITEMS, type FoodItemDef } from '../../lib/cooking'
+import { LootVisual } from '../loot/LootUI'
 import type { FoodLoadoutSlot } from '../../lib/combat'
 
 interface FoodSelectorProps {
@@ -70,7 +71,9 @@ export function FoodSelector({ slots, onChange, ownedItems }: FoodSelectorProps)
               >
                 {food ? (
                   <>
-                    <span>{food.icon}</span>
+                    {food.image
+                      ? <LootVisual icon={food.icon} image={food.image} className="w-6 h-6 object-contain" scale={1} />
+                      : <span>{food.icon}</span>}
                     <span className="absolute -bottom-0.5 -right-0.5 text-micro font-bold text-white bg-black/60 rounded px-0.5">{slot!.qty}</span>
                   </>
                 ) : (
@@ -105,7 +108,9 @@ export function FoodSelector({ slots, onChange, ownedItems }: FoodSelectorProps)
                   onClick={() => handlePick(pickerIdx, f)}
                   className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-white/[0.06] transition-colors border-b border-white/[0.04] last:border-0"
                 >
-                  <span className="text-sm shrink-0">{f.icon}</span>
+                  {f.image
+                    ? <LootVisual icon={f.icon} image={f.image} className="w-5 h-5 object-contain shrink-0" scale={1} />
+                    : <span className="text-sm shrink-0">{f.icon}</span>}
                   <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
                     <span className="text-micro font-semibold text-gray-200">{f.name}</span>
                     {f.effect.heal && <span className="text-micro font-medium px-1 rounded" style={{ color: '#4ade80', background: 'rgba(74,222,128,0.12)' }}>+{f.effect.heal}HP</span>}
