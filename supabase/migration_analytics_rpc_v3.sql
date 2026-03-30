@@ -32,17 +32,19 @@ returns table (
   bucket text,
   cnt    bigint
 ) language sql security definer as $$
-  select
-    case
-      when duration_seconds < 300   then '<5min'
-      when duration_seconds < 900   then '5-15min'
-      when duration_seconds < 3600  then '15-60min'
-      else '60min+'
-    end as bucket,
-    count(*) as cnt
-  from public.session_summaries
-  where start_time >= now() - interval '30 days'
-  group by 1
+  select bucket, cnt from (
+    select
+      case
+        when duration_seconds < 300   then '<5min'
+        when duration_seconds < 900   then '5-15min'
+        when duration_seconds < 3600  then '15-60min'
+        else '60min+'
+      end as bucket,
+      count(*) as cnt
+    from public.session_summaries
+    where start_time >= now() - interval '30 days'
+    group by 1
+  ) sub
   order by
     case bucket
       when '<5min'    then 1
