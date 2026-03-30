@@ -222,6 +222,7 @@ try {
     },
     admin: {
       pickImageFile: (): Promise<string | null> => ipcRenderer.invoke('admin.pickImageFile'),
+      getAppInfo: (): Promise<{ platform: string; version: string }> => ipcRenderer.invoke('admin:getAppInfo'),
     },
   }
   contextBridge.exposeInMainWorld('electronAPI', api)

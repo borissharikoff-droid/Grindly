@@ -381,6 +381,12 @@ export function registerIpcHandlers() {
     return getFocusModeStatus()
   })
 
+  // ── Admin: app info (platform + version for Supabase profile sync) ───────
+  ipcMain.handle(IPC_CHANNELS.admin.getAppInfo, () => ({
+    platform: process.platform,
+    version: app.getVersion(),
+  }))
+
   // ── Admin: image file picker ──────────────────────────────────────────────
   ipcMain.handle(IPC_CHANNELS.admin.pickImageFile, async () => {
     const { filePaths, canceled } = await dialog.showOpenDialog({

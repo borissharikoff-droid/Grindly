@@ -176,6 +176,20 @@ export function useProfileSync() {
         console.warn('[useProfileSync] profiles base sync failed:', baseProfileError.message)
       }
 
+      // Optional platform + version sync (columns added in migration_platform_version.sql)
+      try {
+        if (api?.admin?.getAppInfo) {
+          const { platform, version } = await api.admin.getAppInfo()
+          await supabase.from('profiles').update({
+            platform,
+            client_version: version,
+            updated_at: new Date().toISOString(),
+          }).eq('id', user.id)
+        }
+      } catch {
+        // Non-critical — skip silently if IPC unavailable (stale preload cache)
+      }
+
       // Optional persona sync (column may not exist in older schema)
       if (personaId != null) {
         const { error: personaError } = await supabase

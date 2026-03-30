@@ -92,6 +92,7 @@ export const IPC_CHANNELS = {
   },
   admin: {
     pickImageFile: 'admin.pickImageFile',
+    getAppInfo: 'admin:getAppInfo',
   },
   window: {
     flashFrame: 'window:flashFrame',
