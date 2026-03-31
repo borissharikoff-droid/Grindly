@@ -10,9 +10,10 @@ XP, skills, loot drops, and arena battles — powered by what you actually do on
 
 <br>
 
-[![Download](https://img.shields.io/badge/Download-Windows-5865F2?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/lovepsm94/grindly/releases/latest)
+[![Download Windows](https://img.shields.io/badge/Download-Windows_.exe-5865F2?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/borissharikoff-droid/Grindly/releases/latest)
+[![Download Mac](https://img.shields.io/badge/Download-macOS_.dmg-black?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/borissharikoff-droid/Grindly/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
-[![Wiki](https://img.shields.io/badge/Wiki-Docs-f59e0b?style=for-the-badge)](https://lovepsm94.github.io/grindly-wiki)
+[![Wiki](https://img.shields.io/badge/Wiki-Docs-f59e0b?style=for-the-badge)](https://borissharikoff-droid.github.io/Grindly-Wiki)
 
 </div>
 
@@ -20,7 +21,7 @@ XP, skills, loot drops, and arena battles — powered by what you actually do on
 
 ## What is Grindly?
 
-Grindly watches what you're doing on your Windows PC and turns it into an RPG — in real time.
+Grindly watches what you're doing on your PC and turns it into an RPG — in real time.
 
 Open VS Code for 3 hours → **Developer** skill levels up. Browse research tabs → **Researcher** XP. Play games → **Gamer**. Every active window is tracked and converted into progression.
 
@@ -56,12 +57,18 @@ Open VS Code for 3 hours → **Developer** skill levels up. Browse research tabs
 
 ---
 
-## Download & Install
+## Install
 
-1. Go to **[Releases](https://github.com/lovepsm94/grindly/releases/latest)**
-2. Download `Grindly-Setup-x.x.x.exe`
-3. Run the installer — Windows may show a SmartScreen warning since the app isn't code-signed yet. Click **More info → Run anyway**.
-4. Grindly starts in the system tray.
+### Windows
+1. Download `Grindly-Setup-x.x.x.exe` from **[Releases](https://github.com/borissharikoff-droid/Grindly/releases/latest)**
+2. Run the installer — SmartScreen may warn you since the app isn't signed yet. Click **More info → Run anyway**.
+3. Grindly starts in the system tray.
+
+### macOS
+1. Download `Grindly-x.x.x.dmg` from **[Releases](https://github.com/borissharikoff-droid/Grindly/releases/latest)**
+2. Open the .dmg and drag Grindly to Applications.
+3. On first launch: **System Settings → Privacy & Security → Open Anyway**.
+4. Grindly appears in the menu bar.
 
 > **No account required.** Social features (friends, leaderboard, marketplace) are optional and require a free account.
 
