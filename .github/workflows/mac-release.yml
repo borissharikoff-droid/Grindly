@@ -1,0 +1,38 @@
+# Ручная Mac-сборка и загрузка .dmg в уже существующий GitHub Release.
+# Запуск: Actions → "Mac Release" → Run workflow → указать тег (например v4.7.0)
+
+name: Mac Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to upload DMG to (e.g. v4.7.0)'
+        required: true
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm run electron:build:mac -- --publish never
+
+      - name: Upload DMG to existing release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          gh release upload "$TAG" release/*.dmg release/latest-mac.yml --clobber

@@ -9,24 +9,58 @@ on:
       - 'v*'
 
 jobs:
-  release:
+  build-windows:
     runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run electron:build -- --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: |
+            release/*.exe
+            release/latest.yml
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run electron:build:mac -- --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-artifacts
+          path: |
+            release/*.dmg
+            release/latest-mac.yml
+
+  publish:
+    needs: [build-windows, build-mac]
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/download-artifact@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          name: windows-artifacts
+          path: artifacts/windows
 
-      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: mac-artifacts
+          path: artifacts/mac
 
-      # Строим без publish — electron-builder генерирует .exe и latest.yml в ./release/
-      - run: npm run electron:build -- --publish never
-
-      # Создаём GitHub Release и заливаем installer + latest.yml (нужен electron-updater)
       - name: Publish GitHub Release
         shell: bash
         env:
@@ -41,5 +75,7 @@ jobs:
           gh release create "$TAG" \
             --title "Grindly $TAG" \
             --notes "$NOTES" \
-            release/*.exe \
-            release/latest.yml
+            artifacts/windows/*.exe \
+            artifacts/windows/latest.yml \
+            artifacts/mac/*.dmg \
+            artifacts/mac/latest-mac.yml
