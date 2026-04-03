@@ -27,6 +27,7 @@ import { usePolls } from './hooks/usePolls'
 import { useMarketplaceSaleNotifier } from './hooks/useMarketplaceSaleNotifier'
 import { useCraftTick } from './hooks/useCraftTick'
 import { useCookingTick } from './hooks/useCookingTick'
+import { usePetNotifications } from './hooks/usePetNotifications'
 import { UpdateBanner } from './components/UpdateBanner'
 import { useSessionStore, setupAfkListener } from './stores/sessionStore'
 import { useChatTargetStore } from './stores/chatTargetStore'
@@ -101,6 +102,7 @@ const ArenaPage = lazy(() => import('./components/arena/ArenaPage').then((m) => 
 const FarmPage = lazy(() => import('./components/farm/FarmPage').then((m) => ({ default: m.FarmPage })))
 const CraftPage = lazy(() => import('./components/craft/CraftPage').then((m) => ({ default: m.CraftPage })))
 const CookingPage = lazy(() => import('./components/cooking/CookingPage').then((m) => ({ default: m.CookingPage })))
+const PetPage = lazy(() => import('./components/pet/PetPage').then((m) => ({ default: m.PetPage })))
 
 function PageFallback() {
   return (
@@ -111,7 +113,7 @@ function PageFallback() {
 }
 
 
-export type TabId = 'home' | 'inventory' | 'skills' | 'stats' | 'profile' | 'friends' | 'marketplace' | 'arena' | 'farm' | 'craft' | 'cooking' | 'settings'
+export type TabId = 'home' | 'inventory' | 'skills' | 'stats' | 'profile' | 'friends' | 'marketplace' | 'arena' | 'farm' | 'craft' | 'cooking' | 'pet' | 'settings'
 
 const PAGE_SLIDE = {
   initial: { opacity: 0 },
@@ -272,6 +274,7 @@ export default function App() {
   useArenaBattleTick(activeTab) // battle completion: toast+bell when off Arena, modal when on Arena
   useCraftTick()                // crafting job queue — runs on all tabs
   useCookingTick()              // cooking job queue — runs on all tabs
+  usePetNotifications()         // adventure complete + hunger warning notifications
   const whatsNew = useWhatsNew()
   useRemotePatchNotes(whatsNew.showRemotePatch)
   // Start tour only after WhatsNew modal and streak overlay are gone (prevents overlap)
@@ -625,6 +628,13 @@ export default function App() {
                 <motion.div key="cooking" variants={PAGE_SLIDE} initial="initial" animate="animate">
                   <Suspense fallback={<PageFallback />}>
                     <CookingPage />
+                  </Suspense>
+                </motion.div>
+              )}
+              {activeTab === 'pet' && (
+                <motion.div key="pet" variants={PAGE_SLIDE} initial="initial" animate="animate">
+                  <Suspense fallback={<PageFallback />}>
+                    <PetPage />
                   </Suspense>
                 </motion.div>
               )}

@@ -226,6 +226,7 @@ function AdventurePanel({ pet, petName }: { pet: PetInstance; petName: string })
   const cancelAdventure = usePetStore((s) => s.cancelAdventure)
   const [tick, setTick] = useState(0)
   const [lootResult, setLootResult] = useState<AutoRunResult | null>(null)
+  const [lootNarrative, setLootNarrative] = useState<string | null>(null)
 
   // Tick every second while on adventure so countdown updates
   useEffect(() => {
@@ -254,6 +255,7 @@ function AdventurePanel({ pet, petName }: { pet: PetInstance; petName: string })
         passesUsed: 1,
       }
       setLootResult(fakeResult)
+      setLootNarrative(result.narrative ?? null)
     }
   }
 
@@ -338,7 +340,9 @@ function AdventurePanel({ pet, petName }: { pet: PetInstance; petName: string })
       <AutoFarmLootModal
         open={lootResult !== null}
         result={lootResult}
-        onClose={() => setLootResult(null)}
+        narrative={lootNarrative}
+        onClose={() => { setLootResult(null); setLootNarrative(null) }}
+        petImage={getPetLevelImage(pet.defId, pet.level)}
       />
     </div>
   )
@@ -661,6 +665,9 @@ function SkillAssignPanel({ pet }: { pet: PetInstance }) {
           <div className="text-[9px] font-mono text-gray-600 truncate">
             {assignedSkill ? `${assignedSkill.icon} ${assignedSkill.name}` : '✨ all skills'}
           </div>
+          {bondBonus > 0 && (
+            <div className="text-[9px] font-mono text-amber-500/70 mt-0.5">+{bondBonus}% bond</div>
+          )}
         </div>
 
         {/* HP regen */}

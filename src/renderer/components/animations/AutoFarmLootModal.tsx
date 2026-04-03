@@ -18,6 +18,9 @@ interface AutoFarmLootModalProps {
   open: boolean
   result: AutoRunResult | null
   onClose: () => void
+  petImage?: string | null
+  /** Optional narrative flavor text shown below the title (e.g. from adventure collectAdventure) */
+  narrative?: string | null
 }
 
 // Shake frames for bag animation
@@ -31,7 +34,7 @@ const AMBER = {
   glow: '#f59e0b',
 }
 
-export function AutoFarmLootModal({ open, result, onClose }: AutoFarmLootModalProps) {
+export function AutoFarmLootModal({ open, result, onClose, petImage, narrative }: AutoFarmLootModalProps) {
   const [phase, setPhase] = useState<'opening' | 'revealed'>('opening')
   const scrollRef = useRef<HTMLDivElement>(null)
   const [scrollPos, setScrollPos] = useState<'start' | 'middle' | 'end'>('start')
@@ -256,7 +259,10 @@ export function AutoFarmLootModal({ open, result, onClose }: AutoFarmLootModalPr
                   background: `radial-gradient(circle at 50% 35%, ${AMBER.glow}55 0%, rgba(8,8,16,0.92) 70%)`,
                 }}
               >
-                <span className="text-4xl">🎒</span>
+                {petImage
+                  ? <img src={petImage} alt="" className="w-14 h-14 object-contain" draggable={false} />
+                  : <span className="text-4xl">🎒</span>
+                }
               </motion.div>
             </motion.div>
 
@@ -280,6 +286,18 @@ export function AutoFarmLootModal({ open, result, onClose }: AutoFarmLootModalPr
             <p className="text-sm text-white/80 font-medium mt-0.5">
               {result.runsCompleted}/{result.passesUsed} runs
             </p>
+
+            {/* Pet narrative */}
+            {isRevealed && narrative && (
+              <motion.p
+                className="text-micro font-mono text-gray-500 italic mt-1 px-2"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2, duration: 0.3 }}
+              >
+                {narrative}
+              </motion.p>
+            )}
 
             {/* Item count */}
             {isRevealed && itemCount >= 2 && (
