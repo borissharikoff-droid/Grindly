@@ -32,3 +32,25 @@ ship-safe-report.html
 launch/
 native/
 scripts/
+
+# Temp/scratch files from editor sessions
+*.tmp.*
+.tmp_*
+.temp/
+.neteragen/
+TODOS.md.tmp.*
+*-prompt.html
+*-style-sheet.html
+wiki_audit_report.html
+pet-gen-prompt.html
+pet-style-sheet.html
+
+# Large binary assets not needed in repo
+assets/video/
+assets/reddit/
+
+# Meta section working files (asset generation tooling)
+meta/
+
+# Pet asset generation working directory (source frames — root only)
+/pets/

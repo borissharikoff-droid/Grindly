@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { ChevronRight } from '../../lib/icons'
 import { ProfileBar } from './ProfileBar'
 import { StreakBar } from './StreakBar'
 import { Timer } from './Timer'
@@ -22,6 +23,8 @@ import { useFarmStore } from '../../stores/farmStore'
 import { useNavigationStore } from '../../stores/navigationStore'
 import { useRaidStore } from '../../stores/raidStore'
 import { RAID_TIER_CONFIGS, getRaidPhase } from '../../services/raidService'
+import { usePetStore } from '../../stores/petStore'
+import { ADVENTURES, computeCurrentHunger, computePetMood, getPetDef, getPetLevelImage, getPetBuffDisplay, MOOD_EMOJI } from '../../lib/pets'
 
 interface HomePageProps {
   onNavigateProfile: () => void
@@ -77,11 +80,31 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
   const activeRaid = useRaidStore((s) => s.activeRaid)
 
   const now = Date.now() + ambientTick * 0
-  const farmReady = Object.values(planted).filter((s) => !!s && (now - s.plantedAt) / 1000 >= s.growTimeSeconds).length
+  const farmSlots = Object.values(planted).filter((s) => !!s) as import('../../stores/farmStore').PlantedSlot[]
+  const farmReady = farmSlots.filter((s) => (now - s.plantedAt) / 1000 >= s.growTimeSeconds).length
+  const farmGrowingSlots = farmSlots.filter((s) => (now - s.plantedAt) / 1000 < s.growTimeSeconds)
+  const farmGrowing = farmGrowingSlots.length
+  const farmNearestRemainingMs = farmGrowing > 0
+    ? Math.min(...farmGrowingSlots.map((s) => Math.max(0, s.growTimeSeconds * 1000 - (now - s.plantedAt))))
+    : 0
+  const farmGrowingProgress = farmGrowing > 0
+    ? farmGrowingSlots.reduce((sum, s) => sum + Math.min(1, (now - s.plantedAt) / 1000 / s.growTimeSeconds), 0) / farmGrowing
+    : 0
 
   const craftRemaining = craftJob ? jobRemainingItems(now, craftJob.startedAt, craftJob.secPerItem, craftJob.totalQty, craftJob.doneQty) : 0
   const cookRemaining = cookJob ? jobRemainingItems(now, cookJob.startedAt, cookJob.secPerItem, cookJob.totalQty, cookJob.doneQty) : 0
-  const showAmbientBar = farmReady > 0 || !!craftJob || !!cookJob
+  const activePet = usePetStore((s) => s.activePet)
+  const petAdventure = activePet?.adventureId
+    ? ADVENTURES.find((a) => a.id === activePet.adventureId) ?? null
+    : null
+  const petAdventureElapsed = petAdventure && activePet?.adventureStartedAt
+    ? now - activePet.adventureStartedAt
+    : 0
+  const petAdventureDone = petAdventure ? petAdventureElapsed >= petAdventure.durationMs : false
+  const petAdventureRemaining = petAdventure ? Math.max(0, petAdventure.durationMs - petAdventureElapsed) : 0
+  const petAdventureProgress = petAdventure ? Math.min(1, petAdventureElapsed / petAdventure.durationMs) : 0
+
+  const showAmbientBar = farmReady > 0 || farmGrowing > 0 || !!craftJob || !!cookJob || !!petAdventure
 
   const raidCfg = activeRaid ? RAID_TIER_CONFIGS[activeRaid.tier] : null
   const raidPhase = activeRaid ? getRaidPhase(activeRaid.boss_hp_remaining, activeRaid.boss_hp_max) : 1
@@ -199,30 +222,28 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
         </div>
       )}
 
-      {/* Welcome banner — only for new users, before first grind */}
-      <AnimatePresence>
-        {welcomeVisible && (
-          <motion.div
-            key="welcome"
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.3, ease: MOTION.easingSoft }}
-            className="flex justify-center px-4 pt-2"
-          >
-            <WelcomeBanner />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Center zone — Timer + Controls, bottom zone pinned to nav */}
       <div className="flex-1 flex flex-col px-4">
         {/* Timer centered in remaining space */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-8 pb-8">
+        <div className="flex-1 flex flex-col items-center justify-center gap-6 pb-8">
+          {/* Welcome banner — only for new users, before first grind */}
+          <AnimatePresence>
+            {welcomeVisible && (
+              <motion.div
+                key="welcome"
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.3, ease: MOTION.easingSoft }}
+              >
+                <WelcomeBanner />
+              </motion.div>
+            )}
+          </AnimatePresence>
           <Timer />
 
           <div className="flex flex-col items-center gap-4">
-            <SessionControls glowPulse={showWelcome && status === 'idle'} />
+            <SessionControls />
             <AnimatePresence>
               {status !== 'idle' && (
                 <motion.div
@@ -242,6 +263,54 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
         {/* Bottom zone — pinned just above nav bar */}
         <div className="pb-4 w-full max-w-sm mx-auto space-y-2">
 
+          {/* Pet idle widget — visible when not in a session */}
+          {status === 'idle' && activePet && !activePet.adventureId && (() => {
+            const def = getPetDef(activePet.defId)
+            if (!def) return null
+            const hunger = computeCurrentHunger(activePet)
+            const mood = computePetMood(activePet)
+            const levelImg = getPetLevelImage(activePet.defId, activePet.level)
+            const displayEmoji = activePet.hasEvolvedEmoji && def.evolvedEmoji ? def.evolvedEmoji : def.emoji
+            const petName = activePet.customName ?? def.name
+            const hungerColor = hunger === 0 ? 'bg-gray-600' : hunger < 25 ? 'bg-red-500' : hunger < 50 ? 'bg-amber-500' : 'bg-lime-500'
+            const buffDisplay = getPetBuffDisplay(activePet)
+            return (
+              <button
+                type="button"
+                onClick={() => navigateTo?.('pet')}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg bg-surface-1/60 border border-white/[0.06] hover:bg-surface-1 transition-colors"
+              >
+                <div className="shrink-0 w-7 h-7 flex items-center justify-center">
+                  {levelImg
+                    ? <img src={levelImg} alt="" className="w-7 h-7 object-contain" draggable={false} />
+                    : <span className="text-lg leading-none">{displayEmoji}</span>
+                  }
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-white truncate">
+                      {MOOD_EMOJI[mood]} {petName}
+                    </span>
+                    <div className="flex items-center gap-2 shrink-0 ml-1">
+                      {hunger > 0 && (
+                        <span className="text-micro font-mono text-lime-400">{buffDisplay}</span>
+                      )}
+                      <span className={`text-micro font-mono ${hunger < 25 ? 'text-red-400' : 'text-gray-500'}`}>
+                        🍗 {hunger}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="h-1 rounded-full bg-surface-0 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${hungerColor}`}
+                      style={{ width: `${hunger}%` }}
+                    />
+                  </div>
+                </div>
+              </button>
+            )
+          })()}
+
           {/* Ambient activity bar — farm/craft/cook status */}
           {showAmbientBar && (
             <div className="flex gap-1.5 flex-wrap">
@@ -254,13 +323,33 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
                   🌾 {farmReady} ready
                 </button>
               )}
+              {farmGrowing > 0 && (
+                <button
+                  type="button"
+                  onClick={() => navigateTo?.('farm')}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-micro font-mono border border-white/12 bg-white/[0.04] text-gray-400 hover:bg-white/[0.07] transition-colors"
+                >
+                  🌱
+                  <span className="flex items-center gap-1">
+                    <span className="w-10 h-1 rounded-full bg-white/[0.08] overflow-hidden inline-block relative">
+                      <span
+                        className="absolute inset-y-0 left-0 rounded-full bg-lime-500/60"
+                        style={{ width: `${farmGrowingProgress * 100}%` }}
+                      />
+                    </span>
+                    {Math.floor(farmNearestRemainingMs / 3_600_000) > 0
+                      ? `${Math.floor(farmNearestRemainingMs / 3_600_000)}h${Math.floor((farmNearestRemainingMs % 3_600_000) / 60_000)}m`
+                      : `${Math.floor(farmNearestRemainingMs / 60_000)}m`}
+                  </span>
+                </button>
+              )}
               {craftJob && (
                 <button
                   type="button"
                   onClick={() => navigateTo?.('craft')}
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-micro font-mono border transition-colors ${
                     craftRemaining === 0
-                      ? 'border-accent/40 bg-accent/[0.07] text-accent hover:bg-accent/12'
+                      ? 'border-lime-500/35 bg-lime-500/[0.07] text-lime-400 hover:bg-lime-500/12'
                       : 'border-white/12 bg-white/[0.04] text-gray-400 hover:bg-white/[0.07]'
                   }`}
                 >
@@ -273,11 +362,37 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
                   onClick={() => navigateTo?.('cooking')}
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-micro font-mono border transition-colors ${
                     cookRemaining === 0
-                      ? 'border-accent/40 bg-accent/[0.07] text-accent hover:bg-accent/12'
+                      ? 'border-lime-500/35 bg-lime-500/[0.07] text-lime-400 hover:bg-lime-500/12'
                       : 'border-white/12 bg-white/[0.04] text-gray-400 hover:bg-white/[0.07]'
                   }`}
                 >
                   🍳 {cookRemaining === 0 ? 'done' : `${cookRemaining} left`}
+                </button>
+              )}
+              {petAdventure && (
+                <button
+                  type="button"
+                  onClick={() => navigateTo?.('pet')}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-micro font-mono border transition-colors ${
+                    petAdventureDone
+                      ? 'border-lime-500/35 bg-lime-500/[0.07] text-lime-400 hover:bg-lime-500/12'
+                      : 'border-white/12 bg-white/[0.04] text-gray-400 hover:bg-white/[0.07]'
+                  }`}
+                >
+                  {petAdventure.icon}
+                  {petAdventureDone ? (
+                    'collect!'
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      <span className="w-10 h-1 rounded-full bg-white/[0.08] overflow-hidden inline-block relative">
+                        <span
+                          className="absolute inset-y-0 left-0 rounded-full bg-blue-500/60"
+                          style={{ width: `${petAdventureProgress * 100}%` }}
+                        />
+                      </span>
+                      {Math.floor(petAdventureRemaining / 3_600_000)}h{Math.floor((petAdventureRemaining % 3_600_000) / 60_000)}m
+                    </span>
+                  )}
                 </button>
               )}
             </div>
@@ -285,17 +400,17 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
 
 
           {(dailyTotal > 0 || weeklyTotal > 0) && (
-            <button type="button" onClick={handleOpenQuests} className="w-full group rounded border border-transparent hover:border-white/[0.07] px-3 py-2 hover:bg-white/[0.03] transition-colors">
+            <button type="button" onClick={handleOpenQuests} className="w-full group rounded border border-white/[0.06] hover:border-white/[0.12] px-3 py-2 hover:bg-white/[0.03] transition-colors">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-micro font-mono text-gray-400 uppercase tracking-widest">Quests</span>
-                <span className="text-micro text-gray-500 group-hover:text-gray-300 transition-colors">→</span>
+                <ChevronRight className="w-3 h-3 text-gray-500 group-hover:text-gray-300 transition-colors shrink-0" />
               </div>
               {dailyTotal > 0 && (
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono text-gray-500 group-hover:text-gray-300 transition-colors shrink-0 w-12">Daily</span>
                   <div className="flex gap-0.5 flex-1">
                     {Array.from({ length: dailyTotal }).map((_, i) => (
-                      <div key={i} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${i < dailyDone ? 'bg-accent' : 'bg-white/[0.08]'}`} />
+                      <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${i < dailyDone ? 'bg-accent' : 'bg-white/[0.08]'}`} />
                     ))}
                   </div>
                   <span className={`text-xs font-mono shrink-0 tabular-nums ${dailyDone === dailyTotal ? 'text-accent' : 'text-gray-400'}`}>{dailyDone}/{dailyTotal}</span>
@@ -306,7 +421,7 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
                   <span className="text-xs font-mono text-gray-500 group-hover:text-gray-300 transition-colors shrink-0 w-12">Weekly</span>
                   <div className="flex gap-0.5 flex-1">
                     {Array.from({ length: weeklyTotal }).map((_, i) => (
-                      <div key={i} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${i < weeklyDone ? 'bg-violet-500' : 'bg-white/[0.08]'}`} />
+                      <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${i < weeklyDone ? 'bg-violet-500' : 'bg-white/[0.08]'}`} />
                     ))}
                   </div>
                   <span className={`text-xs font-mono shrink-0 tabular-nums ${weeklyDone === weeklyTotal ? 'text-violet-500' : 'text-gray-400'}`}>{weeklyDone}/{weeklyTotal}</span>

@@ -22,6 +22,8 @@ interface Activity {
   startTimestamp?: number
   largeImageKey?: string
   largeImageText?: string
+  smallImageKey?: string
+  smallImageText?: string
   instance?: boolean
   buttons?: { label: string; url: string }[]
 }
@@ -91,12 +93,34 @@ export function initDiscordRPC(): void {
   connect()
 }
 
+// Maps skill ID → Discord asset key (must match what's uploaded in Discord Dev Portal)
+const SKILL_IMAGE_KEY: Record<string, string> = {
+  developer:    'skill_developer',
+  designer:     'skill_designer',
+  gamer:        'skill_gamer',
+  communicator: 'skill_communicator',
+  researcher:   'skill_researcher',
+  creator:      'skill_creator',
+  learner:      'skill_learner',
+  listener:     'skill_listener',
+  farmer:       'skill_farmer',
+  warrior:      'skill_warrior',
+  crafter:      'skill_crafter',
+  chef:         'skill_chef',
+}
+
 export interface PresenceUpdate {
   status: 'running' | 'idle' | 'afk'
-  /** e.g. "Developer" */
-  topSkillName?: string
-  /** 1–99 */
-  topSkillLevel?: number
+  /** Skill currently being leveled, e.g. "Developer" */
+  currentSkillName?: string
+  /** Skill icon emoji, e.g. "💻" */
+  currentSkillIcon?: string
+  /** Skill ID for Discord asset lookup, e.g. "developer" */
+  currentSkillId?: string
+  /** Current level of the active skill */
+  currentSkillLevel?: number
+  /** Active app name, e.g. "Visual Studio Code" */
+  currentAppName?: string
   /** days */
   streak?: number
   /** ms epoch for elapsed timer */
@@ -113,31 +137,56 @@ export function updateDiscordPresence(data: PresenceUpdate): void {
   }
 
   const activity: Activity = {
-    largeImageKey: 'grindly_logo',
-    largeImageText: 'Grindly — Your work is your grind',
+    largeImageKey: 'icon',
+    largeImageText: 'Grindly — Turn your grind into XP',
     instance: false,
   }
 
   if (data.status === 'afk') {
     activity.details = '💤 Away from keyboard'
+    activity.state = 'Session paused'
   } else {
-    if (data.topSkillName && data.topSkillLevel !== undefined) {
-      activity.details = `${data.topSkillName}  Lvl.${data.topSkillLevel}`
+    // Line 1: current skill being leveled
+    if (data.currentSkillIcon && data.currentSkillName) {
+      activity.details = `${data.currentSkillIcon} Leveling ${data.currentSkillName}`
     } else {
-      activity.details = 'Grinding...'
+      activity.details = '⚡ Grinding...'
     }
 
+    // Line 2: app + level + streak
+    const parts: string[] = []
+    if (data.currentAppName) {
+      const appName = data.currentAppName.length > 22
+        ? data.currentAppName.slice(0, 21) + '…'
+        : data.currentAppName
+      parts.push(appName)
+    }
+    if (data.currentSkillLevel !== undefined) {
+      parts.push(`Lv.${data.currentSkillLevel}`)
+    }
     if (data.streak && data.streak > 0) {
-      activity.state = `🔥 ${data.streak}-day streak`
+      parts.push(`🔥 ${data.streak}d streak`)
+    }
+    if (parts.length > 0) {
+      activity.state = parts.join('  ·  ')
     }
 
     if (data.startTimestamp) {
       activity.startTimestamp = data.startTimestamp
     }
+
+    // Small skill icon in the corner of the large image
+    const skillImageKey = data.currentSkillId ? SKILL_IMAGE_KEY[data.currentSkillId] : undefined
+    if (skillImageKey) {
+      activity.smallImageKey = skillImageKey
+      activity.smallImageText = data.currentSkillLevel !== undefined
+        ? `${data.currentSkillName} · Lv.${data.currentSkillLevel}`
+        : data.currentSkillName
+    }
   }
 
   activity.buttons = [
-    { label: '⬇️ Download Grindly', url: 'https://github.com/lovepsm94/grindly/releases/latest' },
+    { label: 'Download Grindly', url: 'https://grindly-wiki.up.railway.app/index.html' },
   ]
 
   pendingActivity = activity

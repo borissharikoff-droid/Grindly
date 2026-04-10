@@ -10,6 +10,8 @@ import { ConfettiEffect } from '../animations/ConfettiEffect'
 import { playClickSound, playLevelUpSound, playXpRevealSound } from '../../lib/sounds'
 import { getSkillById, skillXPProgress } from '../../lib/skills'
 import { MOTION } from '../../lib/motion'
+import { usePetStore } from '../../stores/petStore'
+import { getPetDef, computeCurrentHunger, getPetLevelImage, getEffectiveSkillId, computePetMood, getPetQuote } from '../../lib/pets'
 
 const AUTO_DISMISS_MS = 20000
 const CARD_STAGGER_MS = 190
@@ -130,10 +132,10 @@ function SkillXPCard({ gain, index }: { gain: SkillXPGain; index: number }) {
 
           {/* Level / percent */}
           <div className="flex justify-between items-center mt-1">
-            <span className="text-micro font-mono text-gray-600">
+            <span className="text-micro font-mono text-gray-500">
               {leveledUp ? `Lvl.${gain.levelBefore} → Lvl.${gain.levelAfter}` : `Lvl.${gain.levelAfter}`}
             </span>
-            <span className="text-micro font-mono text-gray-600">{Math.round(widthAfter)}%</span>
+            <span className="text-micro font-mono text-gray-500">{Math.round(widthAfter)}%</span>
           </div>
         </div>
       </div>
@@ -141,8 +143,75 @@ function SkillXPCard({ gain, index }: { gain: SkillXPGain; index: number }) {
   )
 }
 
+function PetBoostCallout({ emoji, imageUrl, name, bonusXP, hunger, skillLabel, delay, quote }: {
+  emoji: string; imageUrl?: string | null; name: string; bonusXP: number; hunger: number; skillLabel: string; delay: number; quote?: string
+}) {
+  const animatedBonus = useCountUp(bonusXP, XP_COUNT_MS, delay + 60)
+  const isHighBuff = bonusXP >= 500
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay: delay / 1000, ...MOTION.spring.soft }}
+      className={`relative overflow-hidden flex items-center gap-2.5 px-3 py-2.5 rounded border ${
+        isHighBuff ? 'border-lime-400/40 bg-lime-500/[0.07]' : 'border-lime-500/20 bg-lime-500/[0.04]'
+      }`}
+    >
+      {/* Glow flash for strong buff */}
+      {isHighBuff && (
+        <motion.div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0.4, 0] }}
+          transition={{ duration: 0.7, delay: (delay + 200) / 1000 }}
+          style={{ background: 'radial-gradient(ellipse at 50% 50%, rgba(132,204,22,0.18) 0%, transparent 70%)' }}
+        />
+      )}
+
+      <motion.div
+        className="shrink-0 relative z-10 flex items-center justify-center"
+        initial={{ scale: 0, rotate: -15 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ delay: (delay - 60) / 1000, ...MOTION.spring.pop }}
+      >
+        {imageUrl ? (
+          <img src={imageUrl} alt="" className="w-8 h-8 object-contain" draggable={false} />
+        ) : (
+          <span className="text-xl leading-none">{emoji}</span>
+        )}
+      </motion.div>
+
+      <div className="flex-1 min-w-0 relative z-10">
+        <div className="flex items-center justify-between gap-1">
+          <span className="text-caption font-semibold text-lime-300 truncate">{name}</span>
+          <span className="text-xs font-mono font-bold text-lime-400 tabular-nums shrink-0">
+            +{fmt(animatedBonus)} XP
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className="text-micro font-mono text-gray-500">bonus to {skillLabel}</span>
+          {hunger < 25 && (
+            <span className="text-micro font-mono text-amber-500">· hungry — feed me! 🍗</span>
+          )}
+        </div>
+        {quote && (
+          <motion.p
+            className="text-micro font-mono text-gray-400 italic mt-1 truncate"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: (delay + 400) / 1000, duration: 0.4 }}
+          >
+            "{quote}"
+          </motion.p>
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
 export function SessionComplete({ onNavigateFriends, hasFriends }: SessionCompleteProps = {}) {
-  const { lastSessionSummary, skillXPGains, streakMultiplier, sessionSkillXPEarned, sessionRewards, newAchievements, dismissComplete } =
+  const { lastSessionSummary, skillXPGains, streakMultiplier, sessionSkillXPEarned, sessionPetBonusXP, sessionPetDrop, sessionRewards, newAchievements, dismissComplete } =
     useSessionStore()
   const hasLootOpen = useAlertStore((s) => s.currentAlert !== null)
   const user = useAuthStore((s) => s.user)
@@ -277,6 +346,62 @@ export function SessionComplete({ onNavigateFriends, hasFriends }: SessionComple
                 ))}
               </div>
             )}
+
+            {/* Pet boost callout */}
+            {(() => {
+              const activePet = usePetStore.getState().activePet
+              if (!activePet) return null
+              if (sessionPetBonusXP <= 0) return null
+              const def = getPetDef(activePet.defId)
+              if (!def) return null
+              const hunger = computeCurrentHunger(activePet)
+              const displayEmoji = activePet.hasEvolvedEmoji && def.evolvedEmoji ? def.evolvedEmoji : def.emoji
+              const levelImg = getPetLevelImage(activePet.defId, activePet.level)
+              const effectiveSkillId = getEffectiveSkillId(activePet)
+              const buffedSkill = effectiveSkillId === 'all'
+                ? 'all skills'
+                : (getSkillById(effectiveSkillId)?.name ?? effectiveSkillId)
+              const mood = computePetMood(activePet)
+              const quote = getPetQuote(activePet.defId, mood)
+              return <PetBoostCallout
+                emoji={displayEmoji}
+                imageUrl={levelImg}
+                name={activePet.customName ?? def.name}
+                bonusXP={sessionPetBonusXP}
+                hunger={hunger}
+                skillLabel={buffedSkill}
+                delay={CARDS_START_MS + skillXPGains.length * CARD_STAGGER_MS + 120}
+                quote={quote}
+              />
+            })()}
+
+            {/* Pet item drop */}
+            {sessionPetDrop && (() => {
+              const activePet = usePetStore.getState().activePet
+              const def = activePet ? getPetDef(activePet.defId) : null
+              const displayEmoji = activePet && def ? (activePet.hasEvolvedEmoji && def.evolvedEmoji ? def.evolvedEmoji : def.emoji) : '🐾'
+              const petName = activePet?.customName ?? def?.name ?? 'Pet'
+              const delay = CARDS_START_MS + skillXPGains.length * CARD_STAGGER_MS + (sessionPetBonusXP > 0 ? 280 : 120)
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ delay: delay / 1000, ...MOTION.spring.soft }}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded border border-amber-500/20 bg-amber-500/[0.05]"
+                >
+                  <span className="text-xl leading-none shrink-0">{sessionPetDrop.materialIcon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-caption font-semibold text-amber-300 truncate">{sessionPetDrop.materialName}</span>
+                      <span className="text-micro font-mono text-amber-400 shrink-0">+1</span>
+                    </div>
+                    <div className="text-micro font-mono text-gray-500 mt-0.5">
+                      {displayEmoji} {petName} found this for you
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })()}
 
             {/* New achievements unlocked this session */}
             {newAchievements.length > 0 && (

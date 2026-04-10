@@ -7,6 +7,7 @@ import { closeDatabase } from './database'
 import { initAutoUpdater } from './updater'
 import { disableFocusMode } from './focusMode'
 import { initDiscordRPC, destroyDiscordRPC } from './discord'
+import { requestMacAccessibilityPermission } from './macPermissions'
 import log from './logger'
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
@@ -63,6 +64,10 @@ function createTray() {
   })
 }
 
+async function requestMacPermissions(): Promise<void> {
+  await requestMacAccessibilityPermission()
+}
+
 function setupMacDock() {
   if (process.platform !== 'darwin') return
   const dockMenu = buildAppMenu()
@@ -103,7 +108,39 @@ function createWindow() {
     resizable: false,
   })
   mainWindow.setMenuBarVisibility(false)
-  Menu.setApplicationMenu(null)
+  if (process.platform === 'darwin') {
+    // macOS: set a minimal app menu so Cmd+Q, Cmd+W, and Edit shortcuts work
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+      {
+        label: 'Grindly',
+        submenu: [
+          { role: 'hide' },
+          { role: 'hideOthers' },
+          { role: 'unhide' },
+          { type: 'separator' },
+          {
+            label: 'Quit Grindly',
+            accelerator: 'Cmd+Q',
+            click: () => { isQuitting = true; app.quit() },
+          },
+        ],
+      },
+      {
+        label: 'Edit',
+        submenu: [
+          { role: 'undo' },
+          { role: 'redo' },
+          { type: 'separator' },
+          { role: 'cut' },
+          { role: 'copy' },
+          { role: 'paste' },
+          { role: 'selectAll' },
+        ],
+      },
+    ]))
+  } else {
+    Menu.setApplicationMenu(null)
+  }
 
   // Allow Ctrl+Shift+I to open DevTools in dev mode
   if (isDev) {
@@ -188,10 +225,11 @@ app.on('second-instance', () => {
   }
 })
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   log.info('Grindly starting up', { isDev, platform: process.platform })
   setNotificationSender(showNativeNotification)
   registerIpcHandlers()
+  await requestMacPermissions()
   createWindow()
   if (process.platform === 'win32') createTray()
   setupMacDock()

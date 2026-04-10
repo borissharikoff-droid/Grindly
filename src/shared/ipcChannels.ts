@@ -67,7 +67,6 @@ export const IPC_CHANNELS = {
   ai: {
     analyzeSession: 'ai:analyzeSession',
     analyzeOverview: 'ai:analyzeOverview',
-    refineActivityLabels: 'ai:refineActivityLabels',
   },
   settings: {
     getAutoLaunch: 'settings:getAutoLaunch',

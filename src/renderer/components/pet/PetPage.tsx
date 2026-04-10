@@ -3,6 +3,9 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence, useAnimation } from 'framer-motion'
 import { Pencil, Check, X, Zap } from '../../lib/icons'
 import { usePetStore } from '../../stores/petStore'
+import { useNotificationStore } from '../../stores/notificationStore'
+import { PageHeader } from '../shared/PageHeader'
+import { useNavigationStore } from '../../stores/navigationStore'
 import { FeedModal } from './FeedModal'
 import {
   ADVENTURES,
@@ -15,6 +18,7 @@ import {
   xpToNextLevel,
   MOOD_COLOR,
   getPetLevelImage,
+  getPetLevelImagePng,
   type PetInstance,
   type PetMood,
 } from '../../lib/pets'
@@ -134,6 +138,42 @@ function RenameField({ name, onSave }: { name: string; onSave: (n: string) => vo
   )
 }
 
+// ── Mood Particle Overlay ─────────────────────────────────────────────────────
+
+const PARTICLE_CONFIGS: Partial<Record<PetMood, { count: number; content: string; className: string; animY: number[]; animX?: number[] }>> = {
+  sleeping:  { count: 3, content: 'Z', className: 'text-xs font-bold text-blue-300/80', animY: [-30, -55, -40], animX: [0, 8, 4] },
+  ecstatic:  { count: 6, content: '✦', className: 'text-xs text-amber-300/90', animY: [-20, -35, -15], animX: [-10, 10, -5] },
+  starving:  { count: 4, content: '·', className: 'text-base text-gray-400/70', animY: [15, 28, 20], animX: [0, 3, -2] },
+  exhausted: { count: 2, content: '…', className: 'text-xs text-gray-500/60', animY: [-8, -12, -6], animX: [0] },
+  playful:   { count: 8, content: '★', className: 'text-xs text-yellow-300/90', animY: [-25, -40, -20], animX: [-12, 12, -8, 8] },
+}
+
+function PetParticles({ mood }: { mood: PetMood }) {
+  const cfg = PARTICLE_CONFIGS[mood]
+  if (!cfg) return null
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-full">
+      {Array.from({ length: cfg.count }).map((_, i) => {
+        const delay = (i / cfg.count) * 1.8
+        const left = 20 + (i / (cfg.count - 1 || 1)) * 60
+        const xArr = cfg.animX ?? [0]
+        return (
+          <motion.span
+            key={`${mood}-${i}`}
+            className={`absolute select-none ${cfg.className}`}
+            style={{ left: `${left}%`, bottom: mood === 'starving' ? '70%' : '55%' }}
+            initial={{ opacity: 0, y: 0, x: 0 }}
+            animate={{ opacity: [0, 0.9, 0.7, 0], y: cfg.animY, x: xArr }}
+            transition={{ repeat: Infinity, duration: mood === 'sleeping' ? 3.5 : 2.2, delay, ease: 'easeInOut' }}
+          >
+            {cfg.content}
+          </motion.span>
+        )
+      })}
+    </div>
+  )
+}
+
 function FloatingHeart({ id, onDone }: { id: number; onDone: () => void }) {
   const left = 30 + Math.random() * 40
   return (
@@ -156,19 +196,24 @@ function PetPortrait({
   imageUrl,
   rarity,
   mood,
+  hunger,
   onTap,
   size = 'md',
   sleeping = false,
+  isEvolving = false,
 }: {
   emoji: string
   imageUrl?: string | null
   rarity: string
   mood: PetMood
+  hunger: number
   onTap: () => void
   size?: 'sm' | 'md'
   sleeping?: boolean
+  isEvolving?: boolean
 }) {
   const controls = useAnimation()
+  const evolvingRef = useRef(false)
 
   const handleTap = useCallback(() => {
     void controls.start({
@@ -179,11 +224,28 @@ function PetPortrait({
     onTap()
   }, [controls, onTap])
 
+  // Evolution glow → shake → settle
+  useEffect(() => {
+    if (isEvolving && !evolvingRef.current) {
+      evolvingRef.current = true
+      void controls.start({
+        scale: [1, 1.18, 0.92, 1.12, 1],
+        rotate: [0, -6, 6, -3, 0],
+        transition: { duration: 0.9, ease: 'easeInOut' },
+      }).then(() => { evolvingRef.current = false })
+    }
+  }, [isEvolving, controls])
+
   const sizeClass = size === 'sm' ? 'w-20 h-20' : 'w-28 h-28'
   const textClass = size === 'sm' ? 'text-4xl' : 'text-6xl'
   const imgClass  = size === 'sm' ? 'w-16 h-16' : 'w-24 h-24'
   const breathDuration = sleeping ? 5 : mood === 'starving' ? 0.8 : mood === 'playful' ? 1.2 : 3.5
   const portraitOpacity = mood === 'exhausted' ? 0.3 : sleeping ? 0.6 : 1
+
+  // Hunger droop: gentle tilt + drop as hunger decreases
+  const clampedHunger = Math.max(0, Math.min(100, hunger))
+  const hungerTilt = ((100 - clampedHunger) / 100) * -10   // 0 → -10 deg
+  const hungerDrop = ((100 - clampedHunger) / 100) * 6     // 0 → 6 px
 
   return (
     <motion.button
@@ -205,11 +267,96 @@ function PetPortrait({
         animate={{ scale: [1, 1.06, 1], opacity: [0.6, 0.2, 0.6] }}
         transition={{ repeat: Infinity, duration: breathDuration, ease: 'easeInOut' }}
       />
-      <motion.div animate={controls} className="flex items-center justify-center">
+
+      {/* Evolution glow flash */}
+      <AnimatePresence>
+        {isEvolving && (
+          <motion.div
+            className="absolute inset-0 rounded-full bg-white pointer-events-none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 0.7, 0] }}
+            transition={{ duration: 0.6 }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Mood particle overlay */}
+      <PetParticles mood={mood} />
+
+      {/* Portrait image with hunger droop + idle float */}
+      <motion.div
+        animate={controls}
+        style={{ rotate: hungerTilt, y: hungerDrop }}
+        transition={{ duration: 1.5, ease: 'easeOut' }}
+        className="flex items-center justify-center"
+      >
         {imageUrl ? (
-          <img src={imageUrl} alt="" className={`${imgClass} object-contain`} draggable={false} />
+          // Layer 1: breathing (scaleY/scaleX at body rhythm)
+          <motion.div
+            animate={sleeping
+              ? { scaleY: [1, 1.025, 1], scaleX: [1, 0.988, 1] }
+              : mood === 'exhausted'
+              ? { scaleY: [1, 1.01, 1], scaleX: [1, 0.996, 1] }
+              : { scaleY: [1, 1.02, 1, 1.02, 1], scaleX: [1, 0.992, 1, 0.992, 1] }
+            }
+            transition={{ repeat: Infinity, duration: breathDuration, ease: 'easeInOut' }}
+          >
+            {/* Layer 2: gentle sway (different frequency → organic composite) */}
+            <motion.div
+              animate={
+                sleeping || mood === 'exhausted'
+                  ? {}
+                  : mood === 'starving'
+                  ? { x: [0, -2.5, 2.5, -1.5, 1.5, 0] }
+                  : { x: [0, 0.8, 0, -0.8, 0] }
+              }
+              transition={{ repeat: Infinity, duration: breathDuration * 1.4, ease: 'easeInOut' }}
+            >
+              {/* Layer 3: mood-specific float/action */}
+              <motion.img
+                src={imageUrl}
+                alt=""
+                className={`${imgClass} object-contain`}
+                draggable={false}
+                animate={
+                  sleeping
+                    ? { y: [0, 1.5, 0] }
+                    : mood === 'playful'
+                    ? { y: [0, -9, 1, -7, 0], rotate: [0, -3.5, 3.5, -2, 0] }
+                    : mood === 'happy'
+                    ? { y: [0, -5, -2, -5, 0] }
+                    : mood === 'starving'
+                    ? { y: [0, 1, 0], rotate: [0, -1, 1, 0] }
+                    : mood === 'hungry'
+                    ? { y: [0, -2, 0] }
+                    : mood === 'exhausted'
+                    ? { y: [0, 1.5, 0] }
+                    : { y: [0, -3.5, 0, -2.5, 0] }   // ecstatic/idle
+                }
+                transition={{
+                  repeat: Infinity,
+                  duration:
+                    sleeping ? 5 :
+                    mood === 'playful'  ? 1.2 :
+                    mood === 'happy'    ? 2.0 :
+                    mood === 'starving' ? 0.55 :
+                    mood === 'hungry'   ? 3.2 :
+                    mood === 'exhausted'? 6.5 : 3.2,
+                  ease: 'easeInOut',
+                  times:
+                    mood === 'playful' ? [0, 0.3, 0.55, 0.8, 1] :
+                    mood === 'happy'   ? [0, 0.35, 0.5, 0.85, 1] :
+                    [0, 0.45, 1],
+                }}
+              />
+            </motion.div>
+          </motion.div>
         ) : (
-          <span className={`${textClass} leading-none`}>{emoji}</span>
+          <motion.span
+            className={`${textClass} leading-none`}
+            animate={{ y: [0, -4, 0] }}
+            transition={{ repeat: Infinity, duration: 2.8, ease: 'easeInOut' }}
+          >{emoji}</motion.span>
         )}
       </motion.div>
     </motion.button>
@@ -353,6 +500,7 @@ function AdventurePanel({ pet, petName }: { pet: PetInstance; petName: string })
 function AbilitiesPanel({ pet, petName }: { pet: PetInstance; petName: string }) {
   const useScavenge = usePetStore((s) => s.useScavenge)
   const activateMotivationBurst = usePetStore((s) => s.activateMotivationBurst)
+  const pushNotification = useNotificationStore((s) => s.push)
   const [scavengeResult, setScavengeResult] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
 
@@ -376,7 +524,23 @@ function AbilitiesPanel({ pet, petName }: { pet: PetInstance; petName: string })
         .join(', ')
       setScavengeResult(names)
       setTimeout(() => setScavengeResult(null), 4_000)
+      pushNotification({
+        type: 'progression',
+        title: `${petName} found loot!`,
+        body: `Scavenged: ${names}`,
+        timestamp: Date.now(),
+      })
     }
+  }
+
+  const handleMotivationBurst = () => {
+    activateMotivationBurst()
+    pushNotification({
+      type: 'progression',
+      title: `⚡ Motivation Burst!`,
+      body: `${petName} is giving you +50% XP for 20 minutes`,
+      timestamp: Date.now(),
+    })
   }
 
   const scavCooldownMs = Math.max(0, (pet.scavengeLastUsedAt ?? 0) + 24 * 3_600_000 - Date.now())
@@ -390,15 +554,18 @@ function AbilitiesPanel({ pet, petName }: { pet: PetInstance; petName: string })
   if (!hasAnyAbility) return null
 
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-surface-1 px-4 py-3 space-y-2">
+    <div className="rounded-xl border border-white/[0.07] bg-surface-1 px-4 py-3 space-y-3">
       <p className="text-xs font-semibold text-white">⚡ Abilities</p>
 
       {/* Scavenge (Lv3) */}
       {pet.level >= 3 && (
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-micro font-semibold text-gray-300">🔍 Scavenge</span>
-            <span className={`text-micro font-mono ${scavCooldownMs > 0 ? 'text-gray-500' : 'text-lime-400'}`}>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-micro font-semibold text-gray-200">🔍 Scavenge</span>
+              <span className="ml-2 text-micro text-gray-500">— sends your pet to find free materials</span>
+            </div>
+            <span className={`text-micro font-mono shrink-0 ml-2 ${scavCooldownMs > 0 ? 'text-gray-500' : 'text-lime-400'}`}>
               {scavCooldownMs > 0 ? formatCountdown(scavCooldownMs) : 'Ready'}
             </span>
           </div>
@@ -407,12 +574,12 @@ function AbilitiesPanel({ pet, petName }: { pet: PetInstance; petName: string })
             onClick={handleScavenge}
             className="w-full py-1.5 rounded bg-surface-0 border border-white/[0.06] text-micro font-mono text-gray-400 hover:text-white hover:bg-white/[0.05] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            Find 1–3 common materials (24h cooldown)
+            Find 1–3 common materials · 24h cooldown
           </button>
           <AnimatePresence>
             {scavengeResult && (
               <motion.p
-                className="text-micro font-mono text-lime-400 mt-1"
+                className="text-micro font-mono text-lime-400"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               >
                 Found: {scavengeResult}
@@ -424,28 +591,31 @@ function AbilitiesPanel({ pet, petName }: { pet: PetInstance; petName: string })
 
       {/* Motivation Burst (Lv6) */}
       {pet.level >= 6 && (
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-micro font-semibold text-gray-300">
-              <Zap className="w-3 h-3 inline mr-0.5" />
-              Motivation Burst
-              {burstActive && <span className="ml-1 text-amber-400 font-bold">ACTIVE</span>}
-            </span>
-            <span className={`text-micro font-mono ${burstActive ? 'text-amber-400' : burstCooldownMs > 0 ? 'text-gray-500' : 'text-lime-400'}`}>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-micro font-semibold text-gray-200">
+                <Zap className="w-3 h-3 inline mr-0.5 text-amber-400" />
+                Motivation Burst
+              </span>
+              <span className="ml-2 text-micro text-gray-500">— boosts all skill XP for 20 min</span>
+              {burstActive && <span className="ml-1.5 text-amber-400 font-bold text-micro">ACTIVE</span>}
+            </div>
+            <span className={`text-micro font-mono shrink-0 ml-2 ${burstActive ? 'text-amber-400' : burstCooldownMs > 0 ? 'text-gray-500' : 'text-lime-400'}`}>
               {burstActive ? formatCountdown(burstRemaining) : burstCooldownMs > 0 ? formatCountdown(burstCooldownMs) : 'Ready'}
             </span>
           </div>
           {!burstActive && (
             <button
               disabled={burstCooldownMs > 0 || !!pet.adventureId}
-              onClick={() => activateMotivationBurst()}
+              onClick={handleMotivationBurst}
               className="w-full py-1.5 rounded bg-amber-500/10 border border-amber-500/20 text-micro font-mono text-amber-400/70 hover:text-amber-400 hover:bg-amber-500/15 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              +50% XP all skills for 20 min (3-day cooldown)
+              +50% XP all skills · 3-day cooldown
             </button>
           )}
           {burstActive && (
-            <p className="text-micro font-mono text-amber-400 text-center">
+            <p className="text-micro font-mono text-amber-400 text-center py-1">
               ⚡ {petName} is boosting your XP right now!
             </p>
           )}
@@ -454,12 +624,13 @@ function AbilitiesPanel({ pet, petName }: { pet: PetInstance; petName: string })
 
       {/* Legendary Bond (Lv10) */}
       {pet.level >= 10 && bondDef && (
-        <div className="flex items-center justify-between pt-1 border-t border-white/[0.04]">
-          <span className="text-micro font-semibold text-gray-300">
-            {bondDef.icon} Legendary Bond
-          </span>
-          <span className={`text-micro font-mono ${bondUnlocked ? 'text-amber-300' : 'text-gray-600'}`}>
-            {bondUnlocked ? bondDef.description : 'Reach Level 10 bond milestone'}
+        <div className="flex items-start justify-between pt-1 border-t border-white/[0.04]">
+          <div>
+            <span className="text-micro font-semibold text-gray-200">{bondDef.icon} Legendary Bond</span>
+            <span className="ml-2 text-micro text-gray-500">— permanent passive</span>
+          </div>
+          <span className={`text-micro font-mono shrink-0 ml-2 ${bondUnlocked ? 'text-amber-300' : 'text-gray-600'}`}>
+            {bondUnlocked ? bondDef.description : 'Reach Lv10 milestone'}
           </span>
         </div>
       )}
@@ -491,6 +662,18 @@ function BondMilestonesPanel({ pet }: { pet: PetInstance }) {
     return 0
   }
 
+  const getProgressLabel = (id: string): string => {
+    if (id === 'day7')   return `${Math.floor(daysTogether)}/7 days`
+    if (id === 'day30')  return `${Math.floor(daysTogether)}/30 days`
+    if (id === 'feed50') return `${feedings}/50 feedings`
+    if (id === 'feed100')return `${feedings}/100 feedings`
+    if (id === 'lv10')   return `lv ${pet.level}/10`
+    return ''
+  }
+
+  // First incomplete milestone = "Next"
+  const nextId = MILESTONE_DEFS.find((m) => !unlocked.includes(m.id))?.id ?? null
+
   return (
     <div className="rounded-xl border border-white/[0.07] bg-surface-1 px-4 py-3">
       <p className="text-xs font-semibold text-white mb-2">🤝 Bond Milestones</p>
@@ -498,27 +681,37 @@ function BondMilestonesPanel({ pet }: { pet: PetInstance }) {
         {MILESTONE_DEFS.map((m) => {
           const done = unlocked.includes(m.id)
           const pct = getProgress(m.id)
+          const isNext = !done && m.id === nextId
           return (
-            <div key={m.id} className={`flex items-center gap-2 ${done ? '' : 'opacity-60'}`}>
+            <div key={m.id} className={`flex items-center gap-2 ${done ? '' : isNext ? 'opacity-100' : 'opacity-50'}`}>
               <span className="text-base leading-none shrink-0">{m.icon}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <span className={`text-micro font-semibold ${done ? 'text-white' : 'text-gray-400'}`}>
-                    {m.label}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-micro font-semibold ${done || isNext ? 'text-white' : 'text-gray-500'}`}>
+                      {m.label}
+                    </span>
+                    {isNext && (
+                      <span className="text-[9px] font-bold uppercase tracking-wide px-1 py-0.5 rounded bg-accent/20 text-accent border border-accent/30">
+                        next
+                      </span>
+                    )}
+                  </div>
                   {done
                     ? <span className="text-micro font-mono text-lime-400">✓ done</span>
-                    : <span className="text-micro font-mono text-gray-600">{Math.round(pct * 100)}%</span>
+                    : <span className={`text-micro font-mono ${isNext ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {getProgressLabel(m.id)}
+                      </span>
                   }
                 </div>
                 <div className="h-1 rounded-full bg-surface-0 mt-0.5 overflow-hidden">
                   <motion.div
-                    className={`h-full rounded-full ${done ? 'bg-lime-500' : 'bg-accent/50'}`}
+                    className={`h-full rounded-full ${done ? 'bg-lime-500' : isNext ? 'bg-accent/70' : 'bg-accent/30'}`}
                     animate={{ width: `${pct * 100}%` }}
                     transition={{ duration: 0.5 }}
                   />
                 </div>
-                <p className={`text-micro font-mono ${done ? 'text-gray-400' : 'text-gray-700'}`}>
+                <p className={`text-micro font-mono ${done ? 'text-gray-400' : isNext ? 'text-gray-500' : 'text-gray-700'}`}>
                   {done ? `✓ ${m.description}` : `→ ${m.description}`}
                 </p>
               </div>
@@ -755,7 +948,8 @@ function ActivePetCard() {
   const daysCount = activePet ? daysAgo(activePet.rolledAt) : 0
   const burstActive = activePet ? Date.now() < (activePet.motivationBurstActiveUntil ?? 0) : false
   const displayEmoji = activePet?.hasEvolvedEmoji && def?.evolvedEmoji ? def.evolvedEmoji : (def?.emoji ?? '🥚')
-  const levelImage = activePet ? getPetLevelImage(activePet.defId, activePet.level) : null
+  // Static PNG — Framer Motion handles all mood animations
+  const levelImage = activePet ? getPetLevelImagePng(activePet.defId, activePet.level) : null
 
   // Mount: check milestones
   useEffect(() => {
@@ -834,7 +1028,17 @@ function ActivePetCard() {
           <div className="flex flex-col items-center gap-3 relative z-10">
 
             {/* Portrait — dims when sleeping */}
-            <PetPortrait emoji={displayEmoji} imageUrl={levelImage} rarity={def.rarity} mood={mood} onTap={handleTap} size="md" sleeping={isSleeping} />
+            <PetPortrait
+              emoji={displayEmoji}
+              imageUrl={levelImage}
+              rarity={def.rarity}
+              mood={mood}
+              hunger={hunger}
+              onTap={handleTap}
+              size="md"
+              sleeping={isSleeping}
+              isEvolving={pendingLevelUp !== null}
+            />
 
             {/* Name + badges row */}
             <div className="flex flex-col items-center gap-1.5">
@@ -936,14 +1140,6 @@ function ActivePetCard() {
           >
             🍗 Feed {name}
           </button>
-          <button
-            onClick={handleTap}
-            disabled={!!activePet.adventureId || hunger === 0}
-            title="Pat your pet (+1 XP, max 10/day)"
-            className="px-3 py-2.5 rounded-lg bg-pink-500/10 border border-pink-500/20 text-pink-400 text-sm hover:bg-pink-500/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            🤍
-          </button>
         </div>
 
         <SkillAssignPanel pet={activePet} />
@@ -1041,6 +1237,7 @@ function SpeciesChooser({ onChoose }: { onChoose: (speciesId: string) => void })
 }
 
 export function PetPage() {
+  const navigateTo = useNavigationStore((s) => s.navigateTo)
   const activePet = usePetStore((s) => s.activePet)
   const rollPet = usePetStore((s) => s.rollPet)
   // If stored pet species no longer exists (old save), treat as no pet
@@ -1053,7 +1250,7 @@ export function PetPage() {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       <div className="px-4 pt-4 pb-2">
-        <h2 className="text-sm font-bold text-white">Pet</h2>
+        <PageHeader title="Pet" onBack={() => navigateTo?.('home')} />
       </div>
 
       <div className="px-4 pb-6 space-y-4">

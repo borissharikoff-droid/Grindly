@@ -51,7 +51,10 @@ function checkAndNotify() {
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
     const todaySessionCount = db.getSessionCount(todayStart.getTime())
-    if (todaySessionCount === 0) {
+    // Also check if a session is currently running (checkpoint started today)
+    const checkpoint = db.getCheckpoint()
+    const sessionRunning = checkpoint !== null && checkpoint.start_time >= todayStart.getTime()
+    if (todaySessionCount === 0 && !sessionRunning) {
       showNotification('Time to Grind! 💪', 'No sessions today. Start a grind to keep your momentum going!')
       lastGrindReminder = now
     }
@@ -63,8 +66,11 @@ function checkAndNotify() {
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
     const todaySessionCount = db.getSessionCount(todayStart.getTime())
+    // Also check if a session is currently running (checkpoint started today)
+    const checkpoint2 = db.getCheckpoint()
+    const sessionRunning2 = checkpoint2 !== null && checkpoint2.start_time >= todayStart.getTime()
     const currentStreak = db.getStreak()
-    if (todaySessionCount === 0 && currentStreak > 0) {
+    if (todaySessionCount === 0 && !sessionRunning2 && currentStreak > 0) {
       showNotification('🔥 Streak at Risk!', `Your ${currentStreak}-day streak will break! Start a quick session before midnight.`)
       lastStreakWarning = now
     }

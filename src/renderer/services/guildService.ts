@@ -462,23 +462,14 @@ export async function donateToHall(
   if (!supabase) return { ok: false, error: 'Supabase not configured' }
   if (items.length === 0) return { ok: false, error: 'No items specified' }
 
-  // Upsert each item contribution (add to existing total)
+  // Atomically increment each contribution to avoid race conditions with concurrent donations
   for (const item of items) {
     if (item.qty <= 0) continue
-    const { data: existing } = await supabase
-      .from('guild_hall_contributions')
-      .select('total_donated')
-      .eq('guild_id', guildId)
-      .eq('item_id', item.id)
-      .maybeSingle()
-
-    const prev = (existing as { total_donated: number } | null)?.total_donated ?? 0
-    const { error } = await supabase
-      .from('guild_hall_contributions')
-      .upsert(
-        { guild_id: guildId, item_id: item.id, total_donated: prev + item.qty },
-        { onConflict: 'guild_id,item_id' },
-      )
+    const { error } = await supabase.rpc('increment_hall_contribution', {
+      p_guild_id: guildId,
+      p_item_id: item.id,
+      p_qty: item.qty,
+    })
     if (error) return { ok: false, error: error.message }
   }
   return { ok: true }

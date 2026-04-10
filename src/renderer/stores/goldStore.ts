@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { useAchievementStatsStore } from './achievementStatsStore'
 
+let _syncDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
 interface GoldState {
   gold: number
   setGold: (amount: number) => void
@@ -37,17 +39,24 @@ export const useGoldStore = create<GoldState>((set, get) => ({
     }
   },
 
-  async syncToSupabase(_userId: string) {
-    if (!supabase) return
-    const { gold } = get()
-    // Uses server-side RPC — auth.uid() resolved on server, capped at 100M
-    const { data, error } = await supabase
-      .rpc('sync_gold', { p_gold: Math.max(0, gold) })
-    if (error) {
-      console.warn('[goldStore] syncToSupabase failed:', error.message)
-    } else if (typeof data === 'number' && data !== gold) {
-      // Server applied a cap — sync back
-      set({ gold: data })
-    }
+  syncToSupabase(_userId: string): Promise<void> {
+    if (!supabase) return Promise.resolve()
+    if (_syncDebounceTimer) clearTimeout(_syncDebounceTimer)
+    return new Promise((resolve) => {
+      _syncDebounceTimer = setTimeout(async () => {
+        _syncDebounceTimer = null
+        const { gold } = get()
+        // Uses server-side RPC — auth.uid() resolved on server, capped at 100M
+        const { data, error } = await supabase!
+          .rpc('sync_gold', { p_gold: Math.max(0, gold) })
+        if (error) {
+          console.warn('[goldStore] syncToSupabase failed:', error.message)
+        } else if (typeof data === 'number' && data !== gold) {
+          // Server applied a cap — sync back
+          set({ gold: data })
+        }
+        resolve()
+      }, 500)
+    })
   },
 }))

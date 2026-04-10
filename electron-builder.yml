@@ -38,6 +38,10 @@ mac:
 dmg:
   title: "Grindly ${version}"
   artifactName: "Grindly-${version}.dmg"
+  background: assets/dmg-background.png
+  window:
+    width: 540
+    height: 380
 forceCodeSigning: false
 publish:
   provider: github

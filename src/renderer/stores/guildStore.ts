@@ -319,11 +319,10 @@ export const useGuildStore = create<GuildState>()((set, get) => ({
         return apiResult
       }
 
-      // Update local contributions
+      // Update local contributions (staged — committed below after threshold check)
       for (const item of items) {
         newContribs[item.id] = (newContribs[item.id] ?? 0) + item.qty
       }
-      set({ hallContributions: newContribs })
 
       // Fire-and-forget activity log
       supabase?.from('guild_activity_log').insert({
@@ -335,22 +334,32 @@ export const useGuildStore = create<GuildState>()((set, get) => ({
     }
 
     // Check if build is already in progress
-    if (hallBuildStartedAt) return { ok: true }
+    if (hallBuildStartedAt) {
+      set({ hallContributions: newContribs })
+      return { ok: true }
+    }
 
     // Check if all materials for next level are satisfied
     const { GUILD_HALL_LEVELS } = await import('../lib/guildBuffs')
     const nextLevelDef = GUILD_HALL_LEVELS[hallLevel] // hallLevel is 1-indexed, array is 0-indexed
-    if (!nextLevelDef || nextLevelDef.level <= hallLevel) return { ok: true }
+    if (!nextLevelDef || nextLevelDef.level <= hallLevel) {
+      set({ hallContributions: newContribs })
+      return { ok: true }
+    }
 
     const allMet = nextLevelDef.materials.every(
       (mat) => (newContribs[mat.id] ?? 0) >= mat.qty,
     )
-    if (!allMet) return { ok: true }
+    if (!allMet) {
+      set({ hallContributions: newContribs })
+      return { ok: true }
+    }
 
     // Threshold crossed — attempt to pay gold and start build
     const { useGoldStore: gs } = await import('./goldStore')
     const currentGold = gs.getState().gold
     if (currentGold < nextLevelDef.goldCost && nextLevelDef.goldCost > 0) {
+      set({ hallContributions: newContribs })
       return { ok: true, buildStarted: false }
     }
 
@@ -363,6 +372,7 @@ export const useGuildStore = create<GuildState>()((set, get) => ({
     if (buildResult.ok) {
       const now = new Date().toISOString()
       set({
+        hallContributions: newContribs,
         hallBuildStartedAt: now,
         hallBuildTargetLevel: nextLevelDef.level,
         myGuild: { ...myGuild, hall_build_started_at: now, hall_build_target_level: nextLevelDef.level },
@@ -377,7 +387,11 @@ export const useGuildStore = create<GuildState>()((set, get) => ({
     } else {
       if (nextLevelDef.goldCost > 0) {
         gs.getState().addGold(nextLevelDef.goldCost)
+        gs.getState().syncToSupabase(user.id).catch(() => {})
       }
+      // Donations already landed in DB — commit contribution state so UI stays accurate.
+      // hallBuildStartedAt stays null, so next donation re-triggers the build attempt.
+      set({ hallContributions: newContribs })
       return { ok: false, error: buildResult.error }
     }
   },

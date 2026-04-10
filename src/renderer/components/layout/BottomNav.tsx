@@ -13,7 +13,7 @@ import { TAB_SHORTCUTS } from '../../hooks/useKeyboardShortcuts'
 import {
   Home, Zap, Users, BarChart3, MoreHorizontal,
   Package, ShoppingCart, Sword, Sprout, Hammer, UtensilsCrossed,
-  User, Settings,
+  User, Settings, PawPrint,
 } from '../../lib/icons'
 
 const ALL_TABS: { id: TabId; label: string }[] = [
@@ -28,6 +28,7 @@ const ALL_TABS: { id: TabId; label: string }[] = [
   { id: 'craft',       label: 'Craft'     },
   { id: 'cooking',     label: 'Cook'      },
   { id: 'profile',     label: 'Profile'   },
+  { id: 'pet',         label: 'Pet'       },
   { id: 'settings',    label: 'Settings'  },
 ]
 
@@ -43,6 +44,7 @@ const TAB_LUCIDE_ICONS: Partial<Record<TabId, ReactNode>> = {
   craft:       <Hammer className="w-[18px] h-[18px]" />,
   cooking:     <UtensilsCrossed className="w-[18px] h-[18px]" />,
   profile:     <User className="w-[18px] h-[18px]" />,
+  pet:         <PawPrint className="w-[18px] h-[18px]" />,
   settings:    <Settings className="w-[18px] h-[18px]" />,
 }
 
@@ -100,6 +102,7 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
       case 'farm':        return badges.badgeFarm > 0 ? { count: badges.badgeFarm, color: BADGE_READY } : null
       case 'marketplace': return badges.badgeMarketplace > 0 ? { count: badges.badgeMarketplace, color: BADGE_READY } : null
       case 'profile':     return (badges.badgeProfile + badges.badgeProfileOrange) > 0 ? { count: badges.badgeProfile + badges.badgeProfileOrange, color: BADGE_READY } : null
+      case 'pet':         return badges.isPetAdventureComplete ? { count: 1, color: BADGE_READY } : badges.isPetHungry ? { count: 1, color: BADGE_URGENT } : null
       default:            return null
     }
   }
@@ -190,7 +193,7 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               transition={{ duration: MOTION.duration.fast, ease: MOTION.easingSoft }}
             >
-              <p className="text-micro font-mono text-gray-600 text-center pt-2 pb-0.5 px-2 select-none tracking-wide">
+              <p className="text-micro font-mono text-gray-500 text-center pt-2 pb-0.5 px-2 select-none tracking-wide">
                 drag any icon to the bar below to pin it
               </p>
 
@@ -239,7 +242,7 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
               {/* Locked advanced tabs */}
               {lockedTabs.filter((t) => ADVANCED_TABS.includes(t)).length > 0 && (
                 <div className="px-2 pb-2 pt-1 border-t border-white/[0.05]">
-                  <p className="text-micro font-mono text-gray-700 text-center mb-1 select-none">
+                  <p className="text-micro font-mono text-gray-700 text-center mb-1 select-none" title="These tabs unlock after you complete 3 grinding sessions">
                     🔒 unlocks after 3 sessions
                   </p>
                   <div className="grid grid-cols-3 gap-0.5">

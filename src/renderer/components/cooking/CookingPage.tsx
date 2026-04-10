@@ -54,8 +54,8 @@ const K = {
   clay:    '#a0674a',
   wood:    '#5c3a28',
   hearth:  '#16161e',
-  surface: '#1c1c28',
-  pageBg:  '#111118',
+  surface: '#1e2024',
+  pageBg:  '#111214',
   ready:   '#6ecf8e',
   warn:    '#e8665a',
   indigo:  '#9b8fef',
@@ -445,7 +445,7 @@ function DishCard({
                 return (
                   <span key={ing.id} className="text-micro flex items-center gap-0.5"
                     style={{ color: enough ? `${K.ready}cc` : `${K.warn}cc` }}>
-                    {def?.icon} <span className="font-medium">{ing.qty}x {def?.name ?? ing.id}</span>
+                    {def && <LootVisual icon={def.icon} image={def.image} className="w-3 h-3 object-contain" scale={def.renderScale ?? 1} />} <span className="font-medium">{ing.qty}x {def?.name ?? ing.id}</span>
                     <span className="font-mono text-micro" style={{ color: K.muted }}>({have})</span>
                   </span>
                 )
@@ -527,9 +527,11 @@ function CookModal({
         <div className="px-4 pt-4 pb-2 max-h-[60vh] overflow-y-auto">
           {/* Header */}
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded flex items-center justify-center text-3xl shrink-0"
+            <div className="w-12 h-12 rounded flex items-center justify-center text-3xl shrink-0 overflow-hidden"
               style={{ background: `${theme.glow}0c`, border: `1.5px solid ${theme.border}25` }}>
-              {output.icon}
+              {output.image
+                ? <LootVisual icon={output.icon} image={output.image} className="w-9 h-9 object-contain" scale={1} />
+                : output.icon}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold" style={{ color: K.cream }}>{output.name}</p>
@@ -742,7 +744,9 @@ function ToolsPanel({ chefLevel, onClose, focusId }: { chefLevel: number; onClos
                         background: isLocked ? 'rgba(255,255,255,.01)' : `${TIER_C[tier]}0a`,
                         border: `1px solid ${isLocked ? K.faint : `${TIER_C[tier]}20`}`,
                       }}>
-                      {isLocked ? '🔒' : td.icon}
+                      {isLocked ? '🔒' : inst.image
+                        ? <img src={inst.image} alt={inst.name} style={{ width: 38, height: 38, objectFit: 'contain' }} />
+                        : td.icon}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -833,7 +837,7 @@ function InstrumentShelf({ currentInstrument, activeInstruments, onInstrumentCli
               onClick={() => { playClickSound(); onInstrumentClick(inst.id) }}
               className={`relative flex flex-col items-center ${isCurrentStep && isCooking ? 'ember-pulse' : ''}`}
               style={{
-                width: 46, opacity: isLocked ? .2 : isDimmed ? .3 : 1,
+                width: 50, opacity: isLocked ? .2 : isDimmed ? .3 : 1,
                 transition: 'opacity .3s, transform .3s, border-color .3s, background .3s',
                 transform: isCurrentStep && isCooking ? 'translateY(-2px)' : 'translateY(0)',
                 borderRadius: 10,
@@ -843,8 +847,10 @@ function InstrumentShelf({ currentInstrument, activeInstruments, onInstrumentCli
               }}
             >
               <div className="flex items-center justify-center"
-                style={{ width: 34, height: 34, fontSize: 18 }}>
-                {isLocked ? '🔒' : td.icon}
+                style={{ width: 36, height: 36, fontSize: 18 }}>
+                {isLocked ? '🔒' : inst.image
+                  ? <img src={inst.image} alt={inst.name} style={{ width: 36, height: 36, objectFit: 'contain', filter: isCurrentStep && isCooking ? 'drop-shadow(0 0 4px rgba(194,120,64,.8))' : undefined }} />
+                  : td.icon}
               </div>
               <span className="text-micro mt-1" style={{
                 color: isCurrentStep && isCooking ? K.copper : K.muted,
@@ -1214,18 +1220,21 @@ function StarDisplay({ stars, maxStars = MASTERY_MAX_STARS }: { stars: number; m
 function Cookbook({ chefLevel }: { chefLevel: number }) {
   const discoveredRecipes = useCookingStore((s) => s.discoveredRecipes)
   const [selectedRecipe, setSelectedRecipe] = useState<CookingRecipe | null>(null)
+  const [cookSearch, setCookSearch] = useState('')
   useEscapeHandler(() => setSelectedRecipe(null), selectedRecipe !== null)
 
   const recipesByRarity = useMemo(() => {
     const groups: { label: string; rarity: string; recipes: CookingRecipe[] }[] = []
+    const q = cookSearch.trim().toLowerCase()
     for (const rar of ['common', 'rare', 'epic', 'legendary', 'mythic'] as const) {
       const rs = COOKING_RECIPES
         .filter((r) => (FOOD_ITEM_MAP[r.outputItemId]?.rarity ?? 'common') === rar)
+        .filter((r) => !q || (FOOD_ITEM_MAP[r.outputItemId]?.name ?? r.outputItemId).toLowerCase().includes(q))
         .sort((a, b) => a.chefLevelRequired - b.chefLevelRequired)
       if (rs.length > 0) groups.push({ label: rar.charAt(0).toUpperCase() + rar.slice(1), rarity: rar, recipes: rs })
     }
     return groups
-  }, [])
+  }, [cookSearch])
 
   const totalDiscovered = Object.keys(discoveredRecipes).length
   const totalRecipes = COOKING_RECIPES.length
@@ -1252,6 +1261,20 @@ function Cookbook({ chefLevel }: { chefLevel: number }) {
           </div>
         </div>
       </div>
+
+      {/* Search */}
+      {COOKING_RECIPES.length > 6 && (
+        <input
+          type="text"
+          value={cookSearch}
+          onChange={(e) => setCookSearch(e.target.value)}
+          placeholder="Search recipes..."
+          className="w-full mb-3 px-3 py-1.5 rounded border text-xs placeholder-gray-600 outline-none transition-colors"
+          style={{ background: K.surface, borderColor: K.faint, color: K.cream }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = K.copper }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = K.faint }}
+        />
+      )}
 
       {/* Recipe grid by rarity */}
       {recipesByRarity.map((g) => {
@@ -1291,12 +1314,14 @@ function Cookbook({ chefLevel }: { chefLevel: number }) {
                     )}
                     <div className="p-2.5 flex items-center gap-2.5">
                       {/* Icon container */}
-                      <div className="w-9 h-9 rounded flex items-center justify-center shrink-0"
+                      <div className="w-9 h-9 rounded flex items-center justify-center shrink-0 overflow-hidden"
                         style={{
                           background: isFound ? `${rarTheme.color}08` : 'rgba(255,255,255,.02)',
                           border: `1px solid ${isFound ? `${rarTheme.color}15` : 'rgba(255,255,255,.03)'}`,
                         }}>
-                        <span className="text-lg">{isFound ? (food?.icon ?? '?') : '❓'}</span>
+                        {isFound
+                          ? <ItemIcon item={food ?? null} size="md" />
+                          : <span className="text-lg" style={{ opacity: 0.25 }}>?</span>}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-caption font-semibold truncate leading-tight"
@@ -1358,12 +1383,14 @@ function Cookbook({ chefLevel }: { chefLevel: number }) {
                     <div className="p-4">
                       {/* Header */}
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 rounded flex items-center justify-center text-3xl shrink-0"
+                        <div className="w-12 h-12 rounded flex items-center justify-center text-3xl shrink-0 overflow-hidden"
                           style={{
                             background: isFound ? `${rarTheme.color}0a` : 'rgba(255,255,255,.02)',
                             border: `1px solid ${isFound ? `${rarTheme.color}20` : K.faint}`,
                           }}>
-                          {isFound ? (food?.icon ?? '?') : '❓'}
+                          {isFound
+                            ? <ItemIcon item={food ?? null} size="lg" />
+                            : <span style={{ opacity: 0.25 }}>?</span>}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-bold truncate" style={{ color: isFound ? rarTheme.color : K.muted }}>
@@ -1481,12 +1508,51 @@ function Cookbook({ chefLevel }: { chefLevel: number }) {
                           )}
                         </div>
                       ) : (
-                        <div className="rounded p-3" style={{ background: K.hearth }}>
-                          <div className="text-micro font-bold uppercase tracking-wide mb-1.5" style={{ color: K.copper }}>Hint</div>
-                          <p className="text-micro italic leading-relaxed" style={{ color: K.muted }}>{hint}</p>
-                          <p className="text-micro mt-2 leading-relaxed" style={{ color: `${K.muted}80` }}>
-                            Combine the right ingredients in the Cauldron to discover this recipe.
-                          </p>
+                        <div className="space-y-2">
+                          {/* Visual ingredient guide — revealed based on chef level */}
+                          <div className="rounded p-2.5" style={{ background: K.hearth }}>
+                            <div className="text-micro font-bold uppercase tracking-wide mb-2" style={{ color: K.copper }}>
+                              Ingredients
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {selectedRecipe.ingredients.map((ing, i) => {
+                                const iDef = getItemDef(ing.id)
+                                const showName = chefLevel >= 30 || (chefLevel >= 10 && i === 0)
+                                const showQty = chefLevel >= 50
+                                return (
+                                  <div key={i} className="flex items-center gap-1.5 rounded px-2 py-1"
+                                    style={{ background: 'rgba(255,255,255,.03)', border: `1px solid ${K.faint}` }}>
+                                    {showName && iDef
+                                      ? <ItemIcon item={iDef} size="sm" />
+                                      : <span className="w-4 h-4 flex items-center justify-center text-xs" style={{ color: `${K.muted}50` }}>?</span>}
+                                    <span className="text-micro" style={{ color: showName ? K.cream : `${K.muted}60` }}>
+                                      {showName ? (iDef?.name ?? ing.id) : '???'}
+                                    </span>
+                                    {showQty && (
+                                      <span className="text-micro font-mono" style={{ color: K.muted }}>×{ing.qty}</span>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Hint text */}
+                          <div className="rounded p-2.5" style={{ background: K.hearth }}>
+                            <div className="text-micro font-bold uppercase tracking-wide mb-1" style={{ color: K.copper }}>Hint</div>
+                            <p className="text-micro italic leading-relaxed" style={{ color: K.muted }}>{hint}</p>
+                          </div>
+
+                          {/* How to discover */}
+                          <div className="rounded p-2.5 flex items-start gap-2"
+                            style={{ background: `${K.copper}06`, border: `1px solid ${K.copper}18` }}>
+                            <span className="text-sm shrink-0">🫕</span>
+                            <p className="text-micro leading-relaxed" style={{ color: K.muted }}>
+                              Add these ingredients to the{' '}
+                              <span style={{ color: K.copper }}>Cauldron</span> to discover this recipe.
+                              {chefLevel < 10 && <><br/><span style={{ color: `${K.muted}80` }}>Reach Chef Lv.10 for ingredient hints.</span></>}
+                            </p>
+                          </div>
                         </div>
                       )}
 
@@ -1609,7 +1675,7 @@ export function CookingPage() {
   const [showGuide, setShowGuide] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
   const [completionBanner, setCompletionBanner] = useState<{
-    icon: string; name: string; qty: number; burned: number; bonus: number; xp: number; rarity: string
+    icon: string; image?: string; name: string; qty: number; burned: number; bonus: number; xp: number; rarity: string
   } | null>(null)
   const completionBannerRef = useRef<HTMLDivElement>(null)
   const prevJobIdRef = useRef<string | null>(null)
@@ -1639,7 +1705,7 @@ export function CookingPage() {
       const food = FOOD_ITEM_MAP[prev.outputItemId]
       if (food) {
         setCompletionBanner({
-          icon: food.icon, name: food.name,
+          icon: food.icon, image: food.image, name: food.name,
           qty: lastRoll?.granted ?? prev.totalQty,
           burned: lastRoll?.burned ?? 0,
           bonus: lastRoll?.bonus ?? 0,
@@ -1945,7 +2011,11 @@ export function CookingPage() {
                 style={{ background: `radial-gradient(circle at 30% 50%, ${K.xp}08, transparent 60%)` }} />
             )}
             <div className="p-3 flex items-center gap-3 relative">
-              <div className="text-3xl shrink-0">{completionBanner.icon}</div>
+              <div className="text-3xl shrink-0 flex items-center justify-center w-10 h-10 overflow-hidden">
+                {completionBanner.image
+                  ? <LootVisual icon={completionBanner.icon} image={completionBanner.image} className="w-8 h-8 object-contain" scale={1} />
+                  : completionBanner.icon}
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold" style={{ color: K.cream }}>
                   {completionBanner.name} x{completionBanner.qty}

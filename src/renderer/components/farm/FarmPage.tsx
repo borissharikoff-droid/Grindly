@@ -811,6 +811,17 @@ function SeedCabinetSection() {
 
   const totalSeeds = Object.values(seeds).reduce((a, b) => a + b, 0)
 
+  // Track first render to play entrance animation (must be before any early return)
+  const [entered, setEntered] = useState(false)
+  useEffect(() => {
+    if (!seedCabinetUnlocked) return
+    if (!entered && totalSeeds > 0) {
+      const t = setTimeout(() => setEntered(true), 600)
+      return () => clearTimeout(t)
+    }
+    if (totalSeeds > 0) setEntered(true)
+  }, [seedCabinetUnlocked, totalSeeds, entered])
+
   const UNLOCK_COST = 3000
   const REQUIRED_LEVEL = 20
   const REQUIRED_SLIMES = 20
@@ -864,16 +875,6 @@ function SeedCabinetSection() {
       </div>
     )
   }
-
-  // Track first render to play entrance animation
-  const [entered, setEntered] = useState(false)
-  useEffect(() => {
-    if (!entered && totalSeeds > 0) {
-      const t = setTimeout(() => setEntered(true), 600)
-      return () => clearTimeout(t)
-    }
-    if (totalSeeds > 0) setEntered(true)
-  }, [totalSeeds, entered])
 
   // Unlocked state
   return (
@@ -1322,6 +1323,7 @@ function FarmSlot({
           {!slotComposted && compostCount > 0 && (
             <button
               type="button"
+              title={`Apply compost — reduces grow time by 50%. Requires ${COMPOST_PER_PLOT} compost.`}
               onClick={(e) => {
                 e.stopPropagation()
                 if (compostCount < COMPOST_PER_PLOT) return
@@ -1597,6 +1599,7 @@ function SeedPicker({ slotIndex, seeds, onClose }: { slotIndex: number; seeds: R
   const plantSeed = useFarmStore((s) => s.plantSeed)
   const seedCabinetUnlocked = useFarmStore((s) => s.seedCabinetUnlocked)
   const inventoryItems = useInventoryStore((s) => s.items)
+  const [seedSearch, setSeedSearch] = useState('')
 
   // Merge cabinet seeds + inventory seeds so all are visible
   // When cabinet is unlocked, seeds auto-transfer from inventory → cabinet via useEffect,
@@ -1612,7 +1615,10 @@ function SeedPicker({ slotIndex, seeds, onClose }: { slotIndex: number; seeds: R
     return m
   }, [seeds, inventoryItems, seedCabinetUnlocked])
 
-  const available = SEED_DEFS.filter((s) => (mergedSeeds[s.id] ?? 0) > 0)
+  const allAvailable = SEED_DEFS.filter((s) => (mergedSeeds[s.id] ?? 0) > 0)
+  const available = seedSearch.trim()
+    ? allAvailable.filter((s) => s.name.toLowerCase().includes(seedSearch.toLowerCase()))
+    : allAvailable
 
   return (
     <motion.div
@@ -1647,6 +1653,17 @@ function SeedPicker({ slotIndex, seeds, onClose }: { slotIndex: number; seeds: R
             ESC
           </button>
         </div>
+
+        {allAvailable.length > 4 && (
+          <input
+            type="text"
+            value={seedSearch}
+            onChange={(e) => setSeedSearch(e.target.value)}
+            placeholder="Search seeds..."
+            autoFocus
+            className="w-full mb-3 px-3 py-1.5 rounded bg-surface-1 border border-white/[0.08] text-white text-xs placeholder-gray-500 focus:border-lime-500/40 outline-none"
+          />
+        )}
 
         {available.length === 0 ? (
           <div className="py-10 flex flex-col items-center gap-2">
@@ -2021,10 +2038,10 @@ function FarmhouseSection({ farmerLevel, farmhouseLevel, onUpgrade }: { farmerLe
           {/* Inline bonus summary */}
           {farmhouseLevel > 0 && !isBuilding ? (
             <div className="flex items-center gap-2.5 mt-1">
-              <span className="text-micro font-mono text-red-400/70">💀-{bonuses.rotReductionPct}%</span>
-              <span className="text-micro font-mono text-cyan-400/70">⚡-{bonuses.growSpeedPct}%</span>
-              <span className="text-micro font-mono text-amber-400/70">🧪{bonuses.autoCompostPct}%</span>
-              <span className="text-micro font-mono text-lime-400/70">🌾+{bonuses.yieldBonusPct}%</span>
+              <span title="Rot chance reduction from Farmhouse" className="text-micro font-mono text-red-400/70 cursor-help">💀-{bonuses.rotReductionPct}%</span>
+              <span title="Grow time reduction — plants finish this much faster" className="text-micro font-mono text-cyan-400/70 cursor-help">⚡-{bonuses.growSpeedPct}%</span>
+              <span title="Auto-Compost — this % of seeds are automatically composted when planted, reducing grow time by 50%" className="text-micro font-mono text-amber-400/70 cursor-help">🧪{bonuses.autoCompostPct}%</span>
+              <span title="Yield bonus — each harvest gives this much more produce" className="text-micro font-mono text-lime-400/70 cursor-help">🌾+{bonuses.yieldBonusPct}%</span>
               {bonuses.autoHarvest && <span className="text-micro font-mono text-lime-400">✨</span>}
             </div>
           ) : isBuilding ? (

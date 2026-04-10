@@ -184,8 +184,8 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory }: ProfileBa
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-white font-medium text-sm leading-none truncate">{username}</span>
             {totalLevel > 0 && (
-              <span className="text-gray-500 text-xs font-mono leading-none shrink-0">
-                ({totalLevel}/{MAX_TOTAL_SKILL_LEVEL})
+              <span className="px-1.5 py-0.5 rounded bg-accent/10 border border-accent/20 text-accent/70 text-micro font-mono leading-none shrink-0 tabular-nums">
+                {totalLevel}/{MAX_TOTAL_SKILL_LEVEL}
               </span>
             )}
 
@@ -217,7 +217,7 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory }: ProfileBa
           </div>
         </div>
 
-        <div className="relative shrink-0">
+        <div className="relative shrink-0 z-[51]">
           <BackpackButton
             onClick={() => { setBellOpen(false); onNavigateInventory?.() }}
             className="mr-1"

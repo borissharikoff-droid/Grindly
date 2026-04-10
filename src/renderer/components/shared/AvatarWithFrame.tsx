@@ -10,6 +10,8 @@ interface AvatarWithFrameProps {
   ringOpacity?: number
   className?: string
   title?: string
+  /** Hex CSS color for a pulsing pet mood ring rendered outside the frame. */
+  moodRingColor?: string
 }
 
 export function AvatarWithFrame({
@@ -22,12 +24,19 @@ export function AvatarWithFrame({
   ringOpacity = 0.7,
   className,
   title,
+  moodRingColor,
 }: AvatarWithFrameProps) {
   const frame = FRAMES.find((entry) => entry.id === frameId)
   const frameStyleClass = frame ? `frame-style-${frame.style}` : ''
   const isImageAvatar = /^(https?:\/\/|data:|blob:|file:|\/)/i.test(avatar)
   return (
     <div className={`relative shrink-0 overflow-visible ${frameStyleClass} ${className ?? ''}`} title={title}>
+      {moodRingColor && (
+        <div
+          className={`absolute -inset-[4px] ${roundedClass} border-2 animate-pulse pointer-events-none`}
+          style={{ borderColor: moodRingColor, opacity: 0.85 }}
+        />
+      )}
       {frame && (
         <div
           className={`absolute frame-ring ${ringInsetClass} ${roundedClass}`}

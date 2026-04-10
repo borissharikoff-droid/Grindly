@@ -277,10 +277,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       if (supabase) {
         const { data: { user: newUser } } = await supabase.auth.getUser()
         if (newUser) {
-          await supabase.from('profiles').upsert(
+          const { error: profileErr } = await supabase.from('profiles').upsert(
             { id: newUser.id, username: username.trim(), avatar_url: avatar, email: email.trim().toLowerCase() },
             { onConflict: 'id' }
           )
+          if (profileErr) {
+            console.warn('[AuthGate] profile upsert failed:', profileErr.message)
+            setError('Account created but profile save failed. Try logging in.')
+            setBusy(false)
+            return
+          }
         }
         localStorage.setItem('grindly_remember_me', 'true')
       }
@@ -369,10 +375,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     // Create profile after successful verification
     const { data: { user: newUser } } = await supabase.auth.getUser()
     if (newUser) {
-      await supabase.from('profiles').upsert(
+      const { error: profileErr } = await supabase.from('profiles').upsert(
         { id: newUser.id, username: username.trim(), avatar_url: avatar, email: email.trim().toLowerCase() },
         { onConflict: 'id' }
       )
+      if (profileErr) {
+        console.warn('[AuthGate] profile upsert failed (OTP):', profileErr.message)
+        setOtpError('Verification succeeded but profile save failed. Try logging in.')
+        setBusy(false)
+        return
+      }
     }
     localStorage.setItem('grindly_remember_me', 'true')
     setBusy(false)

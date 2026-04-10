@@ -1227,6 +1227,7 @@ export function ArenaPage() {
       <PageHeader
         title="Arena"
         icon={<Sword className="w-4 h-4 text-red-400" />}
+        onBack={() => navigateTo?.('home')}
         rightSlot={
           <div className="flex items-center gap-2">
             <BackpackButton onClick={() => setShowBackpack(true)} />

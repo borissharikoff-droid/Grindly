@@ -106,8 +106,8 @@ type CellToken = {
 }
 
 function CellIcon({ reward, isFuture, isClaimed }: { reward: DailyLoginReward; isFuture: boolean; isClaimed: boolean }) {
-  const imgFilter = isClaimed ? 'grayscale(1) brightness(0.3)' : 'none'
-  const alpha = isClaimed ? 0.2 : isFuture ? 0.80 : 1
+  const imgFilter = isClaimed ? 'grayscale(0.7) brightness(0.55)' : 'none'
+  const alpha = isClaimed ? 0.45 : isFuture ? 0.80 : 1
 
   // Pick the single best item to feature: chest > gold > best-rarity material
   let featNode: React.ReactNode = null
@@ -150,14 +150,6 @@ function CellIcon({ reward, isFuture, isClaimed }: { reward: DailyLoginReward; i
     featNode = <span className="text-2xl leading-none" style={{ filter: imgFilter, opacity: alpha }}>🪙</span>
   }
 
-  // Count total items for the "+N" badge
-  const totalItems = (reward.chests?.reduce((s, c) => s + c.qty, 0) ?? 0)
-    + (reward.gold ? 1 : 0)
-    + (reward.materials?.length ?? 0)
-  // Show "+N more" when there are additional items beyond the featured one
-  const featuredCount = reward.chests?.length ? reward.chests[0].qty : 1
-  const moreCount = totalItems - featuredCount
-
   return (
     <div className="flex flex-col items-center gap-0.5 w-full">
       <div className="flex items-center gap-0.5 leading-none">
@@ -165,20 +157,12 @@ function CellIcon({ reward, isFuture, isClaimed }: { reward: DailyLoginReward; i
         {featLabel && (
           <span
             className="text-[10px] font-bold font-mono tabular-nums leading-none"
-            style={{ color: isClaimed ? '#374151' : isFuture ? `${featColor}dd` : featColor }}
+            style={{ color: isClaimed ? '#6B7280' : isFuture ? `${featColor}dd` : featColor }}
           >
             {featLabel}
           </span>
         )}
       </div>
-      {moreCount > 0 && (
-        <span
-          className="text-[8px] font-mono leading-none px-1 rounded"
-          style={{ color: isClaimed ? '#374151' : '#9CA3AF', background: 'rgba(255,255,255,0.06)' }}
-        >
-          +{moreCount} more
-        </span>
-      )}
     </div>
   )
 }
@@ -264,15 +248,15 @@ function RewardItemBlock({ icon, image, name, qty, color }: {
   return (
     <div
       className="flex flex-col items-center gap-1 rounded-lg py-2 px-2 border relative overflow-hidden"
-      style={{ minWidth: 62, width: 62, borderColor: `${color}55`, background: `${color}1c` }}
+      style={{ minWidth: 76, width: 76, borderColor: `${color}55`, background: `${color}1c` }}
     >
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: `radial-gradient(ellipse at 50% 100%, ${color}28 0%, transparent 70%)` }} />
       <div className="flex items-center justify-center w-9 h-9 relative">
         <LootVisual icon={icon} image={image} className="w-8 h-8 object-contain" />
       </div>
-      <span className="text-[11px] font-bold font-mono leading-none relative" style={{ color }}>{qty}</span>
-      <span className="text-[8px] text-gray-500 leading-none text-center w-full truncate relative">{name}</span>
+      <span className="text-[13px] font-bold font-mono leading-none relative" style={{ color }}>{qty}</span>
+      <span className="text-[9px] text-gray-400 leading-snug text-center w-full line-clamp-2 break-words relative px-0.5">{name}</span>
     </div>
   )
 }
@@ -333,7 +317,7 @@ function RewardHeroCard({ day }: { day: CalendarDay }) {
           <span className="text-[9px] font-mono uppercase tracking-widest mb-0.5" style={{ color: `${accent}70` }}>
             {getWeekLabel(day.day)}
           </span>
-          <span className="text-3xl font-black leading-none tabular-nums" style={{ color: isClaimed ? '#374151' : accent }}>
+          <span className="text-3xl font-black leading-none tabular-nums" style={{ color: isClaimed ? '#6B7280' : accent }}>
             {day.day}
           </span>
           {isMilestone && (
@@ -346,7 +330,7 @@ function RewardHeroCard({ day }: { day: CalendarDay }) {
         {/* Right column — status + items */}
         <div className="flex-1 px-3.5 pt-2.5 pb-2.5 min-w-0">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded leading-none"
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded leading-none"
               style={{ color: statusColor, background: `${statusColor}18`, border: `1px solid ${statusColor}30` }}>
               {statusText}
             </span>
@@ -426,7 +410,7 @@ function DayCell({ day, onClick }: { day: CalendarDay; onClick: (day: CalendarDa
       {/* Day number */}
       <span
         className="text-[10px] font-bold leading-none z-10"
-        style={{ color: isClaimed ? '#374151' : isToday ? accentColor : isFuture ? '#6B7280' : '#9CA3AF' }}
+        style={{ color: isClaimed ? '#6B7280' : isToday ? accentColor : isFuture ? '#6B7280' : '#9CA3AF' }}
       >
         {day.day}
       </span>
@@ -458,7 +442,7 @@ function DayCell({ day, onClick }: { day: CalendarDay; onClick: (day: CalendarDa
       {/* Future lock — tiny, bottom corner only */}
       {isFuture && (
         <div className="absolute bottom-0.5 right-1 pointer-events-none z-10">
-          <span className="text-[7px] text-gray-700/50">🔒</span>
+          <span className="text-[8px] text-gray-600/60">🔒</span>
         </div>
       )}
     </div>
@@ -824,7 +808,7 @@ export function DailyLoginCalendar({ onClose, onClaimed }: DailyLoginCalendarPro
               </div>
               <div className="flex justify-between mt-1.5">
                 {([7, 14, 21, 30] as const).map((m, i) => (
-                  <span key={m} className="text-[8px] font-mono" style={{ color: totalClaimed >= m ? '#facc1599' : '#4b5563' }}>W{i + 1}</span>
+                  <span key={m} className="text-[9px] font-mono" style={{ color: totalClaimed >= m ? '#facc1599' : '#6b7280' }}>W{i + 1}</span>
                 ))}
               </div>
             </div>
@@ -838,7 +822,7 @@ export function DailyLoginCalendar({ onClose, onClaimed }: DailyLoginCalendarPro
                 return (
                   <div key={label}>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[9px] font-bold font-mono uppercase tracking-widest px-1.5 py-0.5 rounded"
+                      <span className="text-[10px] font-bold font-mono uppercase tracking-widest px-1.5 py-0.5 rounded"
                         style={{ color: weekDone ? '#4ade80cc' : '#FACC15aa', background: weekDone ? 'rgba(74,222,128,0.10)' : 'rgba(250,204,21,0.10)', border: `1px solid ${weekDone ? 'rgba(74,222,128,0.22)' : 'rgba(250,204,21,0.18)'}` }}>
                         {label} {weekDone ? '✓' : `· Day ${start + 1}–${end}`}
                       </span>
@@ -870,14 +854,14 @@ export function DailyLoginCalendar({ onClose, onClaimed }: DailyLoginCalendarPro
                 {/* Glow layer — opacity only, no paint trigger */}
                 <motion.div
                   className="absolute inset-0 rounded-xl pointer-events-none"
-                  style={{ boxShadow: '0 0 24px #FACC1560' }}
+                  style={{ boxShadow: '0 0 28px #d9770650' }}
                   animate={{ opacity: [0.4, 1, 0.4] }}
                   transition={{ duration: 1.6, repeat: Infinity }}
                 />
                 <motion.button
                   onClick={handleClaim}
-                  className="relative w-full py-3.5 rounded-xl text-sm font-bold text-[#0f0f0f] tracking-wide overflow-hidden"
-                  style={{ background: 'linear-gradient(135deg, #facc15 0%, #f97316 100%)' }}
+                  className="relative w-full py-3.5 rounded-xl text-sm font-bold text-white tracking-wide overflow-hidden"
+                  style={{ background: 'linear-gradient(135deg, #d97706 0%, #ea580c 100%)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15)' }}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                 >

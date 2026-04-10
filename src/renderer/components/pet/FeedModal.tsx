@@ -127,10 +127,10 @@ export function FeedModal({ onClose, onFed }: FeedModalProps) {
                     className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded hover:bg-white/[0.06] transition-colors text-left"
                   >
                     <div
-                      className="w-9 h-9 rounded flex items-center justify-center shrink-0 overflow-hidden"
-                      style={{ background: '#0a0a14', border: `1px solid ${theme.border}` }}
+                      className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0 overflow-hidden"
+                      style={{ background: '#0a0a14', border: `1px solid ${theme.border}`, boxShadow: `0 0 10px ${theme.glow}` }}
                     >
-                      <LootVisual icon={item.icon} image={foodDef?.image} className="w-6 h-6 object-contain" />
+                      <LootVisual icon={item.icon} image={foodDef?.image} className="w-9 h-9 object-contain" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-medium text-white truncate">{item.name}</div>

@@ -871,6 +871,14 @@ export function CraftPage() {
           icon={<Hammer className="w-4 h-4 text-orange-400" />}
           onBack={() => navigateTo?.('home')}
           backLabel="Home"
+          titleSlot={partySize <= 1 ? (
+            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-white/[0.08] bg-white/[0.03]">
+              <Users className="w-3 h-3 text-gray-500" />
+              <span className="text-micro font-mono text-gray-500">
+                Invite a friend → unlock <span style={{ color: PARTY_COLOR }}>Party Craft</span>
+              </span>
+            </div>
+          ) : undefined}
           rightSlot={
             <BackpackButton onClick={() => setShowBackpack(true)} />
           }
@@ -937,20 +945,6 @@ export function CraftPage() {
         <AnimatePresence>
           <PartyCraftBanner />
           <PartyCraftJoinedBadge />
-          {partySize <= 1 && (
-            <motion.div
-              key="party-craft-hint"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-full border border-white/[0.08] bg-white/[0.03]"
-            >
-              <Users className="w-3 h-3 text-gray-500" />
-              <p className="text-micro font-mono text-gray-500">
-                Invite a friend → unlock <span style={{ color: PARTY_COLOR }}>Party Craft</span>
-              </p>
-            </motion.div>
-          )}
         </AnimatePresence>
 
         {/* Active job */}

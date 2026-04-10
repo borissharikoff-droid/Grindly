@@ -15,6 +15,12 @@ interface NavigationStore {
   /** Tab to return to when Back is pressed after a cross-tab navigation */
   returnTab: TabId | null
   setReturnTab: (tab: TabId | null) => void
+  /** Navigate to Friends/Social tab and auto-open the Trades sub-tab */
+  pendingTradesTab: boolean
+  setPendingTradesTab: (v: boolean) => void
+  /** Open Marketplace and land on a specific inner tab ('listings'|'sell'|'my_listings'|'history') */
+  pendingMarketplaceTab: string | null
+  setPendingMarketplaceTab: (tab: string | null) => void
 }
 
 export const useNavigationStore = create<NavigationStore>((set) => ({
@@ -28,4 +34,8 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
   setPendingFriendUserId: (id) => set({ pendingFriendUserId: id }),
   returnTab: null,
   setReturnTab: (tab) => set({ returnTab: tab }),
+  pendingTradesTab: false,
+  setPendingTradesTab: (v) => set({ pendingTradesTab: v }),
+  pendingMarketplaceTab: null,
+  setPendingMarketplaceTab: (tab) => set({ pendingMarketplaceTab: tab }),
 }))

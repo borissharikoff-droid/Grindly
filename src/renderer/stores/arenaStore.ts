@@ -23,6 +23,8 @@ import { useWeeklyStore } from './weeklyStore'
 import { applyGuildTax } from '../services/guildService'
 import { useGuildStore } from './guildStore'
 import { getGuildGoldMultiplier } from '../lib/guildBuffs'
+import { getPetGlobalBuffs, getPetArenaGoldBonus } from '../lib/pets'
+import { usePetStore } from './petStore'
 
 export interface ActiveBattle {
   bossId: string
@@ -242,10 +244,11 @@ export const useArenaStore = create<ArenaState>()(
         const warriorLevel = getWarriorLevel()
         const warriorBonuses = computeWarriorBonuses(warriorLevel)
         const grindlyBonuses = computeGrindlyBonuses(getGrindlyLevel())
+        const petBuffs = getPetGlobalBuffs(usePetStore.getState().activePet)
         const playerSnapshot = computePlayerStats(equippedBySlot, permanentStats, {
-          atk: warriorBonuses.atk + grindlyBonuses.atk,
+          atk: warriorBonuses.atk + grindlyBonuses.atk + petBuffs.atk,
           hp: warriorBonuses.hp + grindlyBonuses.hp,
-          hpRegen: warriorBonuses.hpRegen + grindlyBonuses.hpRegen,
+          hpRegen: warriorBonuses.hpRegen + grindlyBonuses.hpRegen + petBuffs.hpRegen,
           def: warriorBonuses.def + grindlyBonuses.def,
         })
 
@@ -312,10 +315,11 @@ export const useArenaStore = create<ArenaState>()(
           }
         }
 
+        const petBuffs2 = getPetGlobalBuffs(usePetStore.getState().activePet)
         const additionalBonuses = {
-          atk: warriorBonuses.atk + grindlyBonuses.atk + consumableBuff.atk,
+          atk: warriorBonuses.atk + grindlyBonuses.atk + consumableBuff.atk + petBuffs2.atk,
           hp: warriorBonuses.hp + grindlyBonuses.hp + consumableBuff.hp,
-          hpRegen: warriorBonuses.hpRegen + grindlyBonuses.hpRegen + consumableBuff.hpRegen,
+          hpRegen: warriorBonuses.hpRegen + grindlyBonuses.hpRegen + consumableBuff.hpRegen + petBuffs2.hpRegen,
           def: warriorBonuses.def + grindlyBonuses.def + consumableBuff.def,
         }
         const playerSnapshot = computePlayerStats(equippedBySlot, permanentStats, additionalBonuses)
@@ -360,10 +364,11 @@ export const useArenaStore = create<ArenaState>()(
         const warriorLevel = getWarriorLevel()
         const warriorBonuses = computeWarriorBonuses(warriorLevel)
         const grindlyBonuses = computeGrindlyBonuses(getGrindlyLevel())
+        const petBuffs3 = getPetGlobalBuffs(usePetStore.getState().activePet)
         const playerSnapshot = computePlayerStats(equippedBySlot, permanentStats, {
-          atk: warriorBonuses.atk + grindlyBonuses.atk,
+          atk: warriorBonuses.atk + grindlyBonuses.atk + petBuffs3.atk,
           hp: warriorBonuses.hp + grindlyBonuses.hp,
-          hpRegen: warriorBonuses.hpRegen + grindlyBonuses.hpRegen,
+          hpRegen: warriorBonuses.hpRegen + grindlyBonuses.hpRegen + petBuffs3.hpRegen,
           def: warriorBonuses.def + grindlyBonuses.def,
         })
 
@@ -423,6 +428,7 @@ export const useArenaStore = create<ArenaState>()(
         let state: ReturnType<typeof computeBattleStateAtTime>
         let foodConsumed: Array<{ foodId: string; qty: number }> = []
 
+        try {
         if (activeBattle.foodLoadout?.some(Boolean)) {
           // Use time-based food simulation (respects actual elapsed wall-clock time)
           const foodState = computeBattleStateAtTimeWithFood(
@@ -468,25 +474,28 @@ export const useArenaStore = create<ArenaState>()(
             useWeeklyStore.getState().incrementKill()
             const hotZoneId = getHotZoneId()
             const isHotZone = activeBattle.dungeonZoneId === hotZoneId
-            const goldMult = (isHotZone ? 2 : 1) * getFoodGoldMultiplier(activeBattle.foodLoadout) * getGuildGoldMultiplier(useGuildStore.getState().hallLevel)
+            const activePetForGold = usePetStore.getState().activePet
+            const petGoldBuff = getPetGlobalBuffs(activePetForGold)
+            const goldMult = (isHotZone ? 2 : 1) * getFoodGoldMultiplier(activeBattle.foodLoadout) * getGuildGoldMultiplier(useGuildStore.getState().hallLevel) * (1 + petGoldBuff.goldPct / 100) * getPetArenaGoldBonus(activePetForGold)
             const dropMult = (isHotZone ? 2 : 1) * getFoodDropMultiplier(activeBattle.foodLoadout)
             const gold = randomGold(mob.goldMin, mob.goldMax, goldMult)
             const user = useAuthStore.getState().user
-            // Guild tax (fire-and-forget)
-            import('./guildStore').then(({ useGuildStore }) => {
-              const gs = useGuildStore.getState()
-              const taxPct = gs.myGuild?.tax_rate_pct ?? 0
-              if (taxPct > 0 && user && gs.myGuild) {
-                applyGuildTax(user.id, gs.myGuild.id, gold, taxPct).then((taxed) => {
-                  if (taxed > 0) useGoldStore.getState().addGold(-taxed)
-                }).catch(() => {})
-              }
-            }).catch(() => {})
-            useGoldStore.getState().addGold(gold)
+            // Guild tax — compute synchronously so gold is credited net of tax in one operation
+            const guildSnap = useGuildStore.getState()
+            const taxPct = guildSnap.myGuild?.tax_rate_pct ?? 0
+            const taxAmount = (taxPct > 0 && user && guildSnap.myGuild)
+              ? Math.floor(gold * taxPct / 100)
+              : 0
+            if (taxAmount > 0) {
+              // Persist tax to guild chest async — non-fatal, local deduction already applied
+              applyGuildTax(user.id, guildSnap.myGuild!.id, gold, taxPct).catch(() => {})
+            }
+            useGoldStore.getState().addGold(gold - taxAmount)
             if (user) useGoldStore.getState().syncToSupabase(user.id)
 
-            void grantWarriorXP(mob.xpReward)
-            warriorXP = mob.xpReward
+            const fightSeconds = Math.round(fightElapsed)
+            void grantWarriorXP(fightSeconds)
+            warriorXP = fightSeconds
 
             const materialDrops = rollMaterial(mob, dropMult)
             for (const materialDrop of materialDrops) {
@@ -547,11 +556,11 @@ export const useArenaStore = create<ArenaState>()(
                 }
               }
             }
-            // Grant warrior XP for boss kill
-            const bossWarriorXP = BOSS_WARRIOR_XP[activeBattle.bossSnapshot.id] ?? 0
-            if (bossWarriorXP > 0) {
-              void grantWarriorXP(bossWarriorXP)
-              warriorXP = bossWarriorXP
+            // Grant warrior XP for boss kill (based on actual fight duration)
+            const bossKillSeconds = Math.round(fightElapsed)
+            if (bossKillSeconds > 0) {
+              void grantWarriorXP(bossKillSeconds)
+              warriorXP = bossKillSeconds
             }
 
             // Grant boss-exclusive material drop (doubled on hot zone)
@@ -620,6 +629,11 @@ export const useArenaStore = create<ArenaState>()(
         }
 
         return { goldLost, chest: droppedChest, lostItem, materialDrop: matDrop, dungeonGold, warriorXP, insuranceUsed }
+        } catch (err) {
+          console.error('[arenaStore] endBattle compute failed:', err)
+          set({ activeDungeon: null })
+          return { goldLost: 0, chest: null, lostItem: null, materialDrop: null, dungeonGold: 0, warriorXP: 0, insuranceUsed: false }
+        }
       },
 
       endBattleWithoutGold() {
@@ -646,8 +660,8 @@ export const useArenaStore = create<ArenaState>()(
                 if (chest) droppedChest = { type: rolledTier, name: chest.name, icon: activeBattle.isDaily ? '⭐' : chest.icon, image: chest.image }
               }
             }
-            const bossWarriorXP = BOSS_WARRIOR_XP[activeBattle.bossSnapshot.id] ?? 0
-            if (bossWarriorXP > 0) void grantWarriorXP(bossWarriorXP)
+            const bossKillSecs = Math.round(fightElapsed)
+            if (bossKillSecs > 0) void grantWarriorXP(bossKillSecs)
             // Boss-exclusive material drop
             if (bossForChest.materialDropId) {
               useInventoryStore.getState().addItem(bossForChest.materialDropId, bossForChest.materialDropQty ?? 1)
@@ -760,10 +774,11 @@ export const useArenaStore = create<ArenaState>()(
           const warriorLevel = getWarriorLevel()
           const warriorBonuses = computeWarriorBonuses(warriorLevel)
           const grindlyBonuses = computeGrindlyBonuses(getGrindlyLevel())
+          const petBuffs4 = getPetGlobalBuffs(usePetStore.getState().activePet)
           const playerSnapshot = computePlayerStats(equippedBySlot, permanentStats, {
-            atk: warriorBonuses.atk + grindlyBonuses.atk,
+            atk: warriorBonuses.atk + grindlyBonuses.atk + petBuffs4.atk,
             hp: warriorBonuses.hp + grindlyBonuses.hp,
-            hpRegen: warriorBonuses.hpRegen + grindlyBonuses.hpRegen,
+            hpRegen: warriorBonuses.hpRegen + grindlyBonuses.hpRegen + petBuffs4.hpRegen,
             def: warriorBonuses.def + grindlyBonuses.def,
           })
 

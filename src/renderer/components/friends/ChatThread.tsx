@@ -510,15 +510,22 @@ export function ChatThread({ profile, onBack, onOpenProfile, messages, reactions
     if (!supabase || !user?.id) return
     if (!checkRateLimit()) return
     setUploadingImage(true)
-    const compressed = await compressImage(file)
-    const ext = compressed.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-    const path = `${user.id}/${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from('chat-images').upload(path, compressed, { contentType: compressed.type })
-    if (!error) {
-      const { data: { publicUrl } } = supabase.storage.from('chat-images').getPublicUrl(path)
-      await sendMessage(profile.id, `${IMAGE_PREFIX}${publicUrl}`)
+    try {
+      const compressed = await compressImage(file)
+      const ext = compressed.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+      const path = `${user.id}/${Date.now()}.${ext}`
+      const { error } = await supabase.storage.from('chat-images').upload(path, compressed, { contentType: compressed.type })
+      if (error) {
+        console.warn('[ChatThread] image upload failed:', error.message)
+      } else {
+        const { data: { publicUrl } } = supabase.storage.from('chat-images').getPublicUrl(path)
+        await sendMessage(profile.id, `${IMAGE_PREFIX}${publicUrl}`)
+      }
+    } catch (err) {
+      console.warn('[ChatThread] image upload error:', err)
+    } finally {
+      setUploadingImage(false)
     }
-    setUploadingImage(false)
   }, [user?.id, profile.id, sendMessage])
 
   const groupedMessages = useMemo(() => {

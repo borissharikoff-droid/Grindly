@@ -317,8 +317,8 @@ export const useFarmStore = create<FarmState>()(
         if (seedDrop) useInventoryStore.getState().addItem(seedDrop, 1)
 
         set({ planted: newPlanted, seedZips: newZips })
-        const xp = isComposted ? Math.ceil(seed.xpOnHarvest * 1.05) : seed.xpOnHarvest
-        grantFarmerXP(xp).catch(() => undefined)
+        const xp = isComposted ? Math.ceil(slot.growTimeSeconds * 1.05) : slot.growTimeSeconds
+        grantFarmerXP(xp).catch((err) => console.warn('[farmStore] grantFarmerXP failed:', err))
 
         recordHarvest(1)
         useBountyStore.getState().incrementFarm(1)
@@ -349,8 +349,8 @@ export const useFarmStore = create<FarmState>()(
           if (farmerBonusChance > 0 && Math.random() < farmerBonusChance) qty += 1
           if (yieldBonus > 0) qty = Math.ceil(qty * (1 + yieldBonus / 100))
           useInventoryStore.getState().addItem(seed.yieldPlantId, qty)
-          const xp = isComposted ? Math.ceil(seed.xpOnHarvest * 1.05) : seed.xpOnHarvest
-          grantFarmerXP(xp).catch(() => undefined)
+          const xp = isComposted ? Math.ceil(slot.growTimeSeconds * 1.05) : slot.growTimeSeconds
+          grantFarmerXP(xp).catch((err) => console.warn('[farmStore] grantFarmerXP failed:', err))
           delete newPlanted[Number(idxStr)]
 
           let seedZipTier: SeedZipTier | null = null

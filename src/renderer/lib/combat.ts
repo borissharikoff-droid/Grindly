@@ -153,7 +153,7 @@ export const ZONES: ZoneDef[] = [
     prevZoneId: 'zone2',
     warriorLevelRequired: 8,
     gateItems: ['craft_slime_shield'],
-    entryCost: [{ itemId: 'apples', quantity: 1 }],
+    entryCost: [{ itemId: 'slime_gel', quantity: 2 }, { itemId: 'apples', quantity: 1 }],
     mobs: [
       { id: 'wolf_young', name: 'Young Wolf',  icon: '🐺', hp: 320,   atk: 3.5, def: 1, xpReward: 10,    goldMin: 20,  goldMax: 40,   materialDropId: 'wolf_fang', materialDropChance: 0.3 },
       { id: 'wolf_pack',  name: 'Pack Wolf',   icon: '🐺', hp: 450,   atk: 4.5, def: 2, xpReward: 16,    goldMin: 30,  goldMax: 55,   materialDropId: 'wolf_fang', materialDropChance: 0.4, bonusMaterialDropId: 'ore_iron',     bonusMaterialDropChance: 0.3 },

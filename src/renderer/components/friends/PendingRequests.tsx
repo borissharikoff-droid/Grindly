@@ -91,10 +91,12 @@ export function PendingRequests({ requests, onAccept, onReject }: PendingRequest
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={() => onReject(req.friendship_id)}
-                className="text-gray-500 hover:text-red-500 text-xs shrink-0"
+                className="text-gray-500 hover:text-red-400 shrink-0 p-2 rounded hover:bg-red-500/10 transition-colors"
                 title="Cancel request"
               >
-                ✕
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </motion.button>
             </div>
           ))}

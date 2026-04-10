@@ -73,7 +73,6 @@ const CH = {
   ai: {
     analyzeSession: 'ai:analyzeSession',
     analyzeOverview: 'ai:analyzeOverview',
-    refineActivityLabels: 'ai:refineActivityLabels',
   },
   settings: {
     getAutoLaunch: 'settings:getAutoLaunch',
@@ -177,8 +176,6 @@ try {
     ai: {
       analyzeSession: (sessionId: string) => ipcRenderer.invoke(CH.ai.analyzeSession, sessionId),
       analyzeOverview: (data: unknown) => ipcRenderer.invoke(CH.ai.analyzeOverview, data),
-      refineActivityLabels: (items: { app_name: string; window_title: string; current_category: string }[]) =>
-        ipcRenderer.invoke(CH.ai.refineActivityLabels, items),
     },
     settings: {
       getAutoLaunch: () => ipcRenderer.invoke(CH.settings.getAutoLaunch),

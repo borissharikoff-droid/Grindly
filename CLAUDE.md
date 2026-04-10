@@ -121,6 +121,62 @@ Available gstack skills:
 - `/setup-browser-cookies` — configure browser cookies for authenticated browsing
 - `/retro` — run a retrospective
 
+## Asset Generation — Item Skins & Icons
+
+All game item icons are generated via the **Quadcode MCP (mcp__idly__)** using Flux2Pro with style references. Never use gpt-image-1 or draw_html_text for item skins.
+
+### Workflow for generating a new item skin
+
+1. **Create meta section file** at `meta/files/public/loot/ITEM_ID_png.md`:
+
+```markdown
+---
+SECTION_ID: files.public.loot.ITEM_ID_png
+TYPE: file/image
+---
+
+FILE: public/loot/ITEM_ID.png
+WIDTH: 1024
+HEIGHT: 1024
+UTILITY: flux2pro
+
+PROMPT: |
+  Low-poly 3D game inventory icon of [ITEM NAME], [RARITY COLOR DESC].
+  [SHAPE/DESIGN DETAIL]. Diagonal isometric angle, blade/item pointing upper-right.
+  Transparent background with subtle soft drop shadow below.
+  Low-poly 3D RPG loot icon style, faceted geometry, strong neon glow contrast against dark surfaces.
+  High quality 3D render. No text, no UI.
+
+IMAGE-INPUT: public/loot/item_craft_lich_sword.png
+IMAGE-INPUT-2: public/loot/item_raid_void_blade.png
+IMAGE-INPUT-3: public/loot/item_craft_titan_sword.png
+
+FILES: public/loot/item_craft_lich_sword.png, public/loot/item_raid_void_blade.png, public/loot/item_craft_titan_sword.png
+
+NUMBER: 1
+
+MAKE_TRANSPARENT: rembg
+```
+
+2. **Generate** via `mcp__idly__ToolGenerateResourceFileFromMetaSection(section_id="files.public.loot.ITEM_ID_png")`
+
+3. **Read and show** the result image to the user for approval.
+
+4. **Add to loot.ts**: add `image: 'loot/ITEM_ID.png'` field to the item definition.
+
+### Art style
+
+- **Style**: Low-poly 3D RPG loot icon — same as RuneScape meets modern mobile RPG
+- **Angle**: Diagonal isometric, item pointing upper-right
+- **Background**: Transparent with soft drop shadow
+- **Weapons**: Faceted geometry, neon glowing cracks/energy effects along blade edges
+- **Rarity palette**: common=brown/grey · rare=blue metallic · epic=dark purple · legendary=gold · mythic=void black + neon purple/pink
+- **Reference images** (always include for style matching): `item_craft_lich_sword.png`, `item_raid_void_blade.png`, `item_craft_titan_sword.png`
+
+### Video generation
+
+For game trailers or promo videos use `mcp__idly__ToolClusterNodeActivate(utility="kling")` or `gen3` — available on the `integration` cluster node. Create meta sections under `meta/files/` with `TYPE: file/video`.
+
 ## Tools & Integrations
 
 - Use the configured Supabase MCP (`mcp__supabase__execute_sql`) for all database operations. Never fall back to manual curl commands or raw SQL scripts when MCP is available.
@@ -128,6 +184,33 @@ Available gstack skills:
 ## Zustand Selectors
 
 - Never return a new object/array reference directly from a selector. Use shallow comparison or select individual fields to avoid infinite re-render loops.
+
+## Patch Notes — Mandatory Release Checklist
+
+Every release **MUST** include patch notes in **both** places. Skipping either one means users with the old version won't see the bell notification.
+
+### Step 1 — `src/renderer/lib/changelog.ts`
+Add a new `PatchNote` entry at the **top** of the `CHANGELOG` array with:
+- `version` matching `package.json` version
+- `date` as `YYYY-MM-DD`
+- `title` — short release name (e.g. `"Group Chats & Item Skins"`)
+- `items` — one entry per notable change, typed as `new | fix | balance | ui`
+
+### Step 2 — Supabase `patch_notes` table
+Insert the same entry via `mcp__supabase__execute_sql`:
+```sql
+INSERT INTO patch_notes (version, title, date, items)
+VALUES (
+  '4.7.0',
+  'Short Release Name',
+  '2026-03-31',
+  '[{"type":"new","text":"..."},{"type":"fix","text":"..."}]'::jsonb
+);
+```
+This is what triggers the **bell notification** for users who already have the app installed. Without this insert, the `useRemotePatchNotes` hook never fires and the bell stays silent.
+
+### Rule
+**Never ship a release without completing both steps.** The changelog entry alone is not enough — it only shows to users who download the new installer. The Supabase insert is required for real-time delivery to existing installs.
 
 ## Release Screenshot Checklist
 

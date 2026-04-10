@@ -66,6 +66,8 @@ interface InventoryState {
   consumePotion: (itemId: string) => boolean
   /** Merge cloud data into local (takes max). Used after sync. */
   mergeFromCloud: (items: Record<string, number>, chests: Record<ChestType, number>) => void
+  /** Force-set specific item quantities from cloud (authoritative). Used after trades/marketplace. */
+  syncItemsFromCloud: (items: Array<{ item_id: string; quantity: number }>) => void
   permanentStats: { atk: number; hp: number; hpRegen: number; def: number }
 }
 
@@ -77,7 +79,7 @@ const SKILL_DROP_COOLDOWN_MS = 3_600_000
 const BASE_DROP_PER_MINUTE = 0.0005
 
 
-const initialState: Omit<InventoryState, 'hydrate' | 'addItem' | 'addChest' | 'claimPendingReward' | 'claimAllPendingRewards' | 'rollSkillGrindDrop' | 'rollSessionChestDrop' | 'openChestAndGrantItem' | 'grantAndOpenChest' | 'equipItem' | 'unequipSlot' | 'mergeFromCloud' | 'consumePotion' | 'deletePendingReward' | 'deleteChest' | 'deleteItem' | 'salvageItem'> = {
+const initialState: Omit<InventoryState, 'hydrate' | 'addItem' | 'addChest' | 'claimPendingReward' | 'claimAllPendingRewards' | 'rollSkillGrindDrop' | 'rollSessionChestDrop' | 'openChestAndGrantItem' | 'grantAndOpenChest' | 'equipItem' | 'unequipSlot' | 'mergeFromCloud' | 'syncItemsFromCloud' | 'consumePotion' | 'deletePendingReward' | 'deleteChest' | 'deleteItem' | 'salvageItem'> = {
   items: {},
   chests: {
     common_chest: 0,
@@ -471,6 +473,21 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     return yields
   },
 
+  syncItemsFromCloud(rows) {
+    set((state) => {
+      const nextItems = { ...state.items }
+      for (const { item_id, quantity } of rows) {
+        if (quantity <= 0) {
+          delete nextItems[item_id]
+        } else {
+          nextItems[item_id] = quantity
+        }
+      }
+      const next: InventoryState = { ...state, items: nextItems }
+      saveSnapshot(next)
+      return next
+    })
+  },
   mergeFromCloud(items, chests) {
     set((state) => {
       const nextItems = { ...state.items }

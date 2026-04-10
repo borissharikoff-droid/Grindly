@@ -1,11 +1,12 @@
-import { ipcMain, app, dialog, shell } from 'electron'
+import { ipcMain, app, dialog, shell, BrowserWindow } from 'electron'
 import { createBadgeImage } from './badgeOverlay'
 import path from 'path'
 import fs from 'fs'
 import { getTrackerApi } from './tracker'
+import { checkScreenRecordingPermission } from './macPermissions'
 import { disableFocusMode, enableFocusMode, getFocusModeStatus } from './focusMode'
 import { getDatabaseApi } from './database'
-import { analyzeSession, analyzeOverview, refineActivityLabels } from './deepseek'
+import { analyzeSession, analyzeOverview } from './deepseek'
 import { getDeepSeekApiKey } from './aiConfig'
 import { updateDiscordPresence, type PresenceUpdate } from './discord'
 import type { OverviewData } from './deepseek'
@@ -41,7 +42,11 @@ export function registerIpcHandlers() {
   const tracker = getTrackerApi()
   const db = getDatabaseApi()
 
-  ipcMain.handle(IPC_CHANNELS.tracker.start, () => tracker.start())
+  ipcMain.handle(IPC_CHANNELS.tracker.start, async () => {
+    // Prompt for Screen Recording on first session start (macOS only, deferred from app launch)
+    await checkScreenRecordingPermission()
+    return tracker.start()
+  })
   ipcMain.handle(IPC_CHANNELS.tracker.stop, () => tracker.stop())
   ipcMain.handle(IPC_CHANNELS.tracker.pause, () => tracker.pause())
   ipcMain.handle(IPC_CHANNELS.tracker.resume, () => tracker.resume())
@@ -256,23 +261,6 @@ export function registerIpcHandlers() {
     const apiKey = getDeepSeekApiKey()
     return analyzeOverview(overviewData, apiKey)
   })
-  ipcMain.handle(IPC_CHANNELS.ai.refineActivityLabels, async (_, items: unknown) => {
-    if (!Array.isArray(items)) throw new Error('items must be an array')
-    const sanitized = items
-      .slice(0, 25)
-      .map((item) => {
-        const row = item as { app_name?: unknown; window_title?: unknown; current_category?: unknown }
-        return {
-          app_name: typeof row.app_name === 'string' ? row.app_name : 'Unknown',
-          window_title: typeof row.window_title === 'string' ? row.window_title : '',
-          current_category: typeof row.current_category === 'string' ? row.current_category : 'browsing',
-        }
-      })
-      .filter((row) => row.window_title.length > 0)
-    if (sanitized.length === 0) return []
-    const apiKey = getDeepSeekApiKey()
-    return refineActivityLabels(sanitized, apiKey)
-  })
 
   // ── Auto-launch ──
   ipcMain.handle(IPC_CHANNELS.settings.getAutoLaunch, () => {
@@ -365,6 +353,11 @@ export function registerIpcHandlers() {
 
   // ── Auto-updater: restart to apply update ────────────────────────────────
   ipcMain.handle(IPC_CHANNELS.updater.install, () => {
+    if (process.platform === 'darwin') {
+      // macOS: unsigned app — Gatekeeper blocks auto-install. Open releases page instead.
+      shell.openExternal('https://github.com/borissharikoff-droid/Idly/releases/latest')
+      return
+    }
     const { autoUpdater } = require('electron-updater')
     autoUpdater.quitAndInstall(false, true)
   })

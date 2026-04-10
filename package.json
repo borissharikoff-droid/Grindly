@@ -1,6 +1,6 @@
 {
   "name": "grindly",
-  "version": "4.7.0",
+  "version": "4.8.0",
   "description": "Windows productivity tracker with session timer, activity monitoring, and gamification",
   "main": "dist/main/main/index.js",
   "scripts": {
@@ -12,7 +12,7 @@
     "clean:release": "node -e \"try{require('fs').rmSync('release/win-unpacked',{recursive:true,force:true});console.log('Cleaned release/win-unpacked')}catch(e){console.warn('Clean skipped:',e.message)}\"",
     "electron:build": "npm run build && npm run clean:release && electron-builder --config electron-builder.yml",
     "electron:build:mac": "npm run build && npm run build:macos-tracker && electron-builder --config electron-builder.yml --mac",
-    "build:macos-tracker": "swiftc native/macos-tracker/main.swift -o dist/macos-tracker -O -framework Foundation -framework AppKit -framework ApplicationServices -framework IOKit",
+    "build:macos-tracker": "swiftc native/macos-tracker/main.swift -target x86_64-apple-macosx12.0 -o dist/macos-tracker-x64 -O -framework Foundation -framework AppKit -framework ApplicationServices -framework IOKit && swiftc native/macos-tracker/main.swift -target arm64-apple-macos11.0 -o dist/macos-tracker-arm64 -O -framework Foundation -framework AppKit -framework ApplicationServices -framework IOKit && lipo -create dist/macos-tracker-x64 dist/macos-tracker-arm64 -output dist/macos-tracker && rm dist/macos-tracker-x64 dist/macos-tracker-arm64",
     "test": "vitest run",
     "test:watch": "vitest",
     "push": "git push",
@@ -44,6 +44,7 @@
     "concurrently": "^9.1.0",
     "electron": "^35.7.5",
     "electron-builder": "^26.8.2",
+    "ffmpeg-static": "^5.3.0",
     "form-data": "^4.0.5",
     "gif-encoder-2": "^1.0.5",
     "node-fetch": "^3.3.2",

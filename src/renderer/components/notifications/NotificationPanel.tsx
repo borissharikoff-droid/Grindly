@@ -7,6 +7,7 @@ import { useInventoryStore } from '../../stores/inventoryStore'
 import { useFarmStore } from '../../stores/farmStore'
 import { useNavigationStore } from '../../stores/navigationStore'
 import { useAuthStore } from '../../stores/authStore'
+import { useTradeStore } from '../../stores/tradeStore'
 import { LOOT_ITEMS, RARITY_COLORS, type BonusMaterial, type ChestType, type LootRarity } from '../../lib/loot'
 import { ChestOpenModal } from '../animations/ChestOpenModal'
 import { supabase } from '../../lib/supabase'
@@ -15,17 +16,39 @@ import { getLatestPatch } from '../../lib/changelog'
 import { WhatsNewModal } from '../WhatsNewModal'
 import type { TabId } from '../../App'
 
-function tabForNotifType(type: NotificationType, title?: string): TabId | null {
+function tabForNotifType(type: NotificationType, title?: string, body?: string): TabId | null {
+  const t = (title ?? '').toLowerCase()
+  const b = (body ?? '').toLowerCase()
   switch (type) {
     case 'arena_result': return 'arena'
     case 'marketplace_sale': return 'marketplace'
     case 'friend_levelup': return 'friends'
-    case 'progression':
-      // Chest/loot notifications → inventory; skill/xp notifications → skills
-      if (title && (title.toLowerCase().includes('chest') || title.toLowerCase().includes('inbox') || title.toLowerCase().includes('loot') || title.toLowerCase().includes('drop'))) return 'inventory'
+    case 'trade_offer': return 'friends'
+    case 'progression': {
+      // Pet notifications: "is back", "hungry", adventure/forage keywords
+      if (t.includes('is back') || t.includes('hungry') || b.includes('adventure') || b.includes('forage') || b.includes('collect your loot') || b.includes('feed')) return 'pet'
+      // Farm
+      if (t.includes('harvest') || t.includes('farm') || b.includes('harvest') || b.includes('seed') || b.includes('grew') || b.includes('ready to pick')) return 'farm'
+      // Craft
+      if (t.includes('craft') || b.includes('crafted') || b.includes('recipe') || b.includes('craft complete')) return 'craft'
+      // Loot/chest/drop/material → inventory
+      if (t.includes('chest') || t.includes('loot') || t.includes('drop') || t.includes('material') || t.includes('found') || t.includes('inbox') || b.includes('chest') || b.includes('loot') || b.includes('collect')) return 'inventory'
+      // Default progression → skills
       return 'skills'
+    }
+    case 'update':
+    case 'patch_notes':
+      return null // opens modal, no tab nav needed
     default: return null
   }
+}
+
+function NavHint() {
+  return (
+    <svg className="w-3 h-3 text-gray-600 shrink-0 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+    </svg>
+  )
 }
 
 function timeAgo(ts: number): string {
@@ -48,11 +71,13 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
   const { items, markAllRead, clear, dismiss } = useNotificationStore()
   const setResultModal = useArenaStore((s) => s.setResultModal)
   const globalNavigate = useNavigationStore((s) => s.navigateTo)
+  const setPendingTradesTab = useNavigationStore((s) => s.setPendingTradesTab)
+  const setPendingMarketplaceTab = useNavigationStore((s) => s.setPendingMarketplaceTab)
   const presentRecoveryComplete = useSessionStore((s) => s.presentRecoveryComplete)
   const claimPendingReward = useInventoryStore((s) => s.claimPendingReward)
   const openChestAndGrantItem = useInventoryStore((s) => s.openChestAndGrantItem)
   const user = useAuthStore((s) => s.user)
-  const [filter, setFilter] = useState<'all' | 'update' | 'friend_levelup' | 'progression' | 'arena_result' | 'marketplace_sale' | 'poll'>('all')
+  const [filter, setFilter] = useState<'all' | 'update' | 'friend_levelup' | 'progression' | 'arena_result' | 'marketplace_sale' | 'poll' | 'trade_offer'>('all')
   const [openedChest, setOpenedChest] = useState<{ chestType: ChestType; itemId: string; goldDropped?: number; bonusMaterials?: import('../../lib/loot').BonusMaterial[] } | null>(null)
   const [votingId, setVotingId] = useState<string | null>(null)
   const [votedPolls, setVotedPolls] = useState<Set<string>>(new Set())
@@ -79,9 +104,20 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
     if (result) setOpenedChest({ chestType: chestType as ChestType, itemId: result.itemId ?? '', goldDropped: result.goldDropped, bonusMaterials: result.bonusMaterials })
   }
 
+  const incomingOffers = useTradeStore((s) => s.incomingOffers)
+
   useEffect(() => {
-    if (open) markAllRead()
-  }, [open, markAllRead])
+    if (!open) return
+    markAllRead()
+    // Auto-dismiss trade notifications whose offers are no longer pending (expired/cancelled)
+    const activeOfferIds = new Set(incomingOffers.map((o) => o.id))
+    const { items: currentItems, dismiss: dismissNotif } = useNotificationStore.getState()
+    for (const notif of currentItems) {
+      if (notif.tradeOffer && !activeOfferIds.has(notif.tradeOffer.offerId)) {
+        dismissNotif(notif.id)
+      }
+    }
+  }, [open, markAllRead, incomingOffers])
 
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
@@ -124,7 +160,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
             )}
           </div>
           <div className="px-3 py-1.5 border-b border-white/[0.06] flex items-center gap-1.5 flex-wrap">
-            {(['all', 'update', 'friend_levelup', 'progression', 'arena_result', 'marketplace_sale', 'poll'] as const).map((t) => (
+            {(['all', 'update', 'friend_levelup', 'trade_offer', 'progression', 'arena_result', 'marketplace_sale', 'poll'] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setFilter(t)}
@@ -134,7 +170,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                     : 'border-white/10 text-gray-500 hover:text-gray-300'
                 }`}
               >
-                {t === 'all' ? 'All' : t === 'update' ? 'Updates' : t === 'friend_levelup' ? 'Friends' : t === 'arena_result' ? 'Arena' : t === 'marketplace_sale' ? 'Market' : t === 'poll' ? 'Polls' : 'Progress'}
+                {t === 'all' ? 'All' : t === 'update' ? 'Updates' : t === 'friend_levelup' ? 'Friends' : t === 'trade_offer' ? 'Trades' : t === 'arena_result' ? 'Arena' : t === 'marketplace_sale' ? 'Market' : t === 'poll' ? 'Polls' : 'Progress'}
               </button>
             ))}
           </div>
@@ -165,6 +201,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                         className="rounded px-3 py-2 cursor-pointer"
                         style={{ border: `1px solid ${accentBorder}`, background: accentBg }}
                         onClick={() => { if (globalNavigate) { playClickSound(); globalNavigate('arena'); onClose() } }}
+                        title="Go to Arena"
                       >
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded flex items-center justify-center shrink-0" style={{ background: iconBg, border: `1px solid ${accentBorder}` }}>
@@ -362,12 +399,61 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                       </div>
                     </div>
                   </div>
-                ) : item.friendLevelUp ? (() => {
+                ) : item.tradeOffer ? (() => {
+                  return (
+                    <div key={item.id} className="px-2.5 py-1.5 border-b border-white/[0.03] last:border-0">
+                      <div
+                        className="rounded border border-emerald-400/25 bg-emerald-400/[0.06] px-3 py-2 cursor-pointer hover:bg-emerald-400/[0.10] transition-colors"
+                        onClick={() => {
+                          if (globalNavigate) {
+                            playClickSound()
+                            setPendingTradesTab(true)
+                            globalNavigate('friends')
+                            onClose()
+                          }
+                        }}
+                        title="View in Social → Trades"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 bg-emerald-400/10 border border-emerald-400/20">
+                            <span className="text-sm leading-none">{item.icon}</span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline justify-between gap-1">
+                              <p className="text-caption font-semibold text-white truncate">{item.title}</p>
+                              <span className="text-micro text-gray-500 font-mono shrink-0">{timeAgo(item.timestamp)}</span>
+                            </div>
+                            <p className="text-micro text-emerald-300/70 truncate mt-0.5">{item.body}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              playClickSound()
+                              setPendingTradesTab(true)
+                              if (globalNavigate) globalNavigate('friends')
+                              dismiss(item.id)
+                              onClose()
+                            }}
+                            className="shrink-0 px-2.5 py-1 rounded bg-emerald-400/15 border border-emerald-400/30 text-emerald-400 text-caption font-semibold hover:bg-emerald-400/25 transition-colors"
+                          >
+                            Review
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()
+                : item.friendLevelUp ? (() => {
                   const fl = item.friendLevelUp!
                   const sent = gzSent.has(item.id)
                   return (
                     <div key={item.id} className="px-2.5 py-1.5 border-b border-white/[0.03] last:border-0">
-                      <div className="rounded border border-blue-400/20 bg-blue-400/[0.05] px-3 py-2">
+                      <div
+                        className="rounded border border-blue-400/20 bg-blue-400/[0.05] px-3 py-2 cursor-pointer hover:bg-blue-400/[0.09] transition-colors"
+                        onClick={() => { if (globalNavigate) { playClickSound(); globalNavigate('friends'); onClose() } }}
+                        title="View in Social"
+                      >
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 bg-blue-400/10 border border-blue-400/20">
                             <span className="text-sm leading-none">{item.icon}</span>
@@ -382,7 +468,8 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                           <button
                             type="button"
                             disabled={sent || !supabase || !user}
-                            onClick={async () => {
+                            onClick={async (e) => {
+                              e.stopPropagation()
                               if (!supabase || !user || sent) return
                               playClickSound()
                               setGzSent((prev) => new Set(prev).add(item.id))
@@ -405,27 +492,36 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                     </div>
                   )
                 })()
-                : (
-                  <div
-                    key={item.id}
-                    className="px-2.5 py-1.5 flex items-center gap-2.5 hover:bg-white/[0.02] border-b border-white/[0.03] last:border-0 cursor-pointer"
-                    onClick={() => {
-                      const tab = tabForNotifType(item.type, item.title)
-                      if (tab && globalNavigate) { playClickSound(); globalNavigate(tab); onClose() }
-                    }}
-                  >
-                    <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 bg-white/[0.05] border border-white/[0.08]">
-                      <span className="text-sm leading-none">{item.icon}</span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-1">
-                        <p className="text-caption font-semibold text-white truncate">{item.title}</p>
-                        <span className="text-micro text-gray-600 font-mono shrink-0">{timeAgo(item.timestamp)}</span>
+                : (() => {
+                  const tab = tabForNotifType(item.type, item.title, item.body)
+                  return (
+                    <div
+                      key={item.id}
+                      className={`px-2.5 py-1.5 flex items-center gap-2.5 border-b border-white/[0.03] last:border-0 ${tab ? 'hover:bg-white/[0.03] cursor-pointer' : ''}`}
+                      onClick={() => {
+                        if (tab && globalNavigate) {
+                          playClickSound()
+                          if (item.type === 'marketplace_sale') setPendingMarketplaceTab('history')
+                          globalNavigate(tab)
+                          onClose()
+                        }
+                      }}
+                      title={tab ? `Go to ${tab}` : undefined}
+                    >
+                      <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 bg-white/[0.05] border border-white/[0.08]">
+                        <span className="text-sm leading-none">{item.icon}</span>
                       </div>
-                      {item.body && <p className="text-micro text-gray-500 truncate mt-0.5">{item.body}</p>}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline justify-between gap-1">
+                          <p className="text-caption font-semibold text-white truncate">{item.title}</p>
+                          <span className="text-micro text-gray-600 font-mono shrink-0">{timeAgo(item.timestamp)}</span>
+                        </div>
+                        {item.body && <p className="text-micro text-gray-500 truncate mt-0.5">{item.body}</p>}
+                      </div>
+                      {tab && <NavHint />}
                     </div>
-                  </div>
-                )
+                  )
+                })()
               ))
             )}
           </div>

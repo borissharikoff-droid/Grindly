@@ -55,4 +55,6 @@ export {
   Skull,
   Tag,
   Dices,
+  PawPrint,
+  ArrowLeftRight,
 } from 'lucide-react';

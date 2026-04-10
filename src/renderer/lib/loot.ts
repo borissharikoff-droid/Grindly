@@ -266,6 +266,7 @@ const FOOD_LOOT_ITEMS: LootItemDef[] = FOOD_ITEMS.map((f) => ({
   slot: 'food' as LootSlot,
   rarity: f.rarity,
   icon: f.icon,
+  image: f.image,
   description: f.description,
   perkType: 'cosmetic' as LootPerkType,
   perkValue: 0,
@@ -329,7 +330,7 @@ export const LOOT_ITEMS: LootItemDef[] = [
   { id: 'star_bloom',   name: 'Star Bloom',   slot: 'plant', rarity: 'legendary', icon: '🌟', description: 'A radiant bloom said to hold cosmic energy.',    perkType: 'harvested_plant', perkValue: 0, perkDescription: 'Farm harvest. Sell on the Marketplace.' },
   { id: 'crystal_root', name: 'Crystal Root', slot: 'plant', rarity: 'legendary', icon: '💎', description: 'A crystalline root pulsing with energy.',        perkType: 'harvested_plant', perkValue: 0, perkDescription: 'Farm harvest. Sell on the Marketplace.' },
   { id: 'void_blossom', name: 'Void Blossom', slot: 'plant', rarity: 'mythic',   icon: '🔮', description: 'A flower from beyond — grown from a Void Spore.', perkType: 'harvested_plant', perkValue: 0, perkDescription: 'Farm harvest. Sell on the Marketplace.' },
-  { id: 'wilted_plant', name: 'Wilted Plant', slot: 'plant', rarity: 'common',  icon: '🥀', image: 'loot/item_wilted_plant.png', description: 'A rotted crop. Can be composted or sold for scraps.', perkType: 'harvested_plant', perkValue: 0, perkDescription: 'Rotted crop salvage.' },
+  { id: 'wilted_plant', name: 'Wilted Plant', slot: 'plant', rarity: 'common',  icon: '🥀', description: 'A rotted crop. Can be composted or sold for scraps.', perkType: 'harvested_plant', perkValue: 0, perkDescription: 'Rotted crop salvage.' },
 
   // Arena materials (dropped by dungeon mobs & bosses, used in crafting)
   { id: 'slime_gel',    name: 'Slime Gel',    slot: 'material', rarity: 'common',    icon: '🫧', description: 'Dropped by slimes. Craft into Slime Shield.',       perkType: 'cosmetic', perkValue: 0, perkDescription: 'Crafting material — Slime Cavern' },
@@ -399,12 +400,26 @@ export const LOOT_ITEMS: LootItemDef[] = [
     perks: [{ perkType: 'atk_boost', perkValue: 14, perkDescription: '+14 ATK' }, { perkType: 'hp_boost', perkValue: 50, perkDescription: '+50 HP' }, { perkType: 'xp_global_boost', perkValue: 0.08, perkDescription: '+8% Global XP' }] },
   { id: 'void_plate',     name: 'Void Plate',     slot: 'body',   rarity: 'mythic', icon: '👻', description: 'Armor woven from void threads. Defies reality.',   perkType: 'hp_boost', perkValue: 120, perkDescription: '+120 HP',
     perks: [{ perkType: 'hp_boost', perkValue: 120, perkDescription: '+120 HP' }, { perkType: 'atk_boost', perkValue: 8, perkDescription: '+8 ATK' }, { perkType: 'def_boost', perkValue: 10, perkDescription: '+10 DEF' }, { perkType: 'streak_shield', perkValue: 1, perkDescription: 'Streak Shield' }] },
-  { id: 'void_sword',     name: 'Void Sword',     slot: 'weapon', rarity: 'mythic', icon: '⚔️', description: 'A blade of pure void energy. Unmatchable.',       perkType: 'atk_boost', perkValue: 18, perkDescription: '+18 ATK',
+  { id: 'void_sword',     name: 'Void Sword',     slot: 'weapon', rarity: 'mythic', icon: '⚔️', image: 'loot/item_void_sword.png', description: 'A blade of pure void energy. Unmatchable.',       perkType: 'atk_boost', perkValue: 18, perkDescription: '+18 ATK',
     perks: [{ perkType: 'atk_boost', perkValue: 18, perkDescription: '+18 ATK' }, { perkType: 'hp_regen_boost', perkValue: 5, perkDescription: '+5 HP Regen' }] },
   { id: 'void_legs',      name: 'Void Legs',      slot: 'legs',   rarity: 'mythic', icon: '🦿', description: 'Greaves that phase through attacks.',              perkType: 'atk_boost', perkValue: 12, perkDescription: '+12 ATK',
     perks: [{ perkType: 'atk_boost', perkValue: 12, perkDescription: '+12 ATK' }, { perkType: 'hp_boost', perkValue: 60, perkDescription: '+60 HP' }] },
   { id: 'void_ring',      name: 'Void Ring',      slot: 'ring',   rarity: 'mythic', icon: '🌀', description: 'A ring forged from pure void energy.',             perkType: 'atk_boost', perkValue: 10, perkDescription: '+10 ATK',
     perks: [{ perkType: 'atk_boost', perkValue: 10, perkDescription: '+10 ATK' }, { perkType: 'hp_regen_boost', perkValue: 5, perkDescription: '+5 HP Regen' }, { perkType: 'xp_global_boost', perkValue: 0.08, perkDescription: '+8% Global XP' }] },
+
+  // ── Cook Set — Cooking-skill themed gear (rare/epic, xp_skill_boost for chef) ──
+  { id: 'cook_hat',       name: "Chef's Toque",    slot: 'head',   rarity: 'rare',   icon: '👨‍🍳', image: 'loot/item_cook_hat.png',       description: 'A tall white toque worn by master chefs. Sharpens cooking instincts.',
+    perkType: 'xp_skill_boost', perkValue: 1.15, perkTarget: 'chef', perkDescription: '+15% Cooking XP',
+    perks: [{ perkType: 'xp_skill_boost', perkValue: 1.15, perkTarget: 'chef', perkDescription: '+15% Cooking XP' }, { perkType: 'hp_boost', perkValue: 15, perkDescription: '+15 HP' }] },
+  { id: 'cook_knife',     name: "Chef's Knife",    slot: 'weapon', rarity: 'epic',   icon: '🔪', image: 'loot/item_cook_knife.png',     description: 'A razor-sharp blade balanced for precision. Hums with culinary energy.',
+    perkType: 'atk_boost', perkValue: 8, perkDescription: '+8 ATK',
+    perks: [{ perkType: 'atk_boost', perkValue: 8, perkDescription: '+8 ATK' }, { perkType: 'xp_skill_boost', perkValue: 1.20, perkTarget: 'chef', perkDescription: '+20% Cooking XP' }] },
+  { id: 'cook_cauldron',  name: 'Iron Cauldron',   slot: 'ring',   rarity: 'rare',   icon: '🫕', image: 'loot/item_cook_cauldron.png',  description: 'A bubbling cauldron miniaturized as a charm. Restores health over time.',
+    perkType: 'hp_regen_boost', perkValue: 3, perkDescription: '+3 HP Regen',
+    perks: [{ perkType: 'hp_regen_boost', perkValue: 3, perkDescription: '+3 HP Regen' }, { perkType: 'xp_skill_boost', perkValue: 1.10, perkTarget: 'chef', perkDescription: '+10% Cooking XP' }] },
+  { id: 'cook_rollingpin',name: 'Arcane Rolling Pin', slot: 'legs', rarity: 'epic',  icon: '🥖', image: 'loot/item_cook_rollingpin.png', description: 'An enchanted rolling pin that rolls over enemies with arcane force.',
+    perkType: 'atk_boost', perkValue: 6, perkDescription: '+6 ATK',
+    perks: [{ perkType: 'atk_boost', perkValue: 6, perkDescription: '+6 ATK' }, { perkType: 'hp_boost', perkValue: 30, perkDescription: '+30 HP' }, { perkType: 'xp_skill_boost', perkValue: 1.12, perkTarget: 'chef', perkDescription: '+12% Cooking XP' }] },
 
   // Raid-exclusive mythic items (only drop from raid victories, tradeable)
   { id: 'raid_ancient_ring', name: 'Ancient Relic Ring', slot: 'ring', rarity: 'mythic', icon: '💍', image: 'loot/item_raid_ancient_ring.png', description: 'Forged in the fires of ancient raids. Untold gold flows to its bearer.',

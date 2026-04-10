@@ -4,9 +4,8 @@ import { saveSessionElectron, saveSessionBrowser } from '../services/sessionSave
 import { computeAndSaveSkillXPElectron, computeAndSaveSkillXPBrowser } from '../services/skillXPService'
 import { processAchievementsElectron } from '../services/achievementService'
 import { syncSkillsToSupabase, syncSessionToSupabase } from '../services/supabaseSync'
-import { useAlertStore } from './alertStore'
 import { useSkillSyncStore } from './skillSyncStore'
-import { getAchievementById, LevelReward } from '../lib/xp'
+import { LevelReward } from '../lib/xp'
 import { skillLevelFromXP, getGrindlyLevel, computeGrindlyBonuses } from '../lib/skills'
 import { appendProgressionHistory } from '../lib/progressionHistory'
 import { buildFocusTickEvent, computeSkillXpForCategories, makeProgressionEvent, type ProgressionEvent } from '../lib/progressionContract'
@@ -16,12 +15,14 @@ import { publishSocialFeedEvent } from '../services/socialFeed'
 import { ensureInventoryHydrated, useInventoryStore } from './inventoryStore'
 import { recordDeveloperXp, recordFocusSeconds, recordSessionWithoutAfk, recordWeeklySkillXP } from '../services/dailyActivityService'
 import { useChestDropStore } from './chestDropStore'
-import { getEquippedPerkRuntime } from '../lib/loot'
+import { getEquippedPerkRuntime, LOOT_ITEMS } from '../lib/loot'
 import { track } from '../lib/analytics'
 import { getGuildXpMultiplier } from '../lib/guildBuffs'
 import { useGuildStore } from './guildStore'
 import { getPartyXpMultiplier } from '../lib/partyBuffs'
 import { usePartyStore } from './partyStore'
+import { getPetSkillXpMultiplier } from '../lib/pets'
+import { usePetStore } from './petStore'
 
 type SessionStatus = 'idle' | 'running' | 'paused'
 
@@ -71,6 +72,10 @@ interface SessionStore {
   streakMultiplier: number
   /** Total skill XP earned this session */
   sessionSkillXPEarned: number
+  /** Bonus XP contributed by pet this session (for SessionComplete display) */
+  sessionPetBonusXP: number
+  /** Material found by pet at session end (for SessionComplete display) */
+  sessionPetDrop: { materialId: string; materialName: string; materialIcon: string } | null
   /** Pending level-up info to show modal */
   pendingLevelUp: { level: number; rewards: LevelReward[] } | null
   /** Captured progression reason events in latest session */
@@ -192,11 +197,6 @@ function showAchievementAlerts(
   api: Window['electronAPI'] | null,
 ): void {
   if (newAch.length > 0) {
-    // Push each achievement to the alert store for loot drop display
-    for (const a of newAch) {
-      const def = getAchievementById(a.id)
-      if (def) useAlertStore.getState().push(def)
-    }
     for (const a of newAch) {
       routeNotification({
         type: 'progression_achievement',
@@ -266,6 +266,20 @@ function startXpTicking() {
         event.skillXpDelta[key] = Math.round((event.skillXpDelta[key] ?? 0) * partyXpMult)
       }
     }
+    // Apply pet XP buff (skill-specific, scales with hunger and level)
+    const activePet = usePetStore.getState().activePet
+    let petBonusThisTick = 0
+    if (activePet) {
+      for (const skillId of Object.keys(event.skillXpDelta) as (keyof typeof event.skillXpDelta)[]) {
+        const petMult = getPetSkillXpMultiplier(activePet, skillId)
+        if (petMult !== 1) {
+          const base = event.skillXpDelta[skillId] ?? 0
+          const boosted = Math.round(base * petMult)
+          event.skillXpDelta[skillId] = boosted
+          petBonusThisTick += boosted - base
+        }
+      }
+    }
     const totalSkillDelta = Object.values(event.skillXpDelta).reduce((sum, value) => sum + value, 0)
     if (totalSkillDelta <= 0) return
     recordFocusSeconds(Math.floor(tickDurationMs / 1000))
@@ -279,6 +293,7 @@ function startXpTicking() {
     appendProgressionHistory(reasonEvent)
     useSessionStore.setState({
       progressionEvents: [reasonEvent, ...useSessionStore.getState().progressionEvents].slice(0, 80),
+      sessionPetBonusXP: (useSessionStore.getState().sessionPetBonusXP ?? 0) + petBonusThisTick,
     })
 
     ensureInventoryHydrated()
@@ -326,6 +341,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   focusModeOsApplied: false,
   streakMultiplier: 1.0,
   sessionSkillXPEarned: 0,
+  sessionPetBonusXP: 0,
+  sessionPetDrop: null,
   pendingLevelUp: null,
   progressionEvents: [],
   sessionRewards: [],
@@ -474,6 +491,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       focusModeDurationMs: focusDurationMs,
       focusModeOsApplied: preserveExistingFocus ? prev.focusModeOsApplied : false,
       sessionSkillXPEarned: 0,
+      sessionPetBonusXP: 0,
+      sessionPetDrop: null,
       pendingLevelUp: null,
       progressionEvents: streakShieldEvent ? [streakShieldEvent] : [],
       sessionRewards: [],
@@ -670,9 +689,32 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     // Streak notification
     if (api) sendStreakNotification(api)
 
+    // Pet session drop (1 material per session, scales with pet level)
+    const petDrop = usePetStore.getState().grantSessionDrop(elapsedSeconds)
+    let sessionPetDrop: { materialId: string; materialName: string; materialIcon: string } | null = null
+    if (petDrop) {
+      const pet = usePetStore.getState().activePet
+      const petName = pet?.customName ?? 'Your pet'
+      const matDef = LOOT_ITEMS.find((i) => i.id === petDrop.materialId)
+      if (matDef) {
+        sessionPetDrop = { materialId: petDrop.materialId, materialName: matDef.name, materialIcon: matDef.icon }
+        routeNotification({
+          type: 'progression_info',
+          icon: matDef.icon,
+          title: `${petName} found something!`,
+          body: `Sniffed out ${matDef.name} while you worked.`,
+          dedupeKey: `pet_drop_${petDrop.materialId}`,
+        }, api)
+      }
+    }
+
+    // Bond milestone check (runs silently; rewards granted inside store)
+    usePetStore.getState().checkBondMilestones()
+
     set({
       showComplete: true,
       lastSessionSummary: { durationFormatted, ...(coach ? { coach } : {}) },
+      sessionPetDrop,
       sessionId: null,
       sessionStartTime: null,
       focusModeActive: false,
@@ -824,7 +866,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   dismissComplete() {
-    set({ showComplete: false, lastSessionSummary: null, newAchievements: [], skillXPGains: [], streakMultiplier: 1.0, sessionSkillXPEarned: 0, pendingLevelUp: null, progressionEvents: [], sessionRewards: [] })
+    set({ showComplete: false, lastSessionSummary: null, newAchievements: [], skillXPGains: [], streakMultiplier: 1.0, sessionSkillXPEarned: 0, sessionPetBonusXP: 0, pendingLevelUp: null, progressionEvents: [], sessionRewards: [] })
   },
 
   dismissLevelUp() {
@@ -944,7 +986,6 @@ declare global {
       ai: {
         analyzeSession: (sessionId: string) => Promise<string>
         analyzeOverview: (data: unknown) => Promise<string>
-        refineActivityLabels: (items: { app_name: string; window_title: string; current_category: string }[]) => Promise<{ app_name: string; window_title: string; refined_category: string; confidence: number; reason: string }[]>
       }
       settings: {
         getAutoLaunch: () => Promise<boolean>

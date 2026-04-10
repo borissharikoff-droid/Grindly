@@ -6,15 +6,16 @@ import { useAuthStore } from '../../stores/authStore'
 import { ACHIEVEMENTS, getAchievementProgress, type AchievementProgressContext } from '../../lib/xp'
 import { computeTotalSkillLevel, skillLevelFromXP, MAX_TOTAL_SKILL_LEVEL } from '../../lib/skills'
 import type { AchievementDef } from '../../lib/xp'
-import { useAlertStore } from '../../stores/alertStore'
 import { playClickSound } from '../../lib/sounds'
 import { detectPersona } from '../../lib/persona'
-import { BADGES, FRAMES, FREE_AVATARS, LOCKED_AVATARS, ACHIEVEMENT_COSMETIC_UNLOCKS, getUnlockedFrames, getEquippedFrame, equipFrame, getUnlockedAvatarEmojis, unlockCosmeticsFromAchievement, ensureCosmeticsForUnlockedAchievements } from '../../lib/cosmetics'
+import { BADGES, FRAMES, FREE_AVATARS, LOCKED_AVATARS, ADMIN_AVATARS, ACHIEVEMENT_COSMETIC_UNLOCKS, getUnlockedFrames, getEquippedFrame, equipFrame, getUnlockedAvatarEmojis, unlockCosmeticsFromAchievement, ensureCosmeticsForUnlockedAchievements } from '../../lib/cosmetics'
 import { syncCosmeticsToSupabase } from '../../services/supabaseSync'
+import { mapAchievementToRewardPayloads, grantRewardPayloads } from '../../services/rewardGrant'
+import { useNotificationStore } from '../../stores/notificationStore'
 import { PageHeader } from '../shared/PageHeader'
 import { User } from '../../lib/icons'
 import { InlineSuccess } from '../shared/InlineSuccess'
-import { getEquippedPerkRuntime, getItemPower, getRarityTheme, LOOT_ITEMS, CHEST_DEFS, RARITY_COLORS, type LootSlot, type ChestType, type LootItemDef, type BonusMaterial } from '../../lib/loot'
+import { getEquippedPerkRuntime, getItemPower, getRarityTheme, LOOT_ITEMS, CHEST_DEFS, RARITY_COLORS, estimateChestDropRate, type LootSlot, type ChestType, type LootItemDef, type BonusMaterial } from '../../lib/loot'
 import { ensureInventoryHydrated, useInventoryStore } from '../../stores/inventoryStore'
 import { getDailyActivities, getWeeklyActivities } from '../../services/dailyActivityService'
 import { QuestsSection } from '../quests/QuestsSection'
@@ -28,6 +29,8 @@ import { useWeeklyStore } from '../../stores/weeklyStore'
 import { hotZoneResetsInDays } from '../../lib/hotZone'
 import { useNavigationStore } from '../../stores/navigationStore'
 import { useGuildStore } from '../../stores/guildStore'
+import { usePetStore } from '../../stores/petStore'
+import { getPetDef, computeCurrentHunger, getPetLevelImage } from '../../lib/pets'
 
 type ProfileTab = 'quests' | 'achievements' | 'cosmetics'
 
@@ -38,7 +41,6 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
   const grantAndOpenChest = useInventoryStore((s) => s.grantAndOpenChest)
 
   const { user } = useAuthStore()
-  const pushAlert = useAlertStore((s) => s.push)
   const myGuildTag = useGuildStore((s) => s.myGuild?.tag ?? null)
 
   // Profile data
@@ -65,6 +67,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
   // Cosmetics
   const [equippedFrameId, setEquippedFrameId] = useState<string | null>(null)
   const [unlockedFrameIds, setUnlockedFrameIds] = useState<string[]>([])
+  const [isAdmin, setIsAdmin] = useState(false)
 
   // Achievement progress context (for "Next Unlock" tracker)
   const [progressCtx, setProgressCtx] = useState<AchievementProgressContext>({
@@ -123,7 +126,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
 
     // Load profile
     if (supabase && user) {
-      void Promise.resolve(supabase.from('profiles').select('username, avatar_url').eq('id', user.id).single()).then(({ data }) => {
+      void Promise.resolve(supabase.from('profiles').select('username, avatar_url, is_admin').eq('id', user.id).single()).then(({ data }) => {
         if (data) {
           const nextUsername = (data.username || 'Grindly').trim()
           const nextAvatar = data.avatar_url || '🤖'
@@ -133,6 +136,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
           setOriginalAvatar(nextAvatar)
           const cacheKey = `grindly_profile_cache_${user.id}`
           localStorage.setItem(cacheKey, JSON.stringify({ username: nextUsername, avatar: nextAvatar }))
+          if (data.is_admin) setIsAdmin(true)
         }
         setProfileLoaded(true)
       }).catch(() => setProfileLoaded(true))
@@ -287,18 +291,32 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
     return true
   }
 
-  const handleClaim = (def: AchievementDef) => {
+  const handleClaim = async (def: AchievementDef) => {
     playClickSound()
     const updated = [...claimedIds, def.id]
     setClaimedIds(updated)
     localStorage.setItem('grindly_claimed_achievements', JSON.stringify(updated))
-    // Ensure cosmetics are granted (safety net for pre-fix achievements)
     unlockCosmeticsFromAchievement(def.id)
     setUnlockedFrameIds(getUnlockedFrames())
-    pushAlert(def)
+    // Grant XP + chest directly (no popup)
+    const payloads = mapAchievementToRewardPayloads(def)
+    await grantRewardPayloads(payloads, window.electronAPI || null)
+    ensureInventoryHydrated()
+    const chestType: ChestType = def.category === 'skill' ? 'rare_chest' : 'common_chest'
+    const estimated = estimateChestDropRate(chestType, { source: 'achievement_claim' })
+    useInventoryStore.getState().addChest(chestType, 'achievement_claim', estimated)
+    const chest = CHEST_DEFS[chestType]
+    if (chest) {
+      useNotificationStore.getState().push({
+        type: 'progression',
+        icon: chest.icon,
+        title: `${def.name} — reward claimed`,
+        body: `${chest.name} added to Inbox`,
+      })
+    }
   }
 
-  const handleClaimAll = () => {
+  const handleClaimAll = async () => {
     const claimable = ACHIEVEMENTS.filter((a) => unlockedIds.includes(a.id) && !claimedIds.includes(a.id))
     if (claimable.length === 0) return
     playClickSound()
@@ -307,8 +325,22 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
     localStorage.setItem('grindly_claimed_achievements', JSON.stringify(updated))
     for (const def of claimable) unlockCosmeticsFromAchievement(def.id)
     setUnlockedFrameIds(getUnlockedFrames())
-    // Show alerts for up to 3 achievements to avoid flooding
-    claimable.slice(0, 3).forEach((def) => pushAlert(def))
+    // Grant rewards for all claimed achievements
+    for (const def of claimable) {
+      const payloads = mapAchievementToRewardPayloads(def)
+      await grantRewardPayloads(payloads, window.electronAPI || null)
+      ensureInventoryHydrated()
+      const chestType: ChestType = def.category === 'skill' ? 'rare_chest' : 'common_chest'
+      const estimated = estimateChestDropRate(chestType, { source: 'achievement_claim' })
+      useInventoryStore.getState().addChest(chestType, 'achievement_claim', estimated)
+    }
+    const totalChests = claimable.length
+    useNotificationStore.getState().push({
+      type: 'progression',
+      icon: '📦',
+      title: `${totalChests} achievement reward${totalChests > 1 ? 's' : ''} claimed`,
+      body: 'Chests added to Inbox',
+    })
   }
 
   const persistCosmeticsToSupabase = (frame: string | null) => {
@@ -478,8 +510,8 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
                     >
                       {!isUnlocked && <div className="absolute inset-0 rounded flex items-center justify-center bg-black/40 text-xs">🔒</div>}
                       <div className="relative w-10 h-10">
-                        <div className="absolute -inset-[4px] rounded" style={{ background: frame.gradient, opacity: isUnlocked ? 0.7 : 0.2 }} />
-                        <div className="relative w-10 h-10 rounded bg-surface-0 flex items-center justify-center text-lg border-2" style={{ borderColor: `${frame.color}${isUnlocked ? 'b0' : '30'}` }}>
+                        <div className={`absolute -inset-[4px] rounded-full frame-style-${frame.style} frame-ring`} style={{ background: frame.gradient, opacity: isUnlocked ? 0.7 : 0.2, borderColor: frame.color, color: frame.color }} />
+                        <div className="relative w-10 h-10 rounded-full bg-surface-0 flex items-center justify-center text-lg border-2" style={{ borderColor: `${frame.color}${isUnlocked ? 'b0' : '30'}` }}>
                           {isUnlocked ? avatar : <span className="text-gray-600 text-sm">?</span>}
                         </div>
                       </div>
@@ -785,7 +817,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
                     </div>
                     <div className="grid grid-cols-3 gap-2.5">
                       {rarityFrames.map((frame) => {
-                        const isUnlocked = unlockedFrameIds.includes(frame.id) || (frame.achievementId ? unlockedIds.includes(frame.achievementId) : false)
+                        const isUnlocked = unlockedFrameIds.includes(frame.id) || (frame.achievementId ? unlockedIds.includes(frame.achievementId) : false) || (frame.achievementId === 'is_admin' && isAdmin)
                         const isActive = equippedFrameId === frame.id
                         const styleClass = `frame-style-${frame.style}`
                         return (
@@ -828,16 +860,16 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
 
                             <div className="relative mx-auto w-14 h-14 mb-2">
                               <div
-                                className="frame-ring absolute -inset-[6px] rounded"
+                                className="frame-ring absolute -inset-[6px] rounded-full"
                                 style={{
-                                  background: frame.gradient,
-                                  opacity: isUnlocked ? (isActive ? 0.95 : 0.6) : 0.25,
+                                  background: frame.id === 'admin' ? frame.gradient : frame.gradient,
+                                  opacity: isUnlocked ? (isActive ? 0.95 : 0.65) : 0.2,
                                   borderColor: frame.color,
                                   color: frame.color,
                                 }}
                               />
                               <div
-                                className="frame-avatar relative w-14 h-14 rounded bg-surface-0 flex items-center justify-center text-xl border-2"
+                                className="frame-avatar relative w-14 h-14 rounded-full bg-surface-0 flex items-center justify-center text-xl border-2"
                                 style={{ borderColor: `${frame.color}${isUnlocked ? 'b0' : '40'}` }}
                               >
                                 {isUnlocked ? avatar : <span className="text-gray-600">?</span>}
@@ -954,6 +986,43 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
                           {a}
                           {isCurrent && <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-accent" />}
                         </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {isAdmin && (
+                <div>
+                  <p className="text-micro font-mono mb-1.5 uppercase tracking-wider" style={{ color: 'rgba(248,250,252,0.5)' }}>
+                    ⚙ Admin
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ADMIN_AVATARS.map((a) => {
+                      const isCurrent = avatar === a.emoji
+                      return (
+                        <div key={a.emoji} className="relative group">
+                          <button
+                            type="button"
+                            onClick={() => { void persistProfile(username, a.emoji); playClickSound() }}
+                            className={`w-10 h-10 rounded text-lg flex items-center justify-center transition-all active:scale-90 relative ${
+                              isCurrent
+                                ? 'border-2 border-white/60 bg-white/10'
+                                : 'bg-black border border-white/20 hover:border-white/40'
+                            }`}
+                            style={{
+                              background: isCurrent
+                                ? 'repeating-linear-gradient(45deg,#000 0px,#000 4px,#fff 4px,#fff 8px)'
+                                : undefined,
+                            }}
+                          >
+                            <span className="relative z-10">{a.emoji}</span>
+                            {isCurrent && <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white" />}
+                          </button>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-0.5 rounded bg-surface-0 border border-white/15 text-micro text-gray-300 font-mono whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+                            {a.label}
+                          </div>
+                        </div>
                       )
                     })}
                   </div>
@@ -1106,8 +1175,46 @@ function FlexCard({ avatar, username, frameId, equippedLootItems, unlockedCount,
         <StatCell icon="⏱️" value={grindStats.totalHours > 0 ? `${grindStats.totalHours}h` : '-'} label="Grind" color="#818CF8" />
       </div>
 
+      {/* Pet card */}
+      <ProfilePetCard />
 
     </motion.div>
+  )
+}
+
+function ProfilePetCard() {
+  const activePet = usePetStore((s) => s.activePet)
+  const navigateTo = useNavigationStore((s) => s.navigateTo)
+  if (!activePet) return null
+  const def = getPetDef(activePet.defId)
+  if (!def) return null
+  const hunger = computeCurrentHunger(activePet)
+  const displayEmoji = activePet.hasEvolvedEmoji && def.evolvedEmoji ? def.evolvedEmoji : def.emoji
+  const levelImage = getPetLevelImage(activePet.defId, activePet.level)
+  const days = Math.max(1, Math.floor((Date.now() - activePet.rolledAt) / (24 * 3_600_000)))
+  const hungerColor = hunger >= 50 ? 'bg-lime-500' : hunger >= 25 ? 'bg-amber-500' : 'bg-red-500'
+  return (
+    <button
+      type="button"
+      onClick={() => { playClickSound(); navigateTo?.('pet') }}
+      className="mx-4 mb-4 w-[calc(100%-2rem)] flex items-center gap-3 px-3 py-2.5 rounded border border-white/[0.07] bg-surface-0/50 hover:border-white/20 hover:bg-surface-0/70 transition-all text-left"
+    >
+      {levelImage ? (
+        <img src={levelImage} alt="" className="w-8 h-8 object-contain shrink-0" draggable={false} />
+      ) : (
+        <span className="text-2xl leading-none shrink-0">{displayEmoji}</span>
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 mb-1">
+          <span className="text-xs font-semibold text-white truncate">{activePet.customName ?? def.name}</span>
+          <span className="text-micro font-mono text-gray-500 shrink-0">Lvl {activePet.level} · {days}d</span>
+        </div>
+        <div className="h-1 rounded-full bg-surface-2 overflow-hidden w-full">
+          <div className={`h-full rounded-full transition-all ${hungerColor}`} style={{ width: `${hunger}%` }} />
+        </div>
+      </div>
+      <span className="text-micro font-mono text-gray-600 shrink-0">{hunger}% fed</span>
+    </button>
   )
 }
 

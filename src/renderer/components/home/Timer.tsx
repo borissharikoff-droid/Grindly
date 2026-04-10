@@ -33,11 +33,24 @@ export function Timer() {
             ? 'text-accent animate-timer-glow'
             : status === 'paused'
               ? 'text-yellow-400'
-              : 'text-white/25'
+              : 'text-white/40'
         }`}
       >
         {formatTime(elapsed)}
       </motion.div>
+      <AnimatePresence>
+        {status === 'idle' && (
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: MOTION.duration.slow, ease: MOTION.easingSoft }}
+            className="mt-2 text-micro font-mono text-gray-600 tracking-widest select-none"
+          >
+            PRESS GRIND TO START
+          </motion.p>
+        )}
+      </AnimatePresence>
       <AnimatePresence>
         {focusModeActive && (
           <motion.div

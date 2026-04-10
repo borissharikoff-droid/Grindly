@@ -23,6 +23,7 @@ export const SEED_DEFS: SeedDef[] = [
     name: 'Wheat Seed',
     rarity: 'common',
     icon: '🌾',
+
     growTimeSeconds: 5 * 60,
     yieldPlantId: 'wheat',
     yieldMin: 8,
@@ -35,6 +36,7 @@ export const SEED_DEFS: SeedDef[] = [
     name: 'Herb Seed',
     rarity: 'common',
     icon: '🌿',
+
     growTimeSeconds: 8 * 60,
     yieldPlantId: 'herbs',
     yieldMin: 1,
@@ -47,6 +49,7 @@ export const SEED_DEFS: SeedDef[] = [
     name: 'Apple Seed',
     rarity: 'rare',
     icon: '🍎',
+
     growTimeSeconds: 20 * 60,
     yieldPlantId: 'apples',
     yieldMin: 1,
@@ -59,6 +62,7 @@ export const SEED_DEFS: SeedDef[] = [
     name: 'Blossom Seed',
     rarity: 'rare',
     icon: '🌸',
+
     growTimeSeconds: 25 * 60,
     yieldPlantId: 'blossoms',
     yieldMin: 1,
@@ -71,6 +75,7 @@ export const SEED_DEFS: SeedDef[] = [
     name: 'Clover Seed',
     rarity: 'epic',
     icon: '🍀',
+
     growTimeSeconds: 60 * 60,
     yieldPlantId: 'clovers',
     yieldMin: 1,
@@ -83,6 +88,7 @@ export const SEED_DEFS: SeedDef[] = [
     name: 'Orchid Seed',
     rarity: 'epic',
     icon: '🌺',
+
     growTimeSeconds: 90 * 60,
     yieldPlantId: 'orchids',
     yieldMin: 1,
@@ -95,6 +101,7 @@ export const SEED_DEFS: SeedDef[] = [
     name: 'Star Bloom Seed',
     rarity: 'legendary',
     icon: '🌟',
+
     growTimeSeconds: 3 * 60 * 60,
     yieldPlantId: 'star_bloom',
     yieldMin: 1,
@@ -107,6 +114,7 @@ export const SEED_DEFS: SeedDef[] = [
     name: 'Crystal Root Seed',
     rarity: 'legendary',
     icon: '💎',
+
     growTimeSeconds: 4 * 60 * 60,
     yieldPlantId: 'crystal_root',
     yieldMin: 1,
@@ -119,6 +127,7 @@ export const SEED_DEFS: SeedDef[] = [
     name: 'Void Spore',
     rarity: 'mythic',
     icon: '🔮',
+
     growTimeSeconds: 8 * 60 * 60,
     yieldPlantId: 'void_blossom',
     yieldMin: 1,

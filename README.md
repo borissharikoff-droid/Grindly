@@ -67,8 +67,12 @@ Open VS Code for 3 hours → **Developer** skill levels up. Browse research tabs
 ### macOS
 1. Download `Grindly-x.x.x.dmg` from **[Releases](https://github.com/borissharikoff-droid/Grindly/releases/latest)**
 2. Open the .dmg and drag Grindly to Applications.
-3. On first launch: **System Settings → Privacy & Security → Open Anyway**.
-4. Grindly appears in the menu bar.
+3. Grindly is not yet code-signed. If macOS blocks it on first launch, run:
+   ```bash
+   xattr -cr /Applications/Grindly.app
+   ```
+   Then double-click to open normally. (Adjust the path if you installed it elsewhere.)
+4. Grindly appears in the Dock.
 
 > **No account required.** Social features (friends, leaderboard, marketplace) are optional and require a free account.
 

@@ -70,7 +70,7 @@ const CONTENT: Record<TourPhase, CardContent> = {
   },
   stop_session: {
     title: 'Stop your session',
-    desc: 'Press GRIND again to end the session. All your XP, skill progress and loot will be saved.',
+    desc: 'Press the STOP button to end the session. All your XP, skill progress and loot will be saved.',
   },
   celebrate: {
     title: '⚔ You\'re all set!',
@@ -166,8 +166,8 @@ export function OnboardingTour({ onNavigate, onDone, onStepChange }: Props) {
       {/* Dim */}
       <div className="absolute inset-0 bg-black/35" />
 
-      {/* ── Spotlight: GRIND button ── */}
-      {(phase === 'press_grind' || phase === 'stop_session') && (
+      {/* ── Spotlight: GRIND button (idle) ── */}
+      {phase === 'press_grind' && (
         <motion.div
           className="absolute left-1/2 -translate-x-1/2 pointer-events-none"
           style={{ top: 'calc(50% - 26px)' }}
@@ -177,12 +177,26 @@ export function OnboardingTour({ onNavigate, onDone, onStepChange }: Props) {
           <div
             className="w-52 h-14 rounded-full border-2"
             style={{
-              borderColor: phase === 'stop_session'
-                ? 'rgba(248,113,113,0.7)'
-                : 'rgba(74,222,128,0.7)',
-              boxShadow: phase === 'stop_session'
-                ? '0 0 28px rgba(248,113,113,0.35)'
-                : '0 0 28px rgba(74,222,128,0.35)',
+              borderColor: 'rgba(74,222,128,0.7)',
+              boxShadow: '0 0 28px rgba(74,222,128,0.35)',
+            }}
+          />
+        </motion.div>
+      )}
+
+      {/* ── Spotlight: STOP button (running) ── */}
+      {phase === 'stop_session' && (
+        <motion.div
+          className="absolute pointer-events-none"
+          style={{ top: 'calc(50% - 22px)', left: 'calc(50% + 5px)' }}
+          animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <div
+            className="w-28 h-11 rounded-full border-2"
+            style={{
+              borderColor: 'rgba(248,113,113,0.7)',
+              boxShadow: '0 0 20px rgba(248,113,113,0.35)',
             }}
           />
         </motion.div>
@@ -192,11 +206,11 @@ export function OnboardingTour({ onNavigate, onDone, onStepChange }: Props) {
       {phase === 'open_chest' && (
         <motion.div
           className="absolute pointer-events-none"
-          style={{ top: 6, right: 52 }}
-          animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
+          style={{ top: 6, right: 12 }}
+          animate={{ scale: [1, 1.3, 1], opacity: [0.6, 1, 0.6] }}
           transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
         >
-          <div className="w-9 h-9 rounded-full border-2 border-accent shadow-[0_0_16px_rgba(88,101,242,0.7)]" />
+          <div className="w-10 h-10 rounded-full border-2 border-accent shadow-[0_0_16px_rgba(88,101,242,0.7)]" />
         </motion.div>
       )}
 

@@ -12,6 +12,7 @@ import { EmptyState } from '../shared/EmptyState'
 import { SkeletonBlock } from '../shared/PageLoading'
 import { PageHeader } from '../shared/PageHeader'
 import { BarChart3, RefreshCw } from '../../lib/icons'
+import { fmt } from '../../lib/format'
 
 export interface SessionRecord {
   id: string
@@ -71,13 +72,6 @@ interface PeriodComparison {
   previous: { total_seconds: number; sessions_count: number; total_keystrokes: number }
 }
 
-interface RefinedLabel {
-  app_name: string
-  window_title: string
-  refined_category: string
-  confidence: number
-  reason: string
-}
 
 interface HabitItem {
   title: string
@@ -185,12 +179,6 @@ function focusTone(score: number): 'good' | 'warn' | 'risk' {
   return 'risk'
 }
 
-function distractionTone(score: number): 'good' | 'warn' | 'risk' {
-  if (score <= 30) return 'good'
-  if (score <= 50) return 'warn'
-  return 'risk'
-}
-
 function buildHabitItems(params: {
   focusScore: number
   distractionScore: number
@@ -283,9 +271,6 @@ export function StatsPage() {
   const [focusBlocks, setFocusBlocks] = useState<FocusBlock[]>([])
   const [distractionMetrics, setDistractionMetrics] = useState<DistractionMetrics | null>(null)
   const [periodComparison, setPeriodComparison] = useState<PeriodComparison | null>(null)
-  const [aiRefineEnabled, setAiRefineEnabled] = useState(false)
-  const [aiRefining, setAiRefining] = useState(false)
-  const [aiRefined, setAiRefined] = useState<RefinedLabel[]>([])
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
 
   const loadData = async (resetPage = true) => {
@@ -372,48 +357,13 @@ export function StatsPage() {
   const focusScore = toPct(focusSeconds, trackableSeconds)
   const distractionScore = toPct(distractionSeconds, trackableSeconds)
   const focusStatus = scoreLabel(focusScore, 70, 40)
-  const distractionStatus = scoreLabel(100 - distractionScore, 70, 50)
   const focusVisualTone = focusTone(focusScore)
-  const distractionVisualTone = distractionTone(distractionScore)
   const comparisonDelta = useMemo(() => {
     if (filter === 'all') return 0
     if (!periodComparison) return 0
     return periodComparison.current.total_seconds - periodComparison.previous.total_seconds
   }, [periodComparison, filter])
-  const browserCandidates = useMemo(() => {
-    return windowStats
-      .filter((w) => ['browsing', 'other'].includes(w.category))
-      .filter((w) => /chrome|edge|firefox|browser|arc|vivaldi|brave/i.test(w.app_name))
-      .slice(0, 15)
-  }, [windowStats])
 
-  useEffect(() => {
-    if (!aiRefineEnabled) return
-    if (browserCandidates.length === 0) {
-      setAiRefined([])
-      return
-    }
-    const run = async () => {
-      const api = window.electronAPI
-      if (!api?.ai?.refineActivityLabels) return
-      setAiRefining(true)
-      try {
-        const result = await api.ai.refineActivityLabels(
-          browserCandidates.map((row) => ({
-            app_name: row.app_name,
-            window_title: row.window_title,
-            current_category: row.category,
-          })),
-        )
-        setAiRefined((result as RefinedLabel[]) || [])
-      } catch {
-        setAiRefined([])
-      } finally {
-        setAiRefining(false)
-      }
-    }
-    run()
-  }, [aiRefineEnabled, browserCandidates])
 
   // Build deep breakdown: category -> apps -> window titles
   const categoryGroups = categoryStats.map((cat) => {
@@ -530,61 +480,90 @@ export function StatsPage() {
             </div>
 
             {/* 1/5 Health Snapshot */}
-            <div className="rounded-card bg-surface-2/85 border border-white/10 p-4 space-y-3">
-              <p className="text-xs font-semibold tracking-wide text-gray-300">Health Snapshot</p>
-              <div className="grid grid-cols-4 gap-2">
-                <div className="rounded border border-white/10 bg-surface-0/60 p-3">
-                  <p className="text-caption text-gray-400">Tracked time</p>
-                  <p className="text-white text-base font-semibold">⏱ {formatDuration(totalSeconds)}</p>
-                  <p className="text-micro text-gray-500 mt-1">Total active time in this period.</p>
+            <div className="rounded-card bg-surface-2/85 border border-white/10 p-4 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold tracking-wide text-gray-300">Health Snapshot</p>
+                {comparisonDelta !== 0 && (
+                  <span className={`text-caption px-2 py-0.5 rounded-full border ${
+                    comparisonDelta > 0
+                      ? 'border-accent/30 bg-accent/10 text-accent'
+                      : 'border-amber-400/30 bg-amber-400/10 text-amber-300'
+                  }`}>
+                    {comparisonDelta > 0 ? '↑' : '↓'} {Math.abs(Math.round(comparisonDelta / 60))}m vs prior
+                  </span>
+                )}
+              </div>
+
+              {/* Hero row: tracked time + streak */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2 rounded border border-white/10 bg-surface-0/60 p-3">
+                  <p className="text-caption text-gray-500 mb-0.5">Tracked time</p>
+                  <p className="text-white text-xl font-mono font-bold leading-tight">{formatDuration(totalSeconds)}</p>
+                  <p className="text-micro text-gray-600 mt-1">{totalSessions} sessions · ~{avgSessionMin}m avg</p>
                 </div>
-                <div className="rounded border border-white/10 bg-surface-0/60 p-3">
-                  <p className="text-caption text-gray-400">Focus quality</p>
-                  {trackableSeconds > 0 ? (
-                    <>
-                      <p className={`text-base font-semibold ${
-                        focusVisualTone === 'good' ? 'text-accent' : focusVisualTone === 'warn' ? 'text-amber-300' : 'text-rose-300'
-                      }`}>{focusScore}%</p>
-                      <p className="text-micro text-gray-500 mt-1">{focusStatus.text}</p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-base font-semibold text-gray-500">—</p>
-                      <p className="text-micro text-gray-600 mt-1">No data yet</p>
-                    </>
-                  )}
-                </div>
-                <div className="rounded border border-white/10 bg-surface-0/60 p-3">
-                  <p className="text-caption text-gray-400">Distraction share</p>
-                  {trackableSeconds > 0 ? (
-                    <>
-                      <p className={`text-base font-semibold ${
-                        distractionVisualTone === 'good' ? 'text-accent' : distractionVisualTone === 'warn' ? 'text-amber-300' : 'text-rose-300'
-                      }`}>{distractionScore}%</p>
-                      <p className="text-micro text-gray-500 mt-1">{distractionStatus.text}</p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-base font-semibold text-gray-500">—</p>
-                      <p className="text-micro text-gray-600 mt-1">No data yet</p>
-                    </>
-                  )}
-                </div>
-                <div className="rounded border border-white/10 bg-surface-0/60 p-3">
-                  <p className="text-caption text-gray-400">Context switches</p>
-                  <p className="text-white text-base font-semibold">↔ {contextSwitches}</p>
-                  <p className="text-micro text-gray-500 mt-1">Lower usually means deeper focus.</p>
+                <div className="rounded border border-amber-400/20 bg-amber-400/5 p-3 flex flex-col">
+                  <p className="text-caption text-gray-500 mb-0.5">Streak</p>
+                  <p className="text-amber-300 text-xl font-mono font-bold leading-tight">{streak}d</p>
+                  <p className="text-micro text-gray-600 mt-1">consistency</p>
                 </div>
               </div>
-              <div className="rounded border border-white/10 bg-surface-0/40 p-3">
-                <p className="text-caption text-gray-400">
-                  {totalSessions} sessions • ~{avgSessionMin} min/session • {totalKeystrokes} keystrokes • consistency streak {streak}d
-                </p>
-                {comparisonDelta !== 0 && (
-                  <p className={`text-caption mt-1 ${comparisonDelta > 0 ? 'text-accent' : 'text-amber-300'}`}>
-                    {comparisonDelta > 0 ? '+' : ''}{Math.round(comparisonDelta / 60)} min vs previous matching period
+
+              {/* Focus vs Distraction bar */}
+              {trackableSeconds > 0 ? (
+                <div className="rounded border border-white/10 bg-surface-0/60 p-3 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-caption text-gray-400">Focus vs Distraction</p>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        title="% of tracked time spent on focused work (coding, design, research). 70%+ = great, 40–70% = ok, <40% = too distracted"
+                        className={`text-xs font-mono font-bold cursor-help ${
+                          focusVisualTone === 'good' ? 'text-accent' : focusVisualTone === 'warn' ? 'text-amber-300' : 'text-rose-300'
+                        }`}
+                      >{focusScore}% focus</span>
+                      <span className={`text-micro px-1.5 py-0.5 rounded ${
+                        focusVisualTone === 'good' ? 'bg-accent/10 text-accent/70'
+                        : focusVisualTone === 'warn' ? 'bg-amber-400/10 text-amber-300/70'
+                        : 'bg-rose-400/10 text-rose-300/70'
+                      }`}>{focusStatus.text}</span>
+                    </div>
+                  </div>
+                  <div className="flex h-2 rounded-full overflow-hidden bg-white/5">
+                    <div
+                      className={`h-full transition-all rounded-l-full ${
+                        focusVisualTone === 'good' ? 'bg-accent' : focusVisualTone === 'warn' ? 'bg-amber-400' : 'bg-rose-400'
+                      }`}
+                      style={{ width: `${focusScore}%` }}
+                    />
+                    <div className="h-full bg-rose-400/40 flex-1" />
+                  </div>
+                  <div className="flex justify-between text-micro text-gray-600">
+                    <span>{formatDuration(focusSeconds)} focused</span>
+                    <span>{formatDuration(distractionSeconds)} distracted</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded border border-white/8 bg-surface-0/40 p-3">
+                  <p className="text-caption text-gray-600">No focus data yet — start a session to track.</p>
+                </div>
+              )}
+
+              {/* Context switches + keystrokes */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded border border-white/10 bg-surface-0/60 p-2.5">
+                  <p className="text-caption text-gray-500 mb-0.5">App switches</p>
+                  <p className="text-white text-sm font-mono font-bold leading-none">
+                    {totalSessions > 0 ? Math.round(contextSwitches / totalSessions) : 0}
+                    <span className="text-micro text-gray-600 font-normal"> /session</span>
                   </p>
-                )}
+                  <p className="text-micro text-gray-600 mt-1">{fmt(contextSwitches)} total</p>
+                </div>
+                <div className="rounded border border-white/10 bg-surface-0/60 p-2.5">
+                  <p className="text-caption text-gray-500 mb-0.5">Keystrokes</p>
+                  <p className="text-white text-sm font-mono font-bold leading-none">{fmt(totalKeystrokes)}</p>
+                  <p className="text-micro text-gray-600 mt-1">
+                    {totalSessions > 0 ? fmt(Math.round(totalKeystrokes / totalSessions)) : 0}/session
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -593,49 +572,72 @@ export function StatsPage() {
               const bestStreak = getBestStreak()
               const longestFocus = distractionMetrics?.longest_focus_minutes ?? 0
               const longestSession = sessions.length > 0 ? Math.max(...sessions.map((s) => s.duration_seconds)) : 0
+              const records = [
+                bestStreak > 0 && { icon: '🔥', label: 'Best streak', value: `${bestStreak}d`, color: 'text-amber-300', border: 'border-amber-400/15', bg: 'bg-amber-400/5' },
+                longestFocus > 0 && { icon: '🧠', label: 'Longest focus block', value: formatDuration(longestFocus * 60), color: 'text-violet-400', border: 'border-violet-400/15', bg: 'bg-violet-400/5' },
+                longestSession > 0 && { icon: '⚡', label: 'Longest session', value: formatDuration(longestSession), color: 'text-blue-300', border: 'border-blue-400/15', bg: 'bg-blue-400/5' },
+              ].filter(Boolean) as { icon: string; label: string; value: string; color: string; border: string; bg: string }[]
+              if (records.length === 0) return null
               return (
-                <div className="rounded-card bg-surface-2/80 border border-white/10 p-3">
-                  <p className="text-xs font-semibold tracking-wide text-gray-300 mb-2">Personal Records</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded border border-white/8 bg-surface-0/50 p-2.5 text-center">
-                      <p className="text-micro text-gray-500 font-mono mb-0.5">Best streak</p>
-                      <p className="text-accent font-mono font-bold text-base leading-none">{bestStreak}d</p>
+                <div className="rounded-card bg-surface-2/80 border border-white/10 p-3 space-y-1.5">
+                  <p className="text-xs font-semibold tracking-wide text-gray-300">Personal Records</p>
+                  {records.map((rec) => (
+                    <div key={rec.label} className={`flex items-center gap-3 rounded border ${rec.border} ${rec.bg} px-3 py-2`}>
+                      <span className="text-sm shrink-0">{rec.icon}</span>
+                      <p className="text-caption text-gray-400 flex-1">{rec.label}</p>
+                      <span className={`font-mono font-bold text-sm ${rec.color}`}>{rec.value}</span>
                     </div>
-                    <div className="rounded border border-white/8 bg-surface-0/50 p-2.5 text-center">
-                      <p className="text-micro text-gray-500 font-mono mb-0.5">Longest focus</p>
-                      <p className="text-violet-500 font-mono font-bold text-base leading-none">{longestFocus > 0 ? formatDuration(longestFocus * 60) : '—'}</p>
-                    </div>
-                    <div className="rounded border border-white/8 bg-surface-0/50 p-2.5 text-center">
-                      <p className="text-micro text-gray-500 font-mono mb-0.5">Longest session</p>
-                      <p className="text-amber-300 font-mono font-bold text-base leading-none">{longestSession > 0 ? formatDuration(longestSession) : '—'}</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               )
             })()}
 
-            {/* 2/5 Habits & Risks */}
-            {habitItems.length > 0 && (
+            {/* 2/5 Activity Analysis */}
+            {(habitItems.length > 0 || hourly.length > 0) && (
               <div className="space-y-1.5">
-                <p className="text-xs font-semibold tracking-wide text-gray-300">Habits & Risks</p>
-                {habitItems.map((item, i) => (
-                  <div key={i}
-                    className={`flex items-center gap-3 rounded border px-3 py-2.5 ${
-                      item.type === 'good' ? 'border-accent/20 bg-accent/5' : 'border-amber-400/25 bg-amber-400/10'
-                    }`}
-                  >
-                    <span className={`w-6 h-6 rounded-full inline-flex items-center justify-center text-xs ${
-                      item.type === 'good' ? 'bg-accent/15 text-accent' : 'bg-amber-400/15 text-amber-300'
-                    }`}>{item.type === 'good' ? '✓' : '!'}</span>
+                <p className="text-xs font-semibold tracking-wide text-gray-300">Activity Analysis</p>
+
+                {/* Peak hour card */}
+                {hourly.length > 0 && (() => {
+                  const peak = hourly.reduce((best, h) => h.total_ms > best.total_ms ? h : best, hourly[0])
+                  const peakLabel = peak.hour < 6 ? 'late night' : peak.hour < 12 ? 'morning' : peak.hour < 18 ? 'afternoon' : 'evening'
+                  const peakStr = `${String(peak.hour).padStart(2, '0')}:00–${String(peak.hour + 1).padStart(2, '0')}:00`
+                  return (
+                    <div className="flex items-center gap-3 rounded border border-white/10 bg-surface-2/60 px-3 py-2.5">
+                      <span className="text-sm shrink-0">⏰</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-200 font-medium">Peak hour <span className="font-mono text-accent">{peakStr}</span> <span className="text-gray-500 font-normal">({peakLabel})</span></p>
+                        <p className="text-caption text-gray-500">Most active window — {formatMs(peak.total_ms)} tracked</p>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Good habits */}
+                {habitItems.filter(item => item.type === 'good').map((item, i) => (
+                  <div key={`good-${i}`} className="flex items-start gap-3 rounded border border-accent/20 bg-accent/5 px-3 py-2.5">
+                    <span className="w-5 h-5 rounded-full bg-accent/20 text-accent inline-flex items-center justify-center text-micro shrink-0 mt-0.5">✓</span>
                     <div className="min-w-0">
                       <p className="text-xs text-gray-200 font-medium">{item.title}</p>
                       <p className="text-caption text-gray-400">{item.detail}</p>
                     </div>
                   </div>
                 ))}
+
+                {/* Risks */}
+                {habitItems.filter(item => item.type === 'risk').map((item, i) => (
+                  <div key={`risk-${i}`} className="flex items-start gap-3 rounded border border-amber-400/25 bg-amber-400/8 px-3 py-2.5">
+                    <span className="w-5 h-5 rounded-full bg-amber-400/15 text-amber-300 inline-flex items-center justify-center text-micro shrink-0 mt-0.5">!</span>
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-200 font-medium">{item.title}</p>
+                      <p className="text-caption text-gray-400">{item.detail}</p>
+                    </div>
+                  </div>
+                ))}
+
                 {insights.length > 0 && (
-                  <div className="rounded border border-white/10 bg-surface-2/40 px-3 py-2">
-                    <p className="text-micro uppercase tracking-wider text-gray-500 mb-1">Quick tips</p>
+                  <div className="rounded border border-white/8 bg-surface-2/40 px-3 py-2">
+                    <p className="text-micro uppercase tracking-wider text-gray-500 mb-1">Tips</p>
                     <div className="space-y-1">
                       {insights.slice(0, 2).map((ins, i) => (
                         <p key={`${ins.text}-${i}`} className="text-caption text-gray-400">{ins.icon} {ins.text}</p>

@@ -10,6 +10,8 @@ import { buildPresenceActivity } from '../lib/friendPresence'
 import { ensureInventoryHydrated, useInventoryStore } from '../stores/inventoryStore'
 import { useFarmStore } from '../stores/farmStore'
 import { useGoldStore } from '../stores/goldStore'
+import { usePetStore } from '../stores/petStore'
+import { getPetDef, computeCurrentHunger } from '../lib/pets'
 import { getEquippedPerkRuntime } from '../lib/loot'
 import { useCookingStore } from '../stores/cookingStore'
 
@@ -102,21 +104,32 @@ export function useProfileSync() {
       if (!supabase || !user) return
       await useGoldStore.getState().syncFromSupabase(user.id)
 
-      // Apply admin inventory grants (additive, bypasses local-authoritative logic)
+      // Apply admin inventory grants (additive, bypasses local-authoritative logic).
+      // claimed_at acts as an idempotency key: mark FIRST, then add items.
+      // If crash between mark and add, items are lost but grants won't duplicate.
       if (supabase && user) {
-        supabase.from('admin_inventory_grants').select('id, item_id, quantity').eq('user_id', user.id)
-          .then(({ data: grants }) => {
-            if (!grants?.length) return
-            ensureInventoryHydrated()
-            const store = useInventoryStore.getState()
-            for (const g of grants) {
-              store.addItem(g.item_id, g.quantity)
-            }
-            // Delete applied grants
-            const ids = grants.map((g) => g.id)
-            supabase!.from('admin_inventory_grants').delete().in('id', ids).then(() => {})
-          })
-          .catch(() => {})
+        ;(async () => {
+          const { data: grants } = await supabase!
+            .from('admin_inventory_grants')
+            .select('id, item_id, quantity')
+            .eq('user_id', user.id)
+            .is('claimed_at', null)
+          if (!grants?.length) return
+          const ids = grants.map((g: { id: string }) => g.id)
+          const { error: claimErr } = await supabase!
+            .from('admin_inventory_grants')
+            .update({ claimed_at: new Date().toISOString() })
+            .in('id', ids)
+          if (claimErr) {
+            console.warn('[profileSync] admin grants claim failed:', claimErr.message)
+            return
+          }
+          ensureInventoryHydrated()
+          const store = useInventoryStore.getState()
+          for (const g of grants as { id: string; item_id: string; quantity: number }[]) {
+            store.addItem(g.item_id, g.quantity)
+          }
+        })().catch(() => {})
       }
 
       // Inventory + seeds + seed zips sync — merge cloud → local so admin grants appear
@@ -174,6 +187,38 @@ export function useProfileSync() {
       }).eq('id', user.id)
       if (baseProfileError) {
         console.warn('[useProfileSync] profiles base sync failed:', baseProfileError.message)
+      }
+
+      // Pet snapshot sync — so friends can see your pet on your profile
+      try {
+        const activePet = usePetStore.getState().activePet
+        if (activePet) {
+          const def = getPetDef(activePet.defId)
+          if (def) {
+            const hunger = computeCurrentHunger(activePet)
+            const displayEmoji = activePet.hasEvolvedEmoji && def.evolvedEmoji ? def.evolvedEmoji : def.emoji
+            const days = Math.floor((Date.now() - activePet.rolledAt) / (24 * 3_600_000))
+            await supabase.from('profiles').update({
+              pet_snapshot: {
+                defId: activePet.defId,
+                emoji: displayEmoji,
+                name: activePet.customName ?? def.name,
+                level: activePet.level,
+                days: Math.max(1, days),
+                hunger,
+              },
+              updated_at: new Date().toISOString(),
+            }).eq('id', user.id)
+          }
+        } else {
+          // Clear pet snapshot if no pet
+          await supabase.from('profiles').update({
+            pet_snapshot: null,
+            updated_at: new Date().toISOString(),
+          }).eq('id', user.id)
+        }
+      } catch {
+        // Non-critical
       }
 
       // Optional platform + version sync (columns added in migration_platform_version.sql)

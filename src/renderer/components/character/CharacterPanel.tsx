@@ -1,4 +1,10 @@
 import { LOOT_ITEMS, LOOT_SLOTS, POTION_MAX, getItemPower, type LootSlot } from '../../lib/loot'
+import { CRAFT_ITEM_MAP } from '../../lib/crafting'
+
+function findItemDef(id: string | undefined | null) {
+  if (!id) return null
+  return LOOT_ITEMS.find((x) => x.id === id) ?? CRAFT_ITEM_MAP[id] ?? null
+}
 import { computePlayerStats } from '../../lib/combat'
 import { LootVisual, RARITY_THEME, normalizeRarity, SLOT_META } from '../loot/LootUI'
 import { BuffTooltip } from '../shared/BuffTooltip'
@@ -26,7 +32,7 @@ function HSlot({
   locked?: boolean
 }) {
   const meta = SLOT_META[slot]
-  const item = (equippedBySlot[slot] ? LOOT_ITEMS.find((x) => x.id === equippedBySlot[slot]) : null) ?? null
+  const item = (equippedBySlot[slot] ? findItemDef(equippedBySlot[slot]) : null) ?? null
   const theme = item ? RARITY_THEME[normalizeRarity(item.rarity)] : null
 
   const inner = (
@@ -91,7 +97,7 @@ function VSlot({
   locked?: boolean
 }) {
   const meta = SLOT_META[slot]
-  const item = (equippedBySlot[slot] ? LOOT_ITEMS.find((x) => x.id === equippedBySlot[slot]) : null) ?? null
+  const item = (equippedBySlot[slot] ? findItemDef(equippedBySlot[slot]) : null) ?? null
   const theme = item ? RARITY_THEME[normalizeRarity(item.rarity)] : null
 
   const inner = (
@@ -158,7 +164,7 @@ export function CharacterPanel({
   const ip = LOOT_SLOTS.reduce((sum, s) => {
     const id = equippedBySlot[s]
     if (!id) return sum
-    const it = LOOT_ITEMS.find((x) => x.id === id)
+    const it = findItemDef(id)
     return sum + (it ? getItemPower(it) : 0)
   }, 0)
 

@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import { checkSocialAchievements } from '../lib/xp'
-import { useAlertStore } from '../stores/alertStore'
 import { useToastStore } from '../stores/toastStore'
 import { useNavBadgeStore } from '../stores/navBadgeStore'
 import { routeNotification } from '../services/notificationRouter'
@@ -53,8 +52,12 @@ export interface FriendProfile {
   skills_last_synced_at?: string | null
   /** Last profile/presence update timestamp (used for last seen). */
   last_seen_at?: string | null
+  /** Timestamp when the friendship was created (for "Friends since X days"). */
+  friendship_since?: string | null
   /** Guild tag the user belongs to, e.g. "GLD" */
   guild_tag?: string | null
+  /** Active pet snapshot (synced from app; null if no pet) */
+  pet_snapshot?: { defId?: string; emoji: string; name: string; level: number; days: number; hunger: number } | null
 }
 
 export interface PendingRequest {
@@ -88,7 +91,6 @@ export function useFriends() {
   const [unreadByFriendId, setUnreadByFriendId] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const pushAlert = useAlertStore((s) => s.push)
   const pushToast = useToastStore((s) => s.push)
   const previousFriendsRef = useRef<FriendProfile[] | null>(null)
   const getFriendsCacheKey = useCallback(() => (user ? `grindly_friends_cache_${user.id}` : null), [user])
@@ -113,7 +115,7 @@ export function useFriends() {
       // Fetch all friendships (both accepted and pending)
       const { data: fs, error: fsError } = await supabase
         .from('friendships')
-        .select('id, status, user_id, friend_id')
+        .select('id, status, user_id, friend_id, created_at')
         .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
       if (fsError) {
         console.error('[useFriends] friendships error:', fsError)
@@ -162,6 +164,10 @@ export function useFriends() {
             skills_sync_status: 'pending' as const,
             skills_last_synced_at: null,
             last_seen_at: (p.updated_at as string | null) ?? null,
+            friendship_since: (f.created_at as string | null) ?? null,
+            pet_snapshot: p.pet_snapshot
+              ? (p.pet_snapshot as { emoji: string; name: string; level: number; days: number; hunger: number })
+              : null,
           }
         })
         try {
@@ -339,9 +345,6 @@ export function useFriends() {
           }
         }
         syncAchievementsToSupabase(newSocial.map((s) => s.id)).catch(() => {})
-        for (const { def } of newSocial) {
-          pushAlert(def)
-        }
       }
 
       // Fetch pending request profiles + user_skills for correct total skill level
@@ -403,16 +406,20 @@ export function useFriends() {
     } finally {
       setLoading(false)
     }
-  }, [user, pushAlert, pushToast, getFriendsCacheKey])
+  }, [user, pushToast, getFriendsCacheKey])
 
   const acceptRequest = useCallback(async (friendshipId: string) => {
     if (!supabase) return
+    // Optimistic: remove from pending list immediately so UI updates without waiting for re-fetch
+    setPendingRequests((prev) => prev.filter((r) => r.friendship_id !== friendshipId))
     await supabase.from('friendships').update({ status: 'accepted' }).eq('id', friendshipId)
     await fetchFriends()
   }, [fetchFriends])
 
   const rejectRequest = useCallback(async (friendshipId: string) => {
     if (!supabase) return
+    // Optimistic: remove from pending list immediately so UI updates without waiting
+    setPendingRequests((prev) => prev.filter((r) => r.friendship_id !== friendshipId))
     await supabase.from('friendships').delete().eq('id', friendshipId)
     fetchFriends()
   }, [fetchFriends])
@@ -499,7 +506,21 @@ export function useFriends() {
   }, [user, fetchFriends])
 
   const refresh = useCallback(() => fetchFriends(true), [fetchFriends])
-  return { friends, pendingRequests, unreadByFriendId, loading, error, refresh, acceptRequest, rejectRequest, removeFriend }
+
+  /** Immediately clear unread count for a friend (optimistic, before realtime event fires). */
+  const clearUnreadForFriend = useCallback((friendId: string) => {
+    setUnreadByFriendId((prev) => {
+      if (!prev[friendId]) return prev
+      const next = { ...prev }
+      delete next[friendId]
+      // Also update the nav badge count
+      const remaining = Object.values(next).reduce((s, n) => s + n, 0)
+      useNavBadgeStore.getState().setUnreadMessagesCount(remaining)
+      return next
+    })
+  }, [])
+
+  return { friends, pendingRequests, unreadByFriendId, loading, error, refresh, acceptRequest, rejectRequest, removeFriend, clearUnreadForFriend }
 }
 
 export type FriendsModel = ReturnType<typeof useFriends>

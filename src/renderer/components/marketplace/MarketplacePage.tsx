@@ -12,6 +12,7 @@ import { fmt } from '../../lib/format'
 import { useAuthStore } from '../../stores/authStore'
 import { useInventoryStore } from '../../stores/inventoryStore'
 import { useNavBadgeStore } from '../../stores/navBadgeStore'
+import { useNavigationStore } from '../../stores/navigationStore'
 import { syncInventoryToSupabase } from '../../services/supabaseSync'
 import { useFarmStore } from '../../stores/farmStore'
 import { PageHeader } from '../shared/PageHeader'
@@ -19,6 +20,7 @@ import { ShoppingCart, RefreshCw, X } from '../../lib/icons'
 import { BackpackButton } from '../shared/BackpackButton'
 import { InventoryPage } from '../inventory/InventoryPage'
 import { ListForSaleModal } from '../inventory/ListForSaleModal'
+import { ItemInspectModal } from '../shared/ItemInspectModal'
 import { GoldDisplay } from './GoldDisplay'
 import { SkeletonBlock } from '../shared/PageLoading'
 import { playClickSound } from '../../lib/sounds'
@@ -122,7 +124,7 @@ function buildOrderBook(listings: ListingWithSeller[]): OrderBookRow[] {
 
 // ─── Compact listing tile (one row per item) ─────────────────────────────────
 
-function OrderBookTile({ row, onOpenOffers, index }: { row: OrderBookRow; onOpenOffers: (row: OrderBookRow) => void; index: number }) {
+function OrderBookTile({ row, onOpenOffers, onItemClick, index }: { row: OrderBookRow; onOpenOffers: (row: OrderBookRow) => void; onItemClick: (itemId: string) => void; index: number }) {
   const meta = getItemMeta(row.itemId)
   const theme = getRarityTheme(meta.rarity)
   const allSellers = Array.from(new Set(row.offers.flatMap((o) => o.sellers)))
@@ -136,10 +138,12 @@ function OrderBookTile({ row, onOpenOffers, index }: { row: OrderBookRow; onOpen
       className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded border transition-colors hover:border-white/20 text-left group"
       style={{ borderColor: theme.border, backgroundColor: `${theme.color}06` }}
     >
-      {/* icon */}
+      {/* icon — click for detail */}
       <div
         className="w-10 h-10 rounded flex items-center justify-center shrink-0 relative transition-transform group-hover:scale-105"
         style={{ borderColor: theme.border, borderWidth: 1, backgroundColor: `${theme.color}15` }}
+        onClick={(e) => { e.stopPropagation(); playClickSound(); onItemClick(row.itemId) }}
+        title="View item details"
       >
         <LootVisualShared icon={meta.icon} image={meta.image} className="w-6 h-6 object-contain" scale={meta.scale} />
         {row.totalQty > 1 && (
@@ -192,10 +196,11 @@ interface MergedMyListing {
   pricePerUnit: number
 }
 
-function MyListingRow({ group, cancellingId, onCancel, index }: {
+function MyListingRow({ group, cancellingId, onCancel, onItemClick, index }: {
   group: MergedMyListing
   cancellingId: string | null
   onCancel: (group: MergedMyListing) => void
+  onItemClick: (itemId: string) => void
   index: number
 }) {
   const meta = getItemMeta(group.rep.item_id)
@@ -210,8 +215,10 @@ function MyListingRow({ group, cancellingId, onCancel, index }: {
       style={{ borderColor: theme.border, backgroundColor: `${theme.color}08` }}
     >
       <div
-        className="w-10 h-10 rounded flex items-center justify-center shrink-0 relative"
+        className="w-10 h-10 rounded flex items-center justify-center shrink-0 relative cursor-pointer"
         style={{ borderColor: theme.border, borderWidth: 1, backgroundColor: `${theme.color}15` }}
+        onClick={() => { playClickSound(); onItemClick(group.rep.item_id) }}
+        title="View item details"
       >
         <LootVisualShared icon={meta.icon} image={meta.image} className="w-6 h-6 object-contain" scale={meta.scale} />
         {group.totalQty > 1 && (
@@ -247,7 +254,7 @@ function MyListingRow({ group, cancellingId, onCancel, index }: {
 
 // ─── History row ─────────────────────────────────────────────────────────────
 
-function HistoryRow({ entry, userId, index }: { entry: TradeHistoryEntry; userId: string; index: number }) {
+function HistoryRow({ entry, userId, onItemClick, index }: { entry: TradeHistoryEntry; userId: string; onItemClick: (itemId: string) => void; index: number }) {
   const meta = getItemMeta(entry.item_id)
   const theme = getRarityTheme(meta.rarity)
   const isSeller = entry.seller_id === userId
@@ -285,8 +292,10 @@ function HistoryRow({ entry, userId, index }: { entry: TradeHistoryEntry; userId
       style={{ borderColor: `${theme.border}40`, backgroundColor: `${theme.color}04` }}
     >
       <div
-        className="w-9 h-9 rounded flex items-center justify-center shrink-0"
+        className="w-9 h-9 rounded flex items-center justify-center shrink-0 cursor-pointer"
         style={{ borderColor: theme.border, borderWidth: 1, backgroundColor: `${theme.color}12` }}
+        onClick={() => { playClickSound(); onItemClick(entry.item_id) }}
+        title="View item details"
       >
         <LootVisualShared icon={meta.icon} image={meta.image} className="w-5 h-5 object-contain" scale={meta.scale} />
       </div>
@@ -631,6 +640,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
   const [cancelError, setCancelError] = useState<string | null>(null)
   const [showBackpack, setShowBackpack] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [itemDetail, setItemDetail] = useState<string | null>(null)
   const pushToast = useToastStore((s) => s.push)
 
   // Filters
@@ -699,6 +709,15 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
 
   useEffect(() => { loadListings(true) }, [loadListings])
   useEffect(() => { if (user) syncFromSupabase(user.id).catch(() => {}) }, [user, syncFromSupabase])
+
+  // Deep-link: notification click can request a specific inner tab on mount
+  const pendingMarketplaceTab = useNavigationStore((s) => s.pendingMarketplaceTab)
+  const setPendingMarketplaceTab = useNavigationStore((s) => s.setPendingMarketplaceTab)
+  useEffect(() => {
+    if (!pendingMarketplaceTab) return
+    setActiveTab(pendingMarketplaceTab as TabId)
+    setPendingMarketplaceTab(null)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (activeTab === 'history') loadHistory()
@@ -1041,7 +1060,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="space-y-1.5 overflow-hidden"
+            className="space-y-1.5"
           >
             <div className="flex gap-1.5">
               <input
@@ -1270,7 +1289,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                   </div>
                 ) : (
                   orderBook.map((row, i) => (
-                    <OrderBookTile key={row.itemId} row={row} onOpenOffers={(r) => { playClickSound(); setOffersTarget(r) }} index={i} />
+                    <OrderBookTile key={row.itemId} row={row} onOpenOffers={(r) => { playClickSound(); setOffersTarget(r) }} onItemClick={setItemDetail} index={i} />
                   ))
                 )}
               </div>
@@ -1332,6 +1351,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
                     group={group}
                     cancellingId={cancellingId}
                     onCancel={(g) => setCancelTarget(g)}
+                    onItemClick={setItemDetail}
                     index={i}
                   />
                 ))}
@@ -1370,7 +1390,7 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
             ) : (
               <div className="space-y-1.5">
                 {history.map((entry, i) => (
-                  <HistoryRow key={entry.id} entry={entry} userId={user?.id ?? ''} index={i} />
+                  <HistoryRow key={entry.id} entry={entry} userId={user?.id ?? ''} onItemClick={setItemDetail} index={i} />
                 ))}
               </div>
             )}
@@ -1689,6 +1709,13 @@ export function MarketplacePage({ onBack }: MarketplacePageProps) {
       )}
 
 
+
+      {/* ─── Item detail modal ───────────────────────────────────────────────── */}
+      <ItemInspectModal
+        item={itemDetail ? (LOOT_ITEMS.find((x) => x.id === itemDetail) ?? null) : null}
+        viewOnly
+        onClose={() => setItemDetail(null)}
+      />
 
       {/* showBackpack handled above */}
     </div>

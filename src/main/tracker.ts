@@ -3,8 +3,6 @@ import fs from 'fs'
 import path from 'path'
 import { app } from 'electron'
 import log from './logger'
-import { refineActivityLabels, type LabelRefineInput } from './deepseek'
-import { getDeepSeekApiKey } from './aiConfig'
 
 /** Full path to PowerShell on Windows (works when PATH is not set for child processes). */
 function getPowerShellPath(): string {
@@ -656,150 +654,6 @@ const TERMINAL_APP = /^(windowsterminal|terminal|powershell|pwsh|cmd|bash|zsh|ws
 const TERMINAL_WORK_TITLE = /npm|pnpm|yarn|bun|node|python|pip|poetry|cargo|rust|go\s(test|run|build)|javac|gradle|maven|dotnet|tsc|vite|webpack|docker|kubectl|git|ssh|make|cmake|build|test|serve|dev/i
 
 
-interface AiRefinementCacheEntry {
-  category: ActivityCategory
-  confidence: number
-  reason: string
-  ts: number
-}
-
-const AI_CACHE_TTL_MS = 12 * 60 * 60 * 1000
-const AI_MAX_CACHE_ITEMS = 1200
-const AI_REFINE_BATCH_SIZE = 8
-const AI_REFINE_INTERVAL_MS = 2500
-const AI_REFINE_MAX_QUEUE = 48
-const AI_REFINE_ERROR_COOLDOWN_MS = 60_000
-const aiApiKey = getDeepSeekApiKey()
-const aiRefinementCache = new Map<string, AiRefinementCacheEntry>()
-const aiRefinementQueue = new Map<string, LabelRefineInput>()
-const aiRefinementPending = new Set<string>()
-let aiRefineLoop: NodeJS.Timeout | null = null
-let aiRefineInFlight = false
-let aiRefineCooldownUntil = 0
-
-function makeAiCacheKey(appName: string, windowTitle: string): string {
-  const app = appName.toLowerCase().trim()
-  const title = windowTitle.toLowerCase().replace(/\s+/g, ' ').trim().slice(0, 180)
-  return `${app}|${title}`
-}
-
-function normalizeAiCategory(category: string): ActivityCategory | null {
-  const c = category.toLowerCase()
-  const allowed: ActivityCategory[] = ['coding', 'design', 'games', 'social', 'browsing', 'creative', 'learning', 'music', 'grindly', 'other']
-  return (allowed as string[]).includes(c) ? (c as ActivityCategory) : null
-}
-
-function setAiCache(appName: string, windowTitle: string, category: ActivityCategory, confidence: number, reason: string): void {
-  if (aiRefinementCache.size >= AI_MAX_CACHE_ITEMS) {
-    const oldestKey = aiRefinementCache.keys().next().value as string | undefined
-    if (oldestKey) aiRefinementCache.delete(oldestKey)
-  }
-  aiRefinementCache.set(makeAiCacheKey(appName, windowTitle), {
-    category,
-    confidence: Math.max(0, Math.min(1, confidence)),
-    reason: reason.slice(0, 120),
-    ts: Date.now(),
-  })
-}
-
-function getAiCache(appName: string, windowTitle: string): AiRefinementCacheEntry | null {
-  const key = makeAiCacheKey(appName, windowTitle)
-  const cached = aiRefinementCache.get(key)
-  if (!cached) return null
-  if (Date.now() - cached.ts > AI_CACHE_TTL_MS) {
-    aiRefinementCache.delete(key)
-    return null
-  }
-  return cached
-}
-
-function shouldUseAiRefinement(appName: string, windowTitle: string, base: ClassificationResult): boolean {
-  if (!aiApiKey || appName === 'Idle') return false
-  const lowerApp = appName.toLowerCase().replace(/\.(exe|app)$/i, '')
-  const lowerTitle = windowTitle.toLowerCase()
-  if (!lowerTitle || lowerTitle.length < 4) return false
-  if (/\bgrindly\b/.test(lowerApp) || /\bgrindly\b/.test(lowerTitle)) return false
-  if (/^(new tab|about:blank|start page|home)$/.test(lowerTitle.trim())) return false
-  const browserLike = /^(chrome|firefox|msedge|brave|opera|vivaldi|arc|yandex|applicationframehost)$/i.test(lowerApp)
-  const terminalLike = TERMINAL_APP.test(lowerApp)
-  const uncertain = base.confidence < 0.88
-  const ambiguousCategory = base.categories[0] === 'browsing' || base.categories[0] === 'other' || base.categories[0] === 'learning'
-  return browserLike || terminalLike || uncertain || ambiguousCategory
-}
-
-function enqueueAiRefinement(appName: string, windowTitle: string, currentCategory: ActivityCategory): void {
-  const key = makeAiCacheKey(appName, windowTitle)
-  if (aiRefinementCache.has(key) || aiRefinementQueue.has(key) || aiRefinementPending.has(key)) return
-  if (aiRefinementQueue.size >= AI_REFINE_MAX_QUEUE) {
-    const oldestKey = aiRefinementQueue.keys().next().value as string | undefined
-    if (oldestKey) aiRefinementQueue.delete(oldestKey)
-  }
-  aiRefinementQueue.set(key, {
-    app_name: appName,
-    window_title: windowTitle,
-    current_category: currentCategory,
-  })
-}
-
-async function processAiRefinementQueue(): Promise<void> {
-  if (!aiApiKey || aiRefineInFlight) return
-  if (Date.now() < aiRefineCooldownUntil) return
-  if (aiRefinementQueue.size === 0) return
-  aiRefineInFlight = true
-  const selected: { key: string; item: LabelRefineInput }[] = []
-  for (const [key, item] of aiRefinementQueue.entries()) {
-    selected.push({ key, item })
-    aiRefinementQueue.delete(key)
-    aiRefinementPending.add(key)
-    if (selected.length >= AI_REFINE_BATCH_SIZE) break
-  }
-  try {
-    const refined = await refineActivityLabels(selected.map((s) => s.item), aiApiKey)
-    for (const row of refined) {
-      const normalized = normalizeAiCategory(row.refined_category)
-      if (!normalized) continue
-      setAiCache(row.app_name, row.window_title, normalized, row.confidence, row.reason)
-    }
-  } catch (err) {
-    aiRefineCooldownUntil = Date.now() + AI_REFINE_ERROR_COOLDOWN_MS
-    log.warn('[tracker] AI refinement failed, temporary cooldown', err)
-  } finally {
-    for (const { key } of selected) aiRefinementPending.delete(key)
-    aiRefineInFlight = false
-  }
-}
-
-function startAiRefinementLoop(): void {
-  if (!aiApiKey || aiRefineLoop) return
-  aiRefineLoop = setInterval(() => {
-    void processAiRefinementQueue()
-  }, AI_REFINE_INTERVAL_MS)
-}
-
-function stopAiRefinementLoop(): void {
-  if (aiRefineLoop) {
-    clearInterval(aiRefineLoop)
-    aiRefineLoop = null
-  }
-  aiRefineInFlight = false
-  aiRefinementQueue.clear()
-  aiRefinementPending.clear()
-}
-
-function refineClassificationWithAi(appName: string, windowTitle: string, base: ClassificationResult): ClassificationResult {
-  const cached = getAiCache(appName, windowTitle)
-  if (cached) {
-    return {
-      categories: [cached.category],
-      contextTag: `ai_${base.contextTag}`,
-      confidence: Math.max(base.confidence, cached.confidence),
-    }
-  }
-  if (shouldUseAiRefinement(appName, windowTitle, base)) {
-    enqueueAiRefinement(appName, windowTitle, base.categories[0] ?? 'other')
-  }
-  return base
-}
 
 export interface ClassificationResult {
   categories: ActivityCategory[]
@@ -1074,7 +928,7 @@ function poll(): void {
     const fgClassification =
       rawName === 'Idle'
         ? heuristicsClassification
-        : refineClassificationWithAi(rawName, windowTitle, heuristicsClassification)
+        : heuristicsClassification
     const fgCategories = fgClassification.categories
     // Merge background categories (e.g. music playing in Spotify while gaming)
     const bgCats = (latestWinInfo.bgCategories || []) as ActivityCategory[]
@@ -1128,7 +982,6 @@ export function getTrackerApi() {
       pollInterval = setInterval(poll, POLL_INTERVAL_MS)
       poll() // run immediately so we show "Detecting..." then update when first WIN line arrives
       setTimeout(poll, 800) // and again after detector had time to output (script loop is 1.5s)
-      startAiRefinementLoop()
       if (process.platform === 'darwin') {
         startMacDetector()
         return
@@ -1152,7 +1005,6 @@ export function getTrackerApi() {
       pushCurrentSegment(Date.now())
       currentSegmentActivity = null
       stopWindowDetector()
-      stopAiRefinementLoop()
       const result = [...segments]
       segments = []
       return result

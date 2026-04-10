@@ -4,10 +4,15 @@ import { useNotificationStore } from '../stores/notificationStore'
 
 const AUTO_RESTART_SECONDS = 30
 
+/** Exported for testing — determines which UI mode to show when an update is ready. */
+export function getUpdateReadyMode(platform: string): 'countdown' | 'download-link' {
+  return platform === 'darwin' ? 'download-link' : 'countdown'
+}
+
 type UpdateState =
   | { phase: 'idle' }
-  | { phase: 'downloading'; version: string }
-  | { phase: 'ready'; version: string }
+  | { phase: 'downloading'; version: string; platform: string }
+  | { phase: 'ready'; version: string; platform: string }
 
 export function UpdateBanner() {
   const [update, setUpdate] = useState<UpdateState>({ phase: 'idle' })
@@ -18,25 +23,29 @@ export function UpdateBanner() {
     const api = window.electronAPI
     if (!api?.updater?.onStatus) return
     const unsub = api.updater.onStatus((info) => {
+      const platform = (info as { platform?: string }).platform ?? 'win32'
       if (info.status === 'downloading') {
-        setUpdate({ phase: 'downloading', version: info.version || '' })
+        setUpdate({ phase: 'downloading', version: info.version || '', platform })
       } else if (info.status === 'ready') {
-        setUpdate({ phase: 'ready', version: info.version || '' })
-        setCountdown(AUTO_RESTART_SECONDS)
+        setUpdate({ phase: 'ready', version: info.version || '', platform })
+        if (platform !== 'darwin') setCountdown(AUTO_RESTART_SECONDS)
         useNotificationStore.getState().push({
           type: 'update',
           icon: '⬇️',
-          title: 'Update ready to install',
-          body: info.version ? `Version ${info.version} — restarting in ${AUTO_RESTART_SECONDS}s` : 'A new version is ready',
+          title: 'Update ready',
+          body: platform === 'darwin'
+            ? `Version ${info.version || ''} available — download from GitHub`
+            : info.version ? `Version ${info.version} — restarting in ${AUTO_RESTART_SECONDS}s` : 'A new version is ready',
         })
       }
     })
     return unsub
   }, [])
 
-  // Countdown tick when update is ready
+  // Countdown tick when update is ready — Windows only
   useEffect(() => {
     if (update.phase !== 'ready') return
+    if (getUpdateReadyMode(update.platform) !== 'countdown') return
 
     intervalRef.current = setInterval(() => {
       setCountdown((s) => {
@@ -76,6 +85,23 @@ export function UpdateBanner() {
                     <> <span className="font-mono text-accent font-bold">{update.version}</span></>
                   )}…
                 </p>
+              </>
+            ) : getUpdateReadyMode(update.platform) === 'download-link' ? (
+              <>
+                <span className="text-sm">⬇️</span>
+                <p className="flex-1 text-xs text-white/80">
+                  Update{' '}
+                  {update.version && (
+                    <span className="font-mono text-accent font-bold">{update.version}</span>
+                  )}{' '}
+                  available
+                </p>
+                <button
+                  onClick={() => window.electronAPI?.updater?.install?.()}
+                  className="shrink-0 px-2.5 py-1 rounded bg-accent text-white text-caption font-semibold hover:bg-accent-hover transition-colors"
+                >
+                  Download →
+                </button>
               </>
             ) : (
               <>

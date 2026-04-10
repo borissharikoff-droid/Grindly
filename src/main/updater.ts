@@ -35,7 +35,7 @@ export function initAutoUpdater(win: BrowserWindow): void {
 
   autoUpdater.on('update-available', (info) => {
     log.info('[updater] Update available:', info.version)
-    win.webContents.send(IPC_CHANNELS.updater.status, { status: 'downloading', version: info.version })
+    win.webContents.send(IPC_CHANNELS.updater.status, { status: 'downloading', version: info.version, platform: process.platform })
   })
 
   autoUpdater.on('update-not-available', () => {
@@ -48,13 +48,15 @@ export function initAutoUpdater(win: BrowserWindow): void {
 
   autoUpdater.on('update-downloaded', (info) => {
     log.info('[updater] Update downloaded:', info.version)
-    // Tell renderer to show countdown banner
-    win.webContents.send(IPC_CHANNELS.updater.status, { status: 'ready', version: info.version })
-    // Auto-install after 30 seconds if user doesn't act
-    setTimeout(() => {
-      log.info('[updater] Auto-installing update after countdown')
-      autoUpdater.quitAndInstall(false, true)
-    }, 30_000)
+    // Tell renderer to show banner (with platform so it can render the right UI)
+    win.webContents.send(IPC_CHANNELS.updater.status, { status: 'ready', version: info.version, platform: process.platform })
+    // Auto-install after 30 seconds — Windows only (macOS unsigned builds can't quitAndInstall)
+    if (process.platform === 'win32') {
+      setTimeout(() => {
+        log.info('[updater] Auto-installing update after countdown')
+        autoUpdater.quitAndInstall(false, true)
+      }, 30_000)
+    }
   })
 
   autoUpdater.on('error', (err: Error & { code?: string }) => {

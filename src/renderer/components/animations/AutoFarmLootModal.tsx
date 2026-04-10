@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import type { AutoRunResult } from '../../stores/arenaStore'
 import { ITEM_LOSS_CHANCE } from '../../stores/arenaStore'
 import { CHEST_DEFS, LOOT_ITEMS, getRarityTheme, getItemPerkDescription } from '../../lib/loot'
+import { SEED_DEFS } from '../../lib/farming'
 import { PixelConfetti } from '../home/PixelConfetti'
 import { playChestOpeningSound, playClickSound, playLootRaritySound } from '../../lib/sounds'
 import { fmt } from '../../lib/format'
@@ -134,15 +135,18 @@ export function AutoFarmLootModal({ open, result, onClose, petImage, narrative }
 
     // Materials — aggregate all (dungeon drops + chest bonus materials)
     const matTotals = new Map<string, { icon: string; image?: string; name: string; qty: number; rarity?: string }>()
+    const findItemDef = (id: string) =>
+      LOOT_ITEMS.find((x) => x.id === id) ?? SEED_DEFS.find((x) => x.id === id) ?? null
+
     result.materials.forEach((m) => {
       const existing = matTotals.get(m.id)
-      const matDef = LOOT_ITEMS.find((x) => x.id === m.id)
+      const matDef = findItemDef(m.id)
       if (existing) { existing.qty += m.qty }
       else { matTotals.set(m.id, { icon: matDef?.icon ?? m.icon, image: matDef?.image, name: matDef?.name ?? m.name, qty: m.qty, rarity: matDef?.rarity }) }
     })
     result.chestResults.forEach((cr) => {
       cr.bonusMaterials.forEach((bm) => {
-        const matDef = LOOT_ITEMS.find((x) => x.id === bm.itemId)
+        const matDef = findItemDef(bm.itemId)
         if (!matDef) return
         const existing = matTotals.get(bm.itemId)
         if (existing) { existing.qty += bm.qty }
@@ -487,15 +491,25 @@ function BonusCard({ icon, image, value, label, color, delay }: {
       animate={{ opacity: 1, x: 0, scale: 1 }}
       transition={{ type: 'spring', stiffness: 280, damping: 24, delay }}
     >
-      <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle at 50% 35%, ${color}18 0%, transparent 65%)` }} />
+      <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle at 50% 35%, ${color}20 0%, transparent 65%)` }} />
+      <motion.div
+        className="absolute inset-0 pointer-events-none rounded-lg"
+        animate={{ opacity: [0.2, 0.4, 0.2] }}
+        transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+        style={{ boxShadow: `inset 0 0 14px ${color}55` }}
+      />
       <div
-        className="w-12 h-12 rounded-lg flex items-center justify-center relative"
-        style={{ backgroundColor: `${color}15`, border: `1px solid ${color}30`, boxShadow: `0 0 12px ${color}22` }}
+        className="w-[52px] h-[52px] rounded-lg flex items-center justify-center relative"
+        style={{
+          background: `radial-gradient(circle at 50% 38%, ${color}22 0%, rgba(8,8,16,0.9) 70%)`,
+          border: `1px solid ${color}45`,
+          boxShadow: `0 0 16px ${color}33`,
+        }}
       >
         {image ? (
-          <img src={image} alt="" className="w-8 h-8 object-contain" style={{ imageRendering: 'pixelated' }} draggable={false} />
+          <img src={image} alt="" className="w-9 h-9 object-contain" style={{ imageRendering: 'pixelated' }} draggable={false} />
         ) : (
-          <span className="text-2xl">{icon}</span>
+          <span style={{ fontSize: '28px', lineHeight: 1, display: 'block' }}>{icon}</span>
         )}
       </div>
       <span className="text-lg font-bold tabular-nums relative" style={{ color }}>{value}</span>

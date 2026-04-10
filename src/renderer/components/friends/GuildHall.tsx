@@ -401,9 +401,10 @@ export function GuildHall() {
     playClickSound()
     setCompleting(true)
     try {
+      const targetLevel = hallBuildTargetLevel // capture before store clears it
       const result = await completeHallUpgrade()
       if (result.ok) {
-        pushToast({ kind: 'generic', message: `Guild Hall upgraded to Lv.${hallLevel}!`, type: 'success' })
+        pushToast({ kind: 'generic', message: `Guild Hall upgraded to Lv.${targetLevel ?? hallLevel + 1}!`, type: 'success' })
       } else {
         pushToast({ kind: 'generic', message: result.error ?? 'Not ready yet', type: 'error' })
       }

@@ -447,6 +447,8 @@ export interface CookInstrument {
   id: CookInstrumentId
   name: string
   icon: string
+  /** Optional PNG skin shown instead of emoji in the instrument shelf. */
+  image?: string
   /** Chef level required to buy/unlock this instrument. */
   unlockLevel: number
   /** Gold cost to unlock (first purchase). 0 = starts unlocked. */
@@ -456,7 +458,7 @@ export interface CookInstrument {
 
 export const COOK_INSTRUMENTS: CookInstrument[] = [
   {
-    id: 'knife', name: 'Knife', icon: '🔪',
+    id: 'knife', name: 'Knife', icon: '🔪', image: 'loot/item_cook_knife.png',
     unlockLevel: 0, unlockCost: 0,    // starts unlocked
     tiers: [
       { name: 'Wooden',  icon: '🔪', speedBonus: 0,    qualityBonus: 0,    burnReduction: 0,    cost: 0 },
@@ -467,7 +469,7 @@ export const COOK_INSTRUMENTS: CookInstrument[] = [
     ],
   },
   {
-    id: 'pot', name: 'Pot', icon: '🍲',
+    id: 'pot', name: 'Pot', icon: '🍲', image: 'loot/item_cook_cauldron.png',
     unlockLevel: 0, unlockCost: 0,    // starts unlocked
     tiers: [
       { name: 'Clay',    icon: '🍲', speedBonus: 0,    qualityBonus: 0,    burnReduction: 0,    cost: 0 },
@@ -478,7 +480,7 @@ export const COOK_INSTRUMENTS: CookInstrument[] = [
     ],
   },
   {
-    id: 'pan', name: 'Pan', icon: '🍳',
+    id: 'pan', name: 'Pan', icon: '🍳', image: 'loot/item_cook_rollingpin.png',
     unlockLevel: 5, unlockCost: 300,
     tiers: [
       { name: 'Wooden',  icon: '🍳', speedBonus: 0,    qualityBonus: 0,    burnReduction: 0,    cost: 0 },
@@ -489,7 +491,7 @@ export const COOK_INSTRUMENTS: CookInstrument[] = [
     ],
   },
   {
-    id: 'bowl', name: 'Bowl', icon: '🥣',
+    id: 'bowl', name: 'Bowl', icon: '🥣', image: 'loot/item_cook_hat.png',
     unlockLevel: 10, unlockCost: 800,
     tiers: [
       { name: 'Wooden',  icon: '🥣', speedBonus: 0,    qualityBonus: 0,    burnReduction: 0,    cost: 0 },

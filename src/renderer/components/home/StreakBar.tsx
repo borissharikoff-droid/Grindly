@@ -82,7 +82,10 @@ export function StreakBar({ sessionVersion }: StreakBarProps) {
           <AlertTriangle className="w-3.5 h-3.5" />
         </motion.span>
       )}
-      <span className={`text-xs font-mono ${textClass}`}>{label}</span>
+      <span
+        className={`text-xs font-mono ${textClass}`}
+        title="Streak resets at midnight local time if you don't complete a session"
+      >{label}</span>
     </motion.div>
   )
 }

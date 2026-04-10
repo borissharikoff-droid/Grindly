@@ -59,7 +59,7 @@ export const BADGES: Badge[] = [
 // ─── FRAMES ──────────────────────────────────────────────
 // Frames are avatar borders. Limited/rare, only from specific achievements.
 
-export type FrameStyle = 'pixel' | 'broken' | 'matrix' | 'liquid' | 'glitch' | 'holographic' | 'flame' | 'royal'
+export type FrameStyle = 'pixel' | 'broken' | 'matrix' | 'liquid' | 'glitch' | 'holographic' | 'flame' | 'royal' | 'admin' | 'void' | 'ice' | 'toxic'
 
 export interface Frame {
   id: string
@@ -85,9 +85,9 @@ export const FRAMES: Frame[] = [
   },
   {
     id: 'ember',
-    name: 'Ember',
-    color: '#FF8A65',
-    gradient: 'linear-gradient(135deg, #FF8A65 0%, #FF5722 50%, #BF360C 100%)',
+    name: 'Bloodmoon',
+    color: '#FF1744',
+    gradient: 'linear-gradient(135deg, #1a0000 0%, #7F0000 40%, #C62828 70%, #FF1744 100%)',
     rarity: 'Rare',
     style: 'broken',
     unlockHint: '7-day streak',
@@ -115,9 +115,9 @@ export const FRAMES: Frame[] = [
   },
   {
     id: 'blaze',
-    name: 'Blaze',
-    color: '#FF6D00',
-    gradient: 'linear-gradient(135deg, #FF6D00 0%, #FF3D00 40%, #DD2C00 70%, #FFD740 100%)',
+    name: 'Arcane',
+    color: '#818CF8',
+    gradient: 'linear-gradient(135deg, #0d0030 0%, #312E81 30%, #6366F1 65%, #A78BFA 100%)',
     rarity: 'Epic',
     style: 'glitch',
     unlockHint: '14-day streak',
@@ -125,9 +125,9 @@ export const FRAMES: Frame[] = [
   },
   {
     id: 'star',
-    name: 'Star',
-    color: '#FFD700',
-    gradient: 'linear-gradient(135deg, #FFD700 0%, #FF6B35 50%, #FF1493 100%)',
+    name: 'Nebula',
+    color: '#E879F9',
+    gradient: 'linear-gradient(135deg, #0a001a 0%, #4C1D95 25%, #7C3AED 50%, #EC4899 80%, #F0ABFC 100%)',
     rarity: 'Legendary',
     style: 'holographic',
     unlockHint: '3 skills at LVL 25+',
@@ -135,9 +135,9 @@ export const FRAMES: Frame[] = [
   },
   {
     id: 'fire',
-    name: 'Inferno',
-    color: '#FF4500',
-    gradient: 'linear-gradient(135deg, #FF4500 0%, #FFD700 50%, #FF6B35 100%)',
+    name: 'Hellgate',
+    color: '#DC2626',
+    gradient: 'linear-gradient(135deg, #000000 0%, #450a0a 30%, #7f1d1d 60%, #DC2626 85%, #991b1b 100%)',
     rarity: 'Legendary',
     style: 'flame',
     unlockHint: '30-day streak',
@@ -145,33 +145,105 @@ export const FRAMES: Frame[] = [
   },
   {
     id: 'crown',
-    name: 'Crown',
-    color: '#FFD700',
-    gradient: 'linear-gradient(135deg, #FFD700 0%, #FFA000 40%, #FF6F00 100%)',
+    name: 'Lich King',
+    color: '#BAE6FD',
+    gradient: 'linear-gradient(135deg, #0c1a2e 0%, #1e3a5f 30%, #2563EB 60%, #BAE6FD 85%, #E0F2FE 100%)',
     rarity: 'Legendary',
     style: 'royal',
     unlockHint: 'Complete 50 sessions',
     achievementId: 'fifty_sessions',
+  },
+  // Epic tier additions
+  {
+    id: 'void',
+    name: 'Void',
+    color: '#9B5CF6',
+    gradient: 'linear-gradient(135deg, #1a0035 0%, #4C1D95 40%, #7C3AED 70%, #0d0020 100%)',
+    rarity: 'Epic',
+    style: 'void',
+    unlockHint: 'Reach total level 200',
+    achievementId: 'total_level_200',
+  },
+  {
+    id: 'ice',
+    name: 'Glacier',
+    color: '#67E8F9',
+    gradient: 'linear-gradient(135deg, #E0F7FA 0%, #67E8F9 30%, #0EA5E9 70%, #BAE6FD 100%)',
+    rarity: 'Epic',
+    style: 'ice',
+    unlockHint: '21-day streak',
+    achievementId: 'streak_21',
+  },
+  {
+    id: 'toxic',
+    name: 'Toxic',
+    color: '#84CC16',
+    gradient: 'linear-gradient(135deg, #1a2e00 0%, #4D7C0F 40%, #84CC16 70%, #BEF264 100%)',
+    rarity: 'Epic',
+    style: 'toxic',
+    unlockHint: 'Defeat 50 monsters',
+    achievementId: 'arena_kills_50',
+  },
+  // Admin-only
+  {
+    id: 'admin',
+    name: 'Dev',
+    color: '#F8FAFC',
+    gradient: 'repeating-linear-gradient(45deg, #000000 0px, #000000 6px, #F8FAFC 6px, #F8FAFC 12px)',
+    rarity: 'Legendary',
+    style: 'admin',
+    unlockHint: 'Admin only',
+    achievementId: 'is_admin',
   },
 ]
 
 // ─── LOCKED AVATARS ──────────────────────────────────────
 // Some avatars require achievements to unlock.
 
-export const FREE_AVATARS = ['🐺', '🦊', '🐱', '🐼', '🐸', '🤖']
+// Default avatars — free for all players
+export const FREE_AVATARS = [
+  '🐺', '🦊', '🐱', '🐼', '🐸', '🤖',  // OG tier
+  '🐯', '🦝', '🐻', '🦄',               // animals
+  '🗿', '😈', '🤡', '🫠',               // meme tier
+]
 
 export const LOCKED_AVATARS: { emoji: string; unlockHint: string; achievementId: string }[] = [
-  { emoji: '🚀', unlockHint: 'First session', achievementId: 'first_session' },
-  { emoji: '⚔️', unlockHint: '2h+ coding session', achievementId: 'code_warrior' },
-  { emoji: '🦁', unlockHint: '2h+ session', achievementId: 'marathon' },
+  // ── Grind milestones ──
+  { emoji: '🚀', unlockHint: 'Complete first session', achievementId: 'first_session' },
+  { emoji: '💎', unlockHint: 'Complete 10 sessions', achievementId: 'ten_sessions' },        // Minecraft diamond
+  { emoji: '🍄', unlockHint: 'Complete 25 sessions', achievementId: 'twenty_five_sessions' }, // Mario mushroom
+  { emoji: '🏆', unlockHint: 'Complete 50 sessions', achievementId: 'fifty_sessions' },
+  { emoji: '💀', unlockHint: 'Complete 100 sessions', achievementId: 'hundred_sessions' },   // Dark Souls "You Died"
+  // ── Streak ──
+  { emoji: '🥷', unlockHint: '5-day streak', achievementId: 'streak_5' },                    // ninja grind
+  { emoji: '🫡', unlockHint: '7-day streak', achievementId: 'streak_7' },                    // "reporting for duty"
+  { emoji: '🦴', unlockHint: '14-day streak', achievementId: 'streak_14' },                  // skeleton mode
+  { emoji: '❄️', unlockHint: '21-day streak', achievementId: 'streak_21' },                  // frozen
   { emoji: '🌟', unlockHint: '30-day streak', achievementId: 'streak_30' },
-  { emoji: '🦉', unlockHint: 'Night Owl', achievementId: 'night_owl' },
-  { emoji: '🐦', unlockHint: 'Early Bird', achievementId: 'early_bird' },
+  // ── Time of day ──
+  { emoji: '🦉', unlockHint: 'Night Owl achievement', achievementId: 'night_owl' },
+  { emoji: '🐦', unlockHint: 'Early Bird achievement', achievementId: 'early_bird' },
+  // ── Combat (game ref) ──
+  { emoji: '⚔️', unlockHint: '2h+ coding session', achievementId: 'code_warrior' },          // Stardew/WoW sword
+  { emoji: '🦁', unlockHint: '2h+ session', achievementId: 'marathon' },
+  { emoji: '👹', unlockHint: 'Defeat first boss', achievementId: 'first_boss_kill' },        // Terraria eye of cthulhu vibe
+  { emoji: '🗡️', unlockHint: 'Defeat 50 monsters', achievementId: 'arena_kills_50' },        // Runescape PK
+  { emoji: '🐉', unlockHint: 'Reach total level 200', achievementId: 'total_level_200' },    // WoW dragon aspect
+  // ── Skill mastery ──
+  { emoji: '🧙', unlockHint: 'All skills LVL 10+', achievementId: 'jack_of_all_trades' },   // WoW mage
+  { emoji: '🔮', unlockHint: 'All skills LVL 10+ (alt)', achievementId: 'jack_of_all_trades' },
+  { emoji: '🎨', unlockHint: 'Designer LVL 50', achievementId: 'skill_designer_50' },
+  { emoji: '🧠', unlockHint: 'Developer LVL 99', achievementId: 'skill_developer_99' },      // "Big Brain"
+  // ── Social ──
   { emoji: '🤝', unlockHint: 'Add first friend', achievementId: 'first_friend' },
   { emoji: '🌐', unlockHint: 'Have 5 friends', achievementId: 'five_friends' },
   { emoji: '🦋', unlockHint: 'Have 10 friends', achievementId: 'social_butterfly' },
-  { emoji: '🧠', unlockHint: 'Developer LVL 99', achievementId: 'skill_developer_99' },
-  { emoji: '🔮', unlockHint: 'All skills LVL 10+', achievementId: 'jack_of_all_trades' },
+]
+
+export const ADMIN_AVATARS: { emoji: string; label: string }[] = [
+  { emoji: '⚙️', label: 'Dev' },
+  { emoji: '👾', label: 'Admin' },
+  { emoji: '🛸', label: 'UFO' },
 ]
 
 type AchievementCosmeticUnlock = {
@@ -187,29 +259,37 @@ type AchievementCosmeticUnlock = {
  */
 export const ACHIEVEMENT_COSMETIC_UNLOCKS: Record<string, AchievementCosmeticUnlock> = {
   // Grind
-  first_session:       { avatarEmoji: '🚀' },
-  code_warrior:        { avatarEmoji: '⚔️' },
-  marathon:            { avatarEmoji: '🦁' },
-  ten_sessions:        { frameId: 'diamond' },
-  fifty_sessions:      { frameId: 'crown' },
+  first_session:          { avatarEmoji: '🚀' },
+  code_warrior:           { avatarEmoji: '⚔️' },
+  marathon:               { avatarEmoji: '🦁' },
+  ten_sessions:           { frameId: 'diamond', avatarEmoji: '💎' },
+  twenty_five_sessions:   { avatarEmoji: '🍄' },
+  fifty_sessions:         { frameId: 'crown', avatarEmoji: '🏆' },
+  hundred_sessions:       { avatarEmoji: '💀' },
   // Streak
-  streak_2:            { badgeId: 'fire' },
-  streak_7:            { frameId: 'ember' },
-  streak_14:           { frameId: 'blaze' },
-  streak_30:           { frameId: 'fire', avatarEmoji: '🌟' },
+  streak_2:               { badgeId: 'fire' },
+  streak_5:               { avatarEmoji: '🥷' },
+  streak_7:               { frameId: 'ember', avatarEmoji: '🫡' },
+  streak_14:              { frameId: 'blaze', avatarEmoji: '🦴' },
+  streak_21:              { frameId: 'ice', avatarEmoji: '❄️' },
+  streak_30:              { frameId: 'fire', avatarEmoji: '🌟' },
   // Special
-  night_owl:           { badgeId: 'night_owl', avatarEmoji: '🦉' },
-  early_bird:          { badgeId: 'early_bird', avatarEmoji: '🐦' },
+  night_owl:              { badgeId: 'night_owl', avatarEmoji: '🦉' },
+  early_bird:             { badgeId: 'early_bird', avatarEmoji: '🐦' },
   // Social
-  first_friend:        { avatarEmoji: '🤝' },
-  five_friends:        { avatarEmoji: '🌐' },
-  social_butterfly:    { badgeId: 'social', avatarEmoji: '🦋' },
+  first_friend:           { avatarEmoji: '🤝' },
+  five_friends:           { avatarEmoji: '🌐' },
+  social_butterfly:       { badgeId: 'social', avatarEmoji: '🦋' },
   // Skill
-  skill_developer_50:  { frameId: 'code' },
-  skill_developer_99:  { avatarEmoji: '🧠' },
-  skill_designer_50:   { frameId: 'art' },
-  polymath:            { frameId: 'star' },
-  jack_of_all_trades:  { avatarEmoji: '🔮' },
+  skill_developer_50:     { frameId: 'code' },
+  skill_developer_99:     { avatarEmoji: '🧠' },
+  skill_designer_50:      { frameId: 'art', avatarEmoji: '🎨' },
+  polymath:               { frameId: 'star' },
+  jack_of_all_trades:     { avatarEmoji: '🔮' },
+  total_level_200:        { frameId: 'void', avatarEmoji: '🐉' },
+  // Arena
+  arena_kills_50:         { frameId: 'toxic', avatarEmoji: '🗡️' },
+  first_boss_kill:        { avatarEmoji: '👹' },
 }
 
 // ─── LOCAL STORAGE HELPERS ────────────────────────────────

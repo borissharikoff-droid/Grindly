@@ -2,34 +2,49 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ITEM_POWER_BY_RARITY, POTION_IDS, POTION_MAX, estimateLootDropRate, getItemPower, getItemPerks, getItemPerkDescription, getSalvageOutput, LOOT_ITEMS, type LootItemDef } from '../../lib/loot'
+import { getFoodItemById } from '../../lib/cooking'
 import { SLOT_LABEL, LootVisual, RARITY_THEME, normalizeRarity } from '../loot/LootUI'
 import { playClickSound } from '../../lib/sounds'
 import { useInventoryStore } from '../../stores/inventoryStore'
+import { useArenaStore } from '../../stores/arenaStore'
+import { useRaidStore } from '../../stores/raidStore'
 
 interface ItemInspectModalProps {
   item: LootItemDef | null
   locked?: boolean
+  /** Hide all action buttons — for view-only contexts like Marketplace */
+  viewOnly?: boolean
+  /** Called when user clicks Sell — shows Sell button when provided */
+  onSell?: () => void
+  /** Label for the Sell button (e.g. "Sell (2)" when surplus of equipped) */
+  sellLabel?: string
   onClose: () => void
 }
 
-export function ItemInspectModal({ item, locked = false, onClose }: ItemInspectModalProps) {
+export function ItemInspectModal({ item, locked = false, viewOnly = false, onSell, sellLabel, onClose }: ItemInspectModalProps) {
   const unequipSlot = useInventoryStore((s) => s.unequipSlot)
+  const equipItem = useInventoryStore((s) => s.equipItem)
   const deleteItem = useInventoryStore((s) => s.deleteItem)
   const salvageItem = useInventoryStore((s) => s.salvageItem)
   const permanentStats = useInventoryStore((s) => s.permanentStats)
   const equippedBySlot = useInventoryStore((s) => s.equippedBySlot)
+  const inBattle = Boolean(useArenaStore((s) => s.activeBattle || s.activeDungeon))
+  const inRaid = Boolean(useRaidStore((s) => s.activeRaid?.status === 'active'))
+  const gearLocked = inBattle || inRaid
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmSalvage, setConfirmSalvage] = useState(false)
 
   if (!item) return null
 
   const isEquipped = equippedBySlot[item.slot] === item.id
+  const isEquippableGear = (['head', 'body', 'legs', 'ring', 'weapon'] as const).includes(item.slot as never)
   const rarity = normalizeRarity(item.rarity)
   const theme = RARITY_THEME[rarity]
   const ip = getItemPower(item)
   const baseWt = ITEM_POWER_BY_RARITY[item.rarity] ?? 100
   const isPlant = item.slot === 'plant'
   const isMaterial = item.slot === 'material'
+  const isFood = item.slot === 'food'
   const isPotion = (POTION_IDS as readonly string[]).includes(item.id)
   const rate = !isPotion && !isPlant && !isMaterial ? estimateLootDropRate(item.id, { source: 'skill_grind', focusCategory: 'coding' }) : null
   const consumed = isPotion
@@ -170,6 +185,10 @@ export function ItemInspectModal({ item, locked = false, onClose }: ItemInspectM
               </div>
             </div>
 
+            {item.description && (
+              <p className="text-micro text-gray-400 italic mt-1.5 leading-snug">{item.description}</p>
+            )}
+
             {/* Perk stats */}
             <div className="mt-2.5 space-y-2">
               {perkDisplays.length > 0 && (
@@ -192,7 +211,32 @@ export function ItemInspectModal({ item, locked = false, onClose }: ItemInspectM
 
               {isPlant && <p className="text-micro text-lime-400/80 font-mono">Farm harvest - sell on Marketplace</p>}
               {isMaterial && <p className="text-micro text-gray-400 font-mono">{getItemPerkDescription(item)}</p>}
-              {item.perkType === 'cosmetic' && !isMaterial && <p className="text-micro text-gray-400">Visual cosmetic - no gameplay effect.</p>}
+              {isFood && (() => {
+                const foodDef = getFoodItemById(item.id)
+                if (!foodDef) return null
+                const fx = foodDef.effect
+                const stats: { value: string; unit: string; desc: string; color: string }[] = []
+                if (fx.heal) stats.push({ value: `+${fx.heal}`, unit: 'HP', desc: 'Heal', color: '#4ade80' })
+                if (fx.buffAtk) stats.push({ value: `+${fx.buffAtk}`, unit: 'ATK', desc: 'Attack buff', color: '#f87171' })
+                if (fx.buffDef) stats.push({ value: `+${fx.buffDef}`, unit: 'DEF', desc: 'Defense buff', color: '#a3a3a3' })
+                if (fx.buffRegen) stats.push({ value: `+${fx.buffRegen}`, unit: 'HP/s', desc: 'Regen buff', color: '#22d3ee' })
+                if (fx.buffDurationSec) stats.push({ value: `${fx.buffDurationSec}s`, unit: '', desc: 'Buff duration', color: '#fbbf24' })
+                return (
+                  <div className={`grid gap-1.5 ${stats.length <= 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                    {stats.map((s, i) => (
+                      <div key={i} className="rounded px-2.5 py-2 border flex flex-col gap-0.5"
+                        style={{ borderColor: `${s.color}35`, background: `${s.color}0e` }}>
+                        <div className="flex items-baseline gap-1">
+                          <span className="font-bold font-mono tabular-nums leading-none" style={{ fontSize: stats.length <= 2 ? 18 : 14, color: s.color, textShadow: `0 0 14px ${s.color}55` }}>{s.value}</span>
+                          {s.unit && <span className="text-micro font-mono font-semibold" style={{ color: `${s.color}cc` }}>{s.unit}</span>}
+                        </div>
+                        <span className="text-micro text-gray-400 capitalize leading-none">{s.desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+              {item.perkType === 'cosmetic' && !isMaterial && !isFood && <p className="text-micro text-gray-400">Visual cosmetic - no gameplay effect.</p>}
 
               {isPotion && (
                 <div>
@@ -236,7 +280,7 @@ export function ItemInspectModal({ item, locked = false, onClose }: ItemInspectM
             </div>
 
             {/* Action buttons */}
-            <div className="mt-3 flex flex-col gap-1.5">
+            {!viewOnly && <div className="mt-3 flex flex-col gap-1.5">
               {/* Salvage confirm */}
               {confirmSalvage && canSalvage && salvageOutputs && (
                 <div className="rounded border border-amber-400/30 bg-amber-500/10 px-2.5 py-2">
@@ -268,7 +312,26 @@ export function ItemInspectModal({ item, locked = false, onClose }: ItemInspectM
               )}
 
               <div className="flex gap-1.5">
-                {isEquipped && (
+                {isEquippableGear && (
+                  <button
+                    type="button"
+                    disabled={locked || gearLocked}
+                    onClick={() => {
+                      if (locked || gearLocked) return
+                      playClickSound()
+                      if (isEquipped) unequipSlot(item.slot)
+                      else equipItem(item.id)
+                      onClose()
+                    }}
+                    className={`flex-1 text-micro py-1.5 rounded border font-semibold transition-all active:scale-[0.97] ${
+                      locked || gearLocked ? 'border-white/[0.08] text-gray-600 cursor-not-allowed bg-transparent' : 'hover:brightness-110'
+                    }`}
+                    style={locked || gearLocked ? undefined : { color: theme.color, borderColor: theme.border, backgroundColor: `${theme.color}1e` }}
+                  >
+                    {locked || gearLocked ? '⚔ Locked' : isEquipped ? 'Unequip' : 'Equip'}
+                  </button>
+                )}
+                {!isEquippableGear && isEquipped && (
                   <button
                     type="button"
                     disabled={locked}
@@ -281,7 +344,16 @@ export function ItemInspectModal({ item, locked = false, onClose }: ItemInspectM
                     {locked ? 'Locked' : 'Unequip'}
                   </button>
                 )}
-                {!locked && !confirmSalvage && (
+                {onSell && !confirmSalvage && (
+                  <button
+                    type="button"
+                    onClick={() => { playClickSound(); onSell() }}
+                    className="flex-1 text-micro py-1.5 rounded border border-amber-500/35 text-amber-300 hover:bg-amber-500/12 font-semibold transition-all active:scale-[0.97]"
+                  >
+                    {sellLabel ?? 'Sell'}
+                  </button>
+                )}
+                {!locked && !confirmSalvage && !onSell && (
                   <>
                     {canSalvage && (
                       <button
@@ -293,6 +365,10 @@ export function ItemInspectModal({ item, locked = false, onClose }: ItemInspectM
                         Salvage
                       </button>
                     )}
+                  </>
+                )}
+                {!locked && !confirmSalvage && (
+                  <>
                     {confirmDelete ? (
                       <>
                         <button
@@ -323,7 +399,7 @@ export function ItemInspectModal({ item, locked = false, onClose }: ItemInspectM
                   </>
                 )}
               </div>
-            </div>
+            </div>}
           </div>
         </motion.div>
       </motion.div>

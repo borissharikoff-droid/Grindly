@@ -4,11 +4,7 @@ import { useSessionStore } from '../../stores/sessionStore'
 import { playClickSound } from '../../lib/sounds'
 import { MOTION } from '../../lib/motion'
 
-interface SessionControlsProps {
-  glowPulse?: boolean
-}
-
-export function SessionControls({ glowPulse }: SessionControlsProps) {
+export function SessionControls() {
   const { status, elapsedSeconds, start, stop, pause, resume } = useSessionStore()
   const isRunning = status === 'running'
   const isPaused = status === 'paused'
@@ -152,9 +148,6 @@ export function SessionControls({ glowPulse }: SessionControlsProps) {
                       </>
                     )}
                   </AnimatePresence>
-                  {glowPulse && (
-                    <div className="absolute -inset-2 rounded animate-glow-pulse pointer-events-none" />
-                  )}
                   <motion.button
                     onClick={handleStartStop}
                     whileHover={MOTION.interactive.hover}

@@ -7,6 +7,8 @@ import { useCookingStore } from '../stores/cookingStore'
 import { useFarmStore } from '../stores/farmStore'
 import { useBountyStore } from '../stores/bountyStore'
 import { useWeeklyStore } from '../stores/weeklyStore'
+import { usePetStore } from '../stores/petStore'
+import { computeCurrentHunger, ADVENTURES } from '../lib/pets'
 
 export const BADGE_URGENT = 'bg-red-500'
 export const BADGE_READY = 'bg-lime-500'
@@ -20,6 +22,7 @@ export function useBadges() {
   const isCraftingActive = useCraftingStore((s) => !!s.activeJob)
   const isCookingActive = useCookingStore((s) => !!s.activeJob)
   const planted = useFarmStore((s) => s.planted)
+  const activePet = usePetStore((s) => s.activePet)
 
   const [tick, setTick] = useState(0)
   useEffect(() => {
@@ -43,6 +46,11 @@ export function useBadges() {
   })()
 
   const hasUnclaimedLoot = !!(currentAlert && !currentAlert.claimed)
+  const isPetHungry = !!activePet && computeCurrentHunger(activePet) < 25
+  const isPetAdventureComplete = !!activePet?.adventureId && !!activePet.adventureStartedAt && (() => {
+    const adv = ADVENTURES.find((a) => a.id === activePet.adventureId)
+    return adv ? Date.now() - activePet.adventureStartedAt! >= adv.durationMs : false
+  })()
 
   return {
     badgeHome: (currentAlert && !currentAlert.claimed ? 1 : 0) + queue.length,
@@ -56,5 +64,7 @@ export function useBadges() {
     isCookingActive,
     isHomeLootBadge: hasUnclaimedLoot,
     isFriendsUrgent: incomingRequestsCount > 0 || unreadMessagesCount > 0 || unreadGroupsCount > 0,
+    isPetHungry,
+    isPetAdventureComplete,
   }
 }

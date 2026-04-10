@@ -8,6 +8,7 @@ import { getFontScalePreset, setFontScale, FONT_SCALE_PRESETS, type FontScalePre
 import { MOTION } from '../../lib/motion'
 import { PageHeader } from '../shared/PageHeader'
 import { Settings as SettingsIcon } from '../../lib/icons'
+import { useNavigationStore } from '../../stores/navigationStore'
 import { InlineSuccess } from '../shared/InlineSuccess'
 
 // ─── Helpers ───────────────────────────────────────────────
@@ -22,6 +23,7 @@ function saveBool(key: string, value: boolean, syncDb = false) {
 
 // ─── Main Component ─────────────────────────────────────────
 export function SettingsPage() {
+  const navigateTo = useNavigationStore((s) => s.navigateTo)
   const { user, signOut } = useAuthStore()
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
@@ -60,7 +62,7 @@ export function SettingsPage() {
       const saved = localStorage.getItem('grindly_settings_open_sections')
       if (saved) return new Set(JSON.parse(saved) as string[])
     } catch { /* ignore */ }
-    return new Set(['links', 'general', 'notifications'])
+    return new Set(['general'])
   })
   const toggleSection = useCallback((id: string) => {
     setOpenSections((prev) => {
@@ -155,7 +157,7 @@ export function SettingsPage() {
       className="p-4 pb-2 space-y-3 overflow-y-auto"
       style={{ maxHeight: 'calc(100vh - 60px)' }}
     >
-      <PageHeader title="Settings" icon={<SettingsIcon className="w-4 h-4 text-gray-400" />} />
+      <PageHeader title="Settings" icon={<SettingsIcon className="w-4 h-4 text-gray-400" />} onBack={() => navigateTo?.('home')} />
 
       {/* ─── LINKS ──────────────────────────────────────────── */}
       <Section id="links" title="Links & Resources" icon="link" open={openSections.has('links')} onToggle={toggleSection}>
@@ -182,6 +184,12 @@ export function SettingsPage() {
           label="Patch Notes"
           sublabel="Latest updates & changelogs"
           url="https://borissharikoff-droid.github.io/Grindly-Wiki/patches.html"
+        />
+        <LinkRow
+          icon="💬"
+          label="Discord Community"
+          sublabel="Chat, feedback & multiplayer coordination"
+          url="https://discord.gg/22GsDuE6Vk"
         />
       </Section>
 

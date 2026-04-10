@@ -51,6 +51,7 @@ import { useEscapeHandler } from './hooks/useEscapeHandler'
 import { clearEscapeStack } from './lib/escapeStack'
 import { useWhatsNew, WhatsNewModal } from './components/WhatsNewModal'
 import { useRemotePatchNotes } from './hooks/useRemotePatchNotes'
+import { useTradeNotifier } from './hooks/useTradeNotifier'
 import { PartyHUD } from './components/party/PartyHUD'
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard'
 import { OnboardingTour, getTourHighlightTab } from './components/onboarding/OnboardingTour'
@@ -227,26 +228,37 @@ export default function App() {
       api.discord.update({ status: 'afk' })
       return
     }
-    // Find top skill by total XP (start + session earned), excluding warrior (arena skill)
-    let topSkillName = 'Developer'
-    let topSkillLevel = 1
-    let topXP = -1
-    for (const skill of SKILLS) {
-      if (skill.id === 'warrior') continue
-      const base = skillXPAtStart[skill.id] ?? 0
-      const earned = sessionSkillXP[skill.id] ?? 0
-      const total = base + earned
-      const level = skillLevelFromXP(total)
-      if (total > topXP) { topXP = total; topSkillName = skill.name; topSkillLevel = level }
+    // Derive current skill from the live activity (what user is doing RIGHT NOW)
+    let currentSkillName: string | undefined
+    let currentSkillIcon: string | undefined
+    let currentSkillId: string | undefined
+    let currentSkillLevel: number | undefined
+    if (currentActivity) {
+      const cats = (currentActivity.categories || [currentActivity.category])
+        .filter((c: string) => c !== 'idle' && c !== 'other')
+      if (cats.length > 0) {
+        const skill = getSkillById(categoryToSkillId(cats[0]))
+        if (skill) {
+          currentSkillName = skill.name
+          currentSkillIcon = skill.icon
+          currentSkillId = skill.id
+          const base = skillXPAtStart[skill.id] ?? 0
+          const earned = sessionSkillXP[skill.id] ?? 0
+          currentSkillLevel = skillLevelFromXP(base + earned)
+        }
+      }
     }
     api.discord.update({
       status: 'running',
-      topSkillName,
-      topSkillLevel,
+      currentSkillName,
+      currentSkillIcon,
+      currentSkillId,
+      currentSkillLevel,
+      currentAppName: currentActivity?.appName ?? undefined,
       streak: streakCount,
       startTimestamp: sessionStartTime ?? undefined,
     })
-  }, [status, sessionStartTime, skillXPAtStart, sessionSkillXP, isAfkPaused, streakCount])
+  }, [status, sessionStartTime, currentActivity, skillXPAtStart, sessionSkillXP, isAfkPaused, streakCount])
   // ─────────────────────────────────────────────────────────────────────────
 
   // ── Progressive tab disclosure: unlock advanced tabs after 3 sessions ─────
@@ -275,6 +287,7 @@ export default function App() {
   useCraftTick()                // crafting job queue — runs on all tabs
   useCookingTick()              // cooking job queue — runs on all tabs
   usePetNotifications()         // adventure complete + hunger warning notifications
+  useTradeNotifier()            // global trade offer notifications (all tabs)
   const whatsNew = useWhatsNew()
   useRemotePatchNotes(whatsNew.showRemotePatch)
   // Start tour only after WhatsNew modal and streak overlay are gone (prevents overlap)
@@ -596,7 +609,7 @@ export default function App() {
                 <motion.div key="marketplace" variants={PAGE_SLIDE} initial="initial" animate="animate">
                   <PageErrorBoundary onReset={() => navigateTo('home')}>
                     <Suspense fallback={<PageFallback />}>
-                      <MarketplacePage />
+                      <MarketplacePage onBack={() => navigateTo('home')} />
                     </Suspense>
                   </PageErrorBoundary>
                 </motion.div>
