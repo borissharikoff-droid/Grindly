@@ -209,16 +209,16 @@ export function getPetLevelImage(defId: string, level: number, mood?: PetMood): 
   const lv = Math.max(1, Math.min(10, level))
   // 'ecstatic' maps to 'idle' filename (fully-fed, calm animation)
   const moodFile = mood === 'ecstatic' ? 'idle' : mood
-  if (defId === 'pet_cat') return moodFile ? `/pets/cat_lv${lv}_${moodFile}.webp` : `/pets/cat_lv${lv}.png`
-  if (defId === 'pet_dog') return moodFile ? `/pets/dog_lv${lv}_${moodFile}.webp` : `/pets/dog_lv${lv}.png`
+  if (defId === 'pet_cat') return moodFile ? `pets/cat_lv${lv}_${moodFile}.webp` : `pets/cat_lv${lv}.png`
+  if (defId === 'pet_dog') return moodFile ? `pets/dog_lv${lv}_${moodFile}.webp` : `pets/dog_lv${lv}.png`
   return null
 }
 
 /** Returns the static PNG path for cat/dog (always exists, used as onError fallback). */
 export function getPetLevelImagePng(defId: string, level: number): string | null {
   const lv = Math.max(1, Math.min(10, level))
-  if (defId === 'pet_cat') return `/pets/cat_lv${lv}.png`
-  if (defId === 'pet_dog') return `/pets/dog_lv${lv}.png`
+  if (defId === 'pet_cat') return `pets/cat_lv${lv}.png`
+  if (defId === 'pet_dog') return `pets/dog_lv${lv}.png`
   return null
 }
 
