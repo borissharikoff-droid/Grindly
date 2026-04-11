@@ -232,8 +232,9 @@ describe('categorize', () => {
     expect(categorize('msedge', 'Reddit - Dive into anything')).toBe('social')
   })
 
-  it('categorizes browser entertainment as other', () => {
-    expect(categorize('chrome', 'Netflix - Watch TV Shows Online')).toBe('other')
+  it('categorizes browser entertainment as watching', () => {
+    expect(categorize('chrome', 'Netflix - Watch TV Shows Online')).toBe('watching')
+    expect(categorize('chrome', 'Twitch')).toBe('watching')
   })
 
   it('categorizes cloud IDE tabs as coding', () => {

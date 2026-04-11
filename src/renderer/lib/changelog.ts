@@ -24,6 +24,17 @@ export const CHANGE_TYPE_META: Record<ChangeType, { label: string; color: string
 
 export const CHANGELOG: PatchNote[] = [
   {
+    version: '4.8.1',
+    date: '2026-04-11',
+    title: 'Watching & Fixes',
+    items: [
+      { type: 'new', text: 'New "Watching" activity — Netflix, Twitch, Prime Video, and video players (VLC, MPV, PotPlayer, MPC) now award Listener XP' },
+      { type: 'new', text: 'YouTube tutorial badge — a 📚 Tutorial tag appears on the timer when you\'re watching a coding/learning tutorial on YouTube' },
+      { type: 'fix', text: 'Pet quote no longer flickers every 50ms on the session complete screen' },
+      { type: 'fix', text: 'Discord "Download Grindly" button now links to the GitHub releases page' },
+    ],
+  },
+  {
     version: '4.8.0',
     date: '2026-04-11',
     title: 'Pets',

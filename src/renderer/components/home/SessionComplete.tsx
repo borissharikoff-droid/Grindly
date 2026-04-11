@@ -245,6 +245,14 @@ export function SessionComplete({ onNavigateFriends, hasFriends }: SessionComple
     return candidates[0] ?? null
   }, [skillXPGains])
 
+  // Computed once per mount — stable across the 50ms re-render loop
+  const petQuote = useMemo(() => {
+    const activePet = usePetStore.getState().activePet
+    if (!activePet) return undefined
+    const mood = computePetMood(activePet)
+    return getPetQuote(activePet.defId, mood)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const interval = setInterval(() => {
       if (hasLootOpen) return
@@ -361,8 +369,6 @@ export function SessionComplete({ onNavigateFriends, hasFriends }: SessionComple
               const buffedSkill = effectiveSkillId === 'all'
                 ? 'all skills'
                 : (getSkillById(effectiveSkillId)?.name ?? effectiveSkillId)
-              const mood = computePetMood(activePet)
-              const quote = getPetQuote(activePet.defId, mood)
               return <PetBoostCallout
                 emoji={displayEmoji}
                 imageUrl={levelImg}
@@ -371,7 +377,7 @@ export function SessionComplete({ onNavigateFriends, hasFriends }: SessionComple
                 hunger={hunger}
                 skillLabel={buffedSkill}
                 delay={CARDS_START_MS + skillXPGains.length * CARD_STAGGER_MS + 120}
-                quote={quote}
+                quote={petQuote}
               />
             })()}
 

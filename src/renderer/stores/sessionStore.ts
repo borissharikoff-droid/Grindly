@@ -32,6 +32,8 @@ interface ActivitySnapshot {
   category: string
   /** All active categories (foreground + background, e.g. ['games', 'music']) */
   categories?: string[]
+  /** Context tag for richer routing (e.g. 'media_tutorial', 'media_player', 'browser_watching') */
+  contextTag?: string
   timestamp: number
 }
 

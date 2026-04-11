@@ -186,7 +186,7 @@ export function updateDiscordPresence(data: PresenceUpdate): void {
   }
 
   activity.buttons = [
-    { label: 'Download Grindly', url: 'https://grindly-wiki.up.railway.app/index.html' },
+    { label: 'Download Grindly', url: 'https://github.com/borissharikoff-droid/Grindly/releases/latest' },
   ]
 
   pendingActivity = activity

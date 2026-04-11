@@ -97,6 +97,8 @@ const MIGRATIONS: [string, string][] = [
   ['008_checkpoint_activities', `
     ALTER TABLE session_checkpoint ADD COLUMN session_activities TEXT;
   `],
+  // 009: no schema change — 'watching' added to ActivityCategory enum in TypeScript.
+  // SQLite has no enum constraint on activities.category; existing rows are unaffected.
 ]
 
 /**

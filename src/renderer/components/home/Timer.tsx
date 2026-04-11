@@ -15,6 +15,10 @@ export function Timer() {
   const focusModeActive = useSessionStore((s) => s.focusModeActive)
   const focusModeEndsAt = useSessionStore((s) => s.focusModeEndsAt)
   const streakMultiplier = useSessionStore((s) => s.streakMultiplier)
+  const currentActivity = useSessionStore((s) => s.currentActivity)
+  const isTutorial = status === 'running'
+    && currentActivity?.contextTag === 'media_tutorial'
+    && currentActivity?.category === 'learning'
   const focusRemainingSeconds = focusModeActive && focusModeEndsAt
     ? Math.max(0, Math.ceil((focusModeEndsAt - Date.now()) / 1000))
     : 0
@@ -62,6 +66,21 @@ export function Timer() {
           >
             <span className="text-xs font-bold tracking-wider px-3 py-1 rounded-full bg-accent/15 text-accent border border-accent/30">
               FOCUS {formatTime(focusRemainingSeconds)}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {isTutorial && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
+            className="mt-2 flex justify-center"
+          >
+            <span className="text-xs font-bold tracking-wider px-3 py-1 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30">
+              📚 Tutorial
             </span>
           </motion.div>
         )}

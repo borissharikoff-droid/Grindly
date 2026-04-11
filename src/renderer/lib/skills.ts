@@ -88,10 +88,13 @@ const SKILLS_SKIP_APPNAME = new Set(['researcher', 'farmer', 'warrior', 'crafter
  * Returns the formatted activity line shown below the skill status:
  *   e.g. "Playing World of Warcraft", "Coding in VS Code", "Browsing"
  * Pass `appName = null` or the actual app display name.
+ * Pass `category` to distinguish "Watching Netflix" from "Listening to Spotify"
+ * when both map to the listener skill.
  */
-export function getSkillActivityLine(skillId: string | null | undefined, appName: string | null): string {
+export function getSkillActivityLine(skillId: string | null | undefined, appName: string | null, category?: string): string {
   const id = skillId ?? ''
-  const verb = SKILL_ACTIVITY_VERB[id] ?? 'Using'
+  // When the underlying category is `watching`, use "Watching" regardless of skill verb
+  const verb = (id === 'listener' && category === 'watching') ? 'Watching' : (SKILL_ACTIVITY_VERB[id] ?? 'Using')
   if (!appName || SKILLS_SKIP_APPNAME.has(id)) return verb
   return `${verb} ${appName}`
 }
@@ -106,6 +109,7 @@ const CATEGORY_TO_SKILL: Record<string, string> = {
   creative: 'creator',
   learning: 'learner',
   music: 'listener',
+  watching: 'listener',
   farming: 'farmer',
   warrior:  'warrior',
   crafting: 'crafter',

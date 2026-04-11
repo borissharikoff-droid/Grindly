@@ -516,7 +516,7 @@ function stopWindowDetector(): void {
 
 // ── Activity types ──
 /** 'idle' = desktop/explorer or unknown window — does not give XP. */
-export type ActivityCategory = 'coding' | 'design' | 'games' | 'social' | 'browsing' | 'creative' | 'learning' | 'music' | 'grindly' | 'other' | 'idle'
+export type ActivityCategory = 'coding' | 'design' | 'games' | 'social' | 'browsing' | 'creative' | 'learning' | 'music' | 'watching' | 'grindly' | 'other' | 'idle'
 
 export interface ActivitySnapshot {
   appName: string
@@ -567,6 +567,12 @@ function emitIdle(idle: boolean) {
 }
 
 const MUSIC_TITLE = /youtube\s*music|music\.youtube|яндекс\s*музык|music\.yandex|music\.yandex\.ru|yandex\s*music|spotify|soundcloud|deezer|apple\s*music|amazon\s*music|vk\s*music|vkmusic| — spotify| - spotify/i
+
+/**
+ * Dedicated media player apps that should map to `watching` (Listener XP).
+ * These are apps whose sole purpose is playing video files — not browsers.
+ */
+const MEDIA_APPS = /^(vlc|vlcmediaplayer|mpv|potplayer|potplayermini|potplayermini64|mpc-hc|mpc-hc64|mpc-be|mpc-be64|kmplayer|gomplayer|bsplayer|windowsmediaplayer|wmplayer|wmp)$/i
 
 /**
  * Known game process names (lowercase, .exe stripped, spaces stripped).
@@ -672,15 +678,20 @@ function classifyBrowserContext(lowerTitle: string): ClassificationResult {
   const isDocReading = isPdf || DOC_READING_TITLE.test(lowerTitle)
 
   // Priority order keeps signal deterministic and easier to reason about.
+  const isYouTube = /youtube\.com|youtu\.be/i.test(lowerTitle)
+
   if (isMusic && isDocReading) return { categories: ['music', 'learning'], contextTag: 'browser_music_learning', confidence: 0.9 }
   if (isDocReading) return { categories: ['learning'], contextTag: 'browser_docs_learning', confidence: 0.92 }
   if (isCoding) return { categories: ['coding'], contextTag: 'browser_coding', confidence: 0.95 }
   if (isDesign) return { categories: ['design'], contextTag: 'browser_design', confidence: 0.93 }
   if (isMusic && isLearning) return { categories: ['music', 'learning'], contextTag: 'browser_music_learning', confidence: 0.9 }
   if (isMusic) return { categories: ['music'], contextTag: 'browser_music', confidence: 0.95 }
+  // YouTube tutorials: title matches learning keywords → Learner XP
+  if (isEntertainment && isYouTube && isLearning) return { categories: ['learning'], contextTag: 'media_tutorial', confidence: 0.88 }
   if (isLearning) return { categories: ['learning'], contextTag: 'browser_learning', confidence: 0.9 }
   if (isSocial) return { categories: ['social'], contextTag: 'browser_social', confidence: 0.9 }
-  if (isEntertainment) return { categories: ['other'], contextTag: 'browser_entertainment', confidence: 0.82 }
+  // Entertainment (Netflix, Twitch, Prime, etc.) → watching → Listener XP
+  if (isEntertainment) return { categories: ['watching'], contextTag: 'browser_watching', confidence: 0.85 }
   return { categories: ['browsing'], contextTag: 'browser_research', confidence: 0.7 }
 }
 
@@ -724,6 +735,9 @@ export function categorizeDetailed(appName: string, windowTitle: string): Classi
   if (/^(ableton|flstudio|fl_studio|reaper|logic|audacity|premiere|davinci|resolve|obs|obs64|blender|afterfx|vegas|cinema4d|capcut|filmora|kdenlive|handbrake|lightroom|darktable|captureone|rawtherapee)$/i.test(lowerApp) || /premiere|davinci|blender|after effects|capcut|filmora|lightroom/i.test(lowerTitle)) return { categories: ['creative'], contextTag: 'creative_suite', confidence: 0.95 }
   if (/^(notion|obsidian|anki|sumatrapdf|acrobat|acrord32|foxit|foxitreader|kindle|evernote|onenote|logseq|zotero|calibre|remnote|joplin|bear|roamresearch)$/i.test(lowerApp) || /\.pdf\b|notion|obsidian|anki|logseq|zotero/i.test(lowerTitle)) return { categories: ['learning'], contextTag: 'learning_tools', confidence: 0.92 }
   if (/^(spotify|music|soundcloud|itunes|tidal|yandexmusic|deezer|wmplayer|vkmusic)$/i.test(lowerApp) || MUSIC_TITLE.test(lowerTitle)) return { categories: ['music'], contextTag: 'music_tools', confidence: 0.96 }
+  // Dedicated video players → watching (Listener XP)
+  const lowerAppNospace = lowerApp.replace(/\s+/g, '')
+  if (MEDIA_APPS.test(lowerAppNospace)) return { categories: ['watching'], contextTag: 'media_player', confidence: 0.93 }
   // Game detection: strip UE4/UE5 build suffixes before process name check, then fall back to window title
   const cleanForGame = lowerApp.replace(/\s+/g, '').replace(/(-win64-shipping|-win32-shipping|-win64|-win32|-dx12|-dx11)$/, '')
   if (GAME_APPS.test(cleanForGame) || GAME_TITLE.test(lowerTitle)) return { categories: ['games'], contextTag: 'games_tools', confidence: 0.96 }
@@ -764,6 +778,18 @@ function getAppDisplayName(appName: string): string {
     notion: 'Notion',
     figma: 'Figma',
     obsidian: 'Obsidian',
+    vlc: 'VLC',
+    vlcmediaplayer: 'VLC',
+    mpv: 'mpv',
+    potplayer: 'PotPlayer',
+    potplayermini: 'PotPlayer',
+    potplayermini64: 'PotPlayer',
+    'mpc-hc': 'MPC-HC',
+    'mpc-hc64': 'MPC-HC',
+    'mpc-be': 'MPC-BE',
+    'mpc-be64': 'MPC-BE',
+    kmplayer: 'KMPlayer',
+    gomplayer: 'GOM Player',
     dota2: 'Dota 2',
     cs2: 'Counter-Strike 2',
     csgo: 'CS:GO',
