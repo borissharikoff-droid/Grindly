@@ -113,13 +113,17 @@ const SKILL_MILESTONES: Record<string, Milestone[]> = {
 function PrestigeBadge({ skillId, color, level }: { skillId: string; color: string; level: number }) {
   const prestige = getPrestigeCount(skillId)
   const tier = getPrestigeTier(skillId)
-  const borderCol = tier ? tier.borderColor : `${color}20`
-  const bgCol = tier ? `${tier.borderColor}10` : `${color}10`
+  const borderCol = tier ? tier.borderColor : `${color}40`
+  const bgCol = tier ? `${tier.borderColor}10` : `${color}12`
   return (
     <div className="shrink-0 text-center ml-1">
       <div
         className="w-11 h-11 rounded flex flex-col items-center justify-center relative"
-        style={{ backgroundColor: bgCol, border: `1.5px solid ${borderCol}` }}
+        style={{
+          backgroundColor: bgCol,
+          border: `1.5px solid ${borderCol}`,
+          boxShadow: `0 0 8px ${color}25`,
+        }}
       >
         <span className="text-micro text-gray-500 font-mono leading-none">LVL</span>
         <span className="text-base font-mono font-bold leading-tight" style={{ color }}>{level}</span>
@@ -543,14 +547,23 @@ export function SkillsPage({ initialTab }: { initialTab?: 'overview' | 'history'
           onClick={() => handleToggleExpand(skill.id)}
           className={`w-full rounded border transition-all duration-200 text-left relative group ${
             isLeveling
-              ? 'bg-surface-2 border-accent/40 shadow-[0_0_20px_rgba(88,101,242,0.08)]'
+              ? 'border-white/[0.10] hover:border-white/[0.14]'
               : 'bg-surface-2/80 border-white/[0.06] hover:border-white/10'
           }`}
-          style={{ overflow: 'clip' }}
+          style={{
+            overflow: 'clip',
+            backgroundColor: isLeveling ? `${skill.color}0d` : undefined,
+            boxShadow: isLeveling ? `0 0 18px ${skill.color}20, inset 0 0 0 1px ${skill.color}25` : undefined,
+          }}
         >
           <div
-            className="absolute left-0 top-0 bottom-0 w-1 rounded-l"
-            style={{ backgroundColor: skill.color, opacity: level > 1 ? 0.8 : 0.2 }}
+            className="absolute left-0 top-0 bottom-0 rounded-l"
+            style={{
+              width: 3,
+              backgroundColor: skill.color,
+              opacity: level > 1 ? 0.9 : 0.25,
+              boxShadow: level > 1 ? `2px 0 8px ${skill.color}50` : undefined,
+            }}
           />
 
           <div className="pl-4 pr-3 py-3 flex items-center gap-3 relative">
@@ -583,7 +596,7 @@ export function SkillsPage({ initialTab }: { initialTab?: 'overview' | 'history'
                 <div className="h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"
-                    style={{ backgroundColor: skill.color }}
+                    style={{ background: `linear-gradient(90deg, ${skill.color}cc, ${skill.color}88)` }}
                     animate={{ width: `${pct}%` }}
                     transition={{ duration: 0.7, ease: 'easeOut' }}
                   />
@@ -599,7 +612,7 @@ export function SkillsPage({ initialTab }: { initialTab?: 'overview' | 'history'
               </div>
               <div className="flex items-center justify-between mt-1">
                 <span className="text-micro text-gray-500 font-mono">{formatXP(current)} / {formatXP(needed)} XP</span>
-                <span className="text-micro text-gray-600 font-mono">
+                <span className="text-micro font-mono opacity-60" style={{ color: skill.color }}>
                   {PRODUCTION_SKILL_IDS.has(skill.id) ? `${formatXP(xp)} XP` : `${timeStr} ${skillVerb(skill.category)}`}
                 </span>
               </div>
