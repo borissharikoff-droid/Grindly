@@ -51,6 +51,7 @@ const SKILL_VERB: Record<string, string> = {
   creative: 'created',
   learning: 'studied',
   music: 'listened',
+  watching: 'listened',
 }
 
 function skillVerb(category: string): string {
@@ -252,9 +253,9 @@ function XpTicker({ amount, color, tickKey }: { amount: number; color: string; t
     <motion.span
       key={tickKey}
       initial={{ opacity: 1, y: 0 }}
-      animate={{ opacity: 0, y: -18 }}
-      transition={{ duration: 1.8, ease: 'easeOut' }}
-      className="absolute -top-1 right-12 text-micro font-mono font-bold pointer-events-none"
+      animate={{ opacity: 0, y: -14 }}
+      transition={{ duration: 1.6, ease: 'easeOut' }}
+      className="absolute top-2 right-12 text-micro font-mono font-bold pointer-events-none z-10"
       style={{ color }}
     >
       +{amount} XP
@@ -540,11 +541,12 @@ export function SkillsPage({ initialTab }: { initialTab?: 'overview' | 'history'
         <button
           type="button"
           onClick={() => handleToggleExpand(skill.id)}
-          className={`w-full rounded border transition-all duration-200 text-left relative overflow-hidden group ${
+          className={`w-full rounded border transition-all duration-200 text-left relative group ${
             isLeveling
               ? 'bg-surface-2 border-accent/40 shadow-[0_0_20px_rgba(88,101,242,0.08)]'
               : 'bg-surface-2/80 border-white/[0.06] hover:border-white/10'
           }`}
+          style={{ overflow: 'clip' }}
         >
           <div
             className="absolute left-0 top-0 bottom-0 w-1 rounded-l"
