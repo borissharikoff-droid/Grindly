@@ -268,13 +268,11 @@ function XpTicker({ amount, color, tickKey }: { amount: number; color: string; t
 }
 
 /** Section header divider between skill groups. */
-function SectionHeader({ label, icon }: { label: string; icon: string }) {
+function SectionHeader({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-2 mb-2.5 mt-1">
+    <div className="flex items-center gap-3 mb-2.5 mt-1">
       <div className="flex-1 h-px bg-white/[0.06]" />
-      <span className="text-micro font-mono text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-        <span className="text-xs">{icon}</span> {label}
-      </span>
+      <span className="text-micro font-mono text-gray-600 uppercase tracking-widest">{label}</span>
       <div className="flex-1 h-px bg-white/[0.06]" />
     </div>
   )
@@ -593,10 +591,10 @@ export function SkillsPage({ initialTab }: { initialTab?: 'overview' | 'history'
               </div>
               {/* XP bar */}
               <div className="relative">
-                <div className="h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
+                <div className="h-2 rounded-full bg-white/[0.04] overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"
-                    style={{ background: `linear-gradient(90deg, ${skill.color}cc, ${skill.color}88)` }}
+                    style={{ background: `linear-gradient(90deg, ${skill.color}cc, ${skill.color}88)`, minWidth: 3 }}
                     animate={{ width: `${pct}%` }}
                     transition={{ duration: 0.7, ease: 'easeOut' }}
                   />
@@ -755,7 +753,7 @@ export function SkillsPage({ initialTab }: { initialTab?: 'overview' | 'history'
       {/* Activity Skills section */}
       {activitySkillsFiltered.length > 0 && (
         <>
-          <SectionHeader label="Activity Skills" icon="📊" />
+          <SectionHeader label="Activity Skills" />
           <div className="space-y-2.5 mb-4">
             {activitySkillsFiltered.map((skill, i) => renderSkillCard(skill, i, false))}
           </div>
@@ -765,7 +763,7 @@ export function SkillsPage({ initialTab }: { initialTab?: 'overview' | 'history'
       {/* Production Skills section */}
       {productionSkillsFiltered.length > 0 && (
         <>
-          <SectionHeader label="Production Skills" icon="⚒️" />
+          <SectionHeader label="Production Skills" />
           <div className="space-y-2.5">
             {productionSkillsFiltered.map((skill, i) => renderSkillCard(skill, i, false))}
           </div>
