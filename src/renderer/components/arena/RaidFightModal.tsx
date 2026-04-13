@@ -76,10 +76,6 @@ export function RaidFightModal({ tier, onClose, onComplete }: Props) {
           const won = state.victory === true && next < MAX_FIGHT_SECONDS
           setVictory(won)
           setPhase('result')
-          // Consume food from inventory
-          for (const slot of activeFood) {
-            deleteItem(slot.foodId, 1)
-          }
         }
         return next
       })
@@ -110,6 +106,11 @@ export function RaidFightModal({ tier, onClose, onComplete }: Props) {
   const bossHpPct = Math.max(0, (state.bossHp / boss.hp) * 100)
 
   const handleResult = () => {
+    // Consume food only when player confirms the result — not during simulation.
+    // Reduces the window where food is lost without the raid damage being recorded.
+    for (const slot of activeFood) {
+      deleteItem(slot.foodId, 1)
+    }
     const contribution = victory ? RAID_TIER_CONFIGS[tier].contribution_per_win : 0
     onComplete(contribution, victory)
   }

@@ -4,7 +4,7 @@ import {
   fetchPendingInvites, sendGuildInvite, respondToInvite as apiRespondToInvite,
   setGuildTaxRate,
   createGuild as apiCreateGuild, joinGuild as apiJoinGuild,
-  leaveGuild as apiLeaveGuild, depositGold as apiDepositGold, joinGuild,
+  leaveGuild as apiLeaveGuild, depositGold as apiDepositGold,
   kickMember as apiKickMember, promoteMember as apiPromoteMember, demoteMember as apiDemoteMember,
   fetchHallContributions, donateToHall as apiDonateToHall,
   startHallBuild as apiStartHallBuild, completeHallUpgrade as apiCompleteHallUpgrade,
@@ -186,7 +186,7 @@ export const useGuildStore = create<GuildState>()((set, get) => ({
       set((s) => ({ pendingInvites: s.pendingInvites.filter((i) => i.id !== inviteId) }))
       if (response === 'accepted' && invite) {
         track('guild_join', {})
-        await joinGuild(user.id, invite.guild_id)
+        await apiJoinGuild(user.id, invite.guild_id)
         await get().fetchMyGuild()
       }
     }

@@ -41,8 +41,7 @@ const SLOT_SORT_ORDER: Record<string, number> = {
 
 const FILTERS = [
   { id: 'all',       label: 'All',       icon: '🎒' },
-  { id: 'weapons',   label: 'Weapons',   icon: '⚔️' },
-  { id: 'combat',    label: 'Combat',    icon: '🛡️' },
+  { id: 'gear',      label: 'Gear',      icon: '⚔️' },
   { id: 'xp',        label: 'XP',        icon: '📈' },
   { id: 'drops',     label: 'Drops',     icon: '🎁' },
   { id: 'potions',   label: 'Potions',   icon: '⚗️' },
@@ -50,8 +49,7 @@ const FILTERS = [
   { id: 'resources', label: 'Resources', icon: '🪨' },
   { id: 'chests',    label: 'Bags',      icon: '📦' },
   { id: 'cosmetic',  label: 'Cosmetic',  icon: '✨' },
-  { id: 'plants',    label: 'Plants',    icon: '🌿' },
-  { id: 'seeds',     label: 'Seeds',     icon: '🌱' },
+  { id: 'garden',    label: 'Garden',    icon: '🌿' },
 ] as const
 
 function getSlotRarity(slot: SlotEntry): string {
@@ -63,20 +61,19 @@ function getSlotRarity(slot: SlotEntry): string {
 
 function slotMatchesFilter(slot: SlotEntry, fid: string): boolean {
   if (fid === 'all') return true
-  if (fid === 'seeds') return slot.kind === 'seed'
+  if (fid === 'garden') return slot.kind === 'seed' || (slot.kind === 'item' && !!LOOT_ITEMS.find((x) => x.id === slot.itemId && x.slot === 'plant'))
   if (fid === 'chests') return slot.kind === 'chest' || slot.kind === 'pending'
   if (slot.kind !== 'item') return false
   const item = LOOT_ITEMS.find((x) => x.id === slot.itemId)
   if (!item) return false
-  if (fid === 'food')     return item.slot === 'food'
-  if (fid === 'weapons')  return item.slot === 'weapon'
-  if (fid === 'combat')   return ['atk_boost', 'hp_boost', 'hp_regen_boost'].includes(item.perkType as string)
-  if (fid === 'xp')       return ['xp_skill_boost', 'xp_global_boost', 'focus_boost'].includes(item.perkType as string)
-  if (fid === 'drops')    return (item.perkType as string) === 'chest_drop_boost'
+  if (fid === 'food')      return item.slot === 'food'
+  if (fid === 'gear')      return item.slot === 'weapon' || ['atk_boost', 'hp_boost', 'hp_regen_boost'].includes(item.perkType as string)
+  if (fid === 'xp')        return ['xp_skill_boost', 'xp_global_boost', 'focus_boost'].includes(item.perkType as string)
+  if (fid === 'drops')     return (item.perkType as string) === 'chest_drop_boost'
   if (fid === 'potions')   return item.slot === 'consumable'
   if (fid === 'resources') return item.slot === 'material'
   if (fid === 'cosmetic')  return ['cosmetic', 'status_title', 'streak_shield'].includes(item.perkType as string) && item.slot !== 'material'
-  if (fid === 'plants')    return item.slot === 'plant'
+  if (fid === 'garden')    return item.slot === 'plant'
   return true
 }
 
@@ -105,9 +102,14 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
   const [viewMode, setViewModeRaw] = useState<'list' | 'grid' | 'compact'>(() => {
     try { return (localStorage.getItem('inv_viewMode') as 'list' | 'grid' | 'compact') || 'grid' } catch { return 'grid' }
   })
-  type FilterById = 'all' | 'combat' | 'weapons' | 'xp' | 'drops' | 'potions' | 'food' | 'resources' | 'chests' | 'cosmetic' | 'plants' | 'seeds'
+  type FilterById = 'all' | 'gear' | 'xp' | 'drops' | 'potions' | 'food' | 'resources' | 'chests' | 'cosmetic' | 'garden'
   const [filterBy, setFilterByRaw] = useState<FilterById>(() => {
-    try { return (localStorage.getItem('inv_filterBy') as FilterById) || 'all' } catch { return 'all' }
+    try {
+      const saved = localStorage.getItem('inv_filterBy') as string
+      if (saved === 'weapons' || saved === 'combat') return 'gear'
+      if (saved === 'plants' || saved === 'seeds') return 'garden'
+      return (saved as FilterById) || 'all'
+    } catch { return 'all' }
   })
   const setSortBy = (v: typeof sortBy) => { setSortByRaw(v); try { localStorage.setItem('inv_sortBy', v) } catch {} }
   const setViewMode = (v: typeof viewMode) => { setViewModeRaw(v); try { localStorage.setItem('inv_viewMode', v) } catch {} }

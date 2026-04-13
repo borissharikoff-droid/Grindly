@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useSessionStore } from '../../stores/sessionStore'
 import { MOTION } from '../../lib/motion'
+import { getSkillActivityLine, getSkillById, categoryToSkillId } from '../../lib/skills'
 
 function formatTime(seconds: number): string {
   const h = Math.floor(seconds / 3600)
@@ -19,6 +20,16 @@ export function Timer() {
   const isTutorial = status === 'running'
     && currentActivity?.contextTag === 'media_tutorial'
     && currentActivity?.category === 'learning'
+
+  const nowPlayingText = (() => {
+    if (status !== 'running' || !currentActivity || isTutorial) return null
+    const cat = currentActivity.category
+    if (cat !== 'watching' && cat !== 'music') return null
+    const skillId = categoryToSkillId(cat)
+    const skillDef = getSkillById(skillId)
+    const line = getSkillActivityLine(skillId, currentActivity.appName, cat)
+    return `${skillDef?.icon ?? '🎵'} ${line}`
+  })()
   const focusRemainingSeconds = focusModeActive && focusModeEndsAt
     ? Math.max(0, Math.ceil((focusModeEndsAt - Date.now()) / 1000))
     : 0
@@ -66,6 +77,21 @@ export function Timer() {
           >
             <span className="text-xs font-bold tracking-wider px-3 py-1 rounded-full bg-accent/15 text-accent border border-accent/30">
               FOCUS {formatTime(focusRemainingSeconds)}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {nowPlayingText && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
+            className="mt-2 flex justify-center"
+          >
+            <span className="text-xs font-bold tracking-wider px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              {nowPlayingText}
             </span>
           </motion.div>
         )}

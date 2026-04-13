@@ -15,15 +15,6 @@ All current todos completed. Add new items here as they come up.
 **Effort:** L (human) / M (CC+gstack)
 **Depends on:** Cat+dog animated WebP pipeline shipped
 
-### [P3] Friend list pet mood badge
-**What:** Show a pulsing mood-color ring on friend avatars (FriendsPage, FriendProfile) reflecting their pet's current computed mood.
-**Why:** Adds social depth — you can see your friend's void cat is hungry or their dog is playful. MOOD_COLOR is already defined, the mood can be computed from `hungerSnapshot + lastFedAt` which are already stored.
-**Pros:** Social engagement, encourages feeding pets, visual variety on friend list.
-**Cons:** Requires surfacing `hungerSnapshot + lastFedAt` in the public Supabase profiles table (or a new `pet_mood_color` column synced on feed events).
-**How to start:** Add Supabase migration to expose pet hunger data on profiles. Add `usePetMoodColor(friendId)` hook. Render `<motion.div>` ring in FriendAvatar component.
-**Effort:** M (human) / S (CC+gstack)
-**Depends on:** Pet animated portraits shipped
-
 ---
 
 ## macOS
@@ -46,15 +37,6 @@ All current todos completed. Add new items here as they come up.
 ---
 
 ## Smart Media Layer (Activity Tracking v2)
-
-### [P2] Now Playing live card in UI
-**What:** A compact "Now Playing" card visible during an active session — shows current media context (e.g., "Watching Netflix", "Listening to Spotify") with the category icon and Listener XP accruing in real time.
-**Why:** The data model will be rich enough to support it once the Smart Media Layer ships. The card closes the feedback loop for users — they can see their watch/listen time being credited as it happens.
-**Pros:** Visible payoff for the Smart Media Layer feature. Encourages intentional media habits.
-**Cons:** Needs `watching` category shipped first (Smart Media Layer v1). UI placement TBD (Timer area or a slide-in panel).
-**How to start:** After Smart Media Layer ships, extend `ActivitySnapshot` display in `Timer.tsx` or add a `NowPlayingCard` component that reads `currentActivity.category + appName` from sessionStore.
-**Effort:** S (human) / S (CC+gstack)
-**Depends on:** Smart Media Layer v1 shipped
 
 ### [P3] Background video detection via Win32 window scan
 **What:** Detect media players running in the background (not the foreground window). Extend the C# `MusicProcessNames` list to a `MediaProcessNames` list that includes VLC, mpv, PotPlayer, MPC-HC, etc. Use the existing background window scan path that `DetectBackgroundMusic` already uses.

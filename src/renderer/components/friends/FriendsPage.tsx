@@ -30,7 +30,7 @@ import type { FriendProfile as FriendProfileType, FriendsModel } from '../../hoo
 import { syncSkillsToSupabase } from '../../services/supabaseSync'
 import { useSkillSyncStore } from '../../stores/skillSyncStore'
 import { PageHeader } from '../shared/PageHeader'
-import { Users, Plus, UserPlus, Sword, Trophy, Shield, MoreHorizontal } from '../../lib/icons'
+import { Users, Plus, UserPlus, Sword, Trophy, Shield } from '../../lib/icons'
 import { BackButton } from '../shared/BackButton'
 import { ErrorState } from '../shared/ErrorState'
 import { EmptyState } from '../shared/EmptyState'
@@ -485,7 +485,6 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
   const [showParty, setShowParty] = useState(false)
   const [showAddFriend, setShowAddFriend] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
-  const [showMoreDropdown, setShowMoreDropdown] = useState(false)
 
   const setTab = useCallback((tab: SocialTab) => {
     setSocialTab(tab)
@@ -889,46 +888,28 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
             icon={<Users className="w-4 h-4 text-indigo-400" />}
             rightSlot={(
               <div className="flex items-center gap-1">
-                {/* ··· dropdown: Party / Leaderboard / Guild */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => { setShowMoreDropdown((v) => !v); setShowDropdown(false) }}
+                {/* Party / Leaderboard / Guild — visible icon buttons */}
+                {[
+                  { icon: <Sword className="w-3.5 h-3.5" />,  active: showParty,        color: 'text-violet-400', activeBg: 'bg-violet-500/15 border-violet-500/30',  onClick: () => { setShowParty((v) => !v); setShowLeaderboard(false); setShowGuild(false); setShowAddFriend(false) } },
+                  { icon: <Trophy className="w-3.5 h-3.5" />, active: showLeaderboard,  color: 'text-amber-400',  activeBg: 'bg-amber-500/15 border-amber-500/30',    onClick: () => { setShowLeaderboard((v) => !v); setShowParty(false); setShowGuild(false); setShowAddFriend(false) } },
+                  { icon: <Shield className="w-3.5 h-3.5" />, active: showGuild,        color: 'text-yellow-400', activeBg: 'bg-yellow-500/15 border-yellow-500/30',  onClick: () => { setShowGuild((v) => !v); setShowLeaderboard(false); setShowParty(false); setShowAddFriend(false) } },
+                ].map((btn, i) => (
+                  <button key={i} type="button" onClick={btn.onClick}
                     className={`w-7 h-7 rounded-full flex items-center justify-center border transition-colors ${
-                      showMoreDropdown
-                        ? 'bg-white/10 border-white/20 text-white'
+                      btn.active
+                        ? `${btn.activeBg} ${btn.color}`
                         : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300 hover:border-white/20'
                     }`}
                   >
-                    <MoreHorizontal className="w-3.5 h-3.5" />
+                    {btn.icon}
                   </button>
-                  {showMoreDropdown && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setShowMoreDropdown(false)} />
-                      <div className="absolute right-0 top-full mt-2 z-20 w-40 rounded-card bg-surface-1 border border-white/[0.08] shadow-2xl overflow-hidden">
-                        {[
-                          { icon: <Sword className="w-3.5 h-3.5" />,  label: 'Party',       color: 'text-violet-400', onClick: () => { setShowParty(true); setShowLeaderboard(false); setShowGuild(false); setShowAddFriend(false) } },
-                          { icon: <Trophy className="w-3.5 h-3.5" />, label: 'Leaderboard', color: 'text-amber-400',  onClick: () => { setShowLeaderboard(true); setShowParty(false); setShowGuild(false); setShowAddFriend(false) } },
-                          { icon: <Shield className="w-3.5 h-3.5" />, label: 'Guild',       color: 'text-yellow-400', onClick: () => { setShowGuild(true); setShowLeaderboard(false); setShowParty(false); setShowAddFriend(false) } },
-                        ].map((item) => (
-                          <button key={item.label} type="button"
-                            onClick={() => { item.onClick(); setShowMoreDropdown(false) }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-white/5 transition-colors"
-                          >
-                            <span className={item.color}>{item.icon}</span>
-                            <span className="text-xs text-gray-200">{item.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
+                ))}
 
                 {/* + dropdown: Add Friend / New Group */}
                 <div className="relative">
                   <button
                     type="button"
-                    onClick={() => { setShowDropdown((v) => !v); setShowMoreDropdown(false) }}
+                    onClick={() => { setShowDropdown((v) => !v) }}
                     className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all ${
                       showDropdown
                         ? 'bg-accent/20 border-accent/40 text-accent'
