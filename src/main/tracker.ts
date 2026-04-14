@@ -516,7 +516,7 @@ function stopWindowDetector(): void {
 
 // ── Activity types ──
 /** 'idle' = desktop/explorer or unknown window — does not give XP. */
-export type ActivityCategory = 'coding' | 'design' | 'games' | 'social' | 'browsing' | 'creative' | 'learning' | 'music' | 'watching' | 'grindly' | 'other' | 'idle'
+export type ActivityCategory = 'coding' | 'design' | 'games' | 'social' | 'browsing' | 'creative' | 'learning' | 'music' | 'watching' | 'grindly' | 'ai' | 'other' | 'idle'
 
 export interface ActivitySnapshot {
   appName: string
@@ -647,11 +647,13 @@ const GAME_APPS = new RegExp('^(' + [
  */
 const GAME_TITLE = /world\s+of\s+warcraft|path\s+of\s+exile|elden\s+ring|cyberpunk\s*2077|baldur.s\s+gate|counter.strike|the\s+witcher|destiny\s+2|final\s+fantasy\s+xiv|grand\s+theft\s+auto|red\s+dead\s+redemption|apex\s+legends|escape\s+from\s+tarkov|rainbow\s+six|rocket\s+league|warframe|lost\s+ark|new\s+world|elder\s+scrolls\s+online|guild\s+wars|black\s+desert|old\s+school\s+runescape|runescape|deep\s+rock\s+galactic|hunt:\s*showdown|dead\s+by\s+daylight|stardew\s+valley|hollow\s+knight|terraria|risk\s+of\s+rain|monster\s+hunter|fallout\s+\d|the\s+elder\s+scrolls|war\s+thunder|palworld|league\s+of\s+legends|hearthstone|valheim|satisfactory|factorio|subnautica|no\s+man.s\s+sky|star\s+wars\s+jedi|starcraft|diablo|genshin\s+impact|honkai|wuthering\s+waves|black\s+myth|hogwarts\s+legacy/i
 const LEARNING_TITLE = /подкаст|podcast|лекци|lecture|курс|course|урок|lesson|lessons|tutorial|tutorials|guide|training|udemy|stepik|edx|coursera|khan\s*academy|обучение|learning|теория|книга|читаю|reading\s+\w|chapter\s+\d/i
-const CODING_TITLE = /claude(\s+code)?|claude\.ai|code\.claude\.ai|github|gitlab|bitbucket|stack\s*overflow|leetcode|codeforces|hackerrank|codesandbox|replit|vscode\.dev|codepen|pull request|merge request|api reference|developer docs|typescript docs|mdn web docs|postman|insomnia|swagger|openapi|rest\s*client/i
+const CODING_TITLE = /github|gitlab|bitbucket|stack\s*overflow|leetcode|codeforces|hackerrank|codesandbox|replit|vscode\.dev|codepen|pull request|merge request|api reference|developer docs|typescript docs|mdn web docs|postman|insomnia|swagger|openapi|rest\s*client/i
+const AI_TITLE = /claude(\s+code)?|claude\.ai|code\.claude\.ai|chatgpt|chat\.openai|perplexity\s*ai|gemini\s*ai|microsoft\s*copilot|github\s*copilot\s*chat/i
 const DESIGN_TITLE = /figma|canva|dribbble|behance|mockup|prototype|wireframe|ui kit|design system|lightroom|photoshop|illustrator/i
 const SOCIAL_TITLE = /twitter|x\.com|reddit|facebook|instagram|linkedin|discord web|messenger|telegram\s*web|zoom meeting|google meet|teams meeting|skype call/i
 const ENTERTAINMENT_TITLE = /netflix|twitch|prime video|hbo max|disney\+|youtube(?!\s*music)/i
-const BROWSER_HOST_CODING = /github\.dev|vscode\.dev|codesandbox|stackblitz|replit|codespace|codepen|claude\.ai|code\.claude\.ai|app\.postman\.co|insomnia\.rest|swagger\.io|hoppscotch\.io/i
+const BROWSER_HOST_CODING = /github\.dev|vscode\.dev|codesandbox|stackblitz|replit|codespace|codepen|app\.postman\.co|insomnia\.rest|swagger\.io|hoppscotch\.io/i
+const BROWSER_HOST_AI = /claude\.ai|code\.claude\.ai|chatgpt\.com|chat\.openai\.com|perplexity\.ai|gemini\.google\.com|copilot\.microsoft\.com|poe\.com|you\.com|phind\.com|mistral\.ai|groq\.com|together\.ai|aistudio\.google\.com/i
 const BROWSER_HOST_DESIGN = /figma\.com|canva\.com|dribbble\.com|behance\.net|framer\.com|penpot\.app/i
 const BROWSER_HOST_SOCIAL = /x\.com|twitter\.com|reddit\.com|facebook\.com|instagram\.com|linkedin\.com|vk\.com|ok\.ru/i
 const BROWSER_HOST_LEARNING = /udemy\.com|coursera\.org|khanacademy\.org|edx\.org|stepik\.org|tutorial|documentation|docs\.|wikipedia\.org|notion\.so|readthedocs\.io|developer\.mozilla|mdn|skillshare\.com|pluralsight\.com|freecodecamp\.org|codecademy\.com|learn\.microsoft\.com|developer\.apple\.com|developer\.android|egghead\.io|frontendmasters\.com|javascript\.info|arxiv\.org|medium\.com|substack\.com|dev\.to|habr\.com|researchgate\.net|scholar\.google|pubmed\.ncbi|gitbook\.io/i
@@ -668,6 +670,7 @@ export interface ClassificationResult {
 }
 
 function classifyBrowserContext(lowerTitle: string): ClassificationResult {
+  const isAI = AI_TITLE.test(lowerTitle) || BROWSER_HOST_AI.test(lowerTitle)
   const isCoding = CODING_TITLE.test(lowerTitle) || BROWSER_HOST_CODING.test(lowerTitle)
   const isDesign = DESIGN_TITLE.test(lowerTitle) || BROWSER_HOST_DESIGN.test(lowerTitle)
   const isLearning = LEARNING_TITLE.test(lowerTitle) || BROWSER_HOST_LEARNING.test(lowerTitle)
@@ -682,6 +685,7 @@ function classifyBrowserContext(lowerTitle: string): ClassificationResult {
 
   if (isMusic && isDocReading) return { categories: ['music', 'learning'], contextTag: 'browser_music_learning', confidence: 0.9 }
   if (isDocReading) return { categories: ['learning'], contextTag: 'browser_docs_learning', confidence: 0.92 }
+  if (isAI) return { categories: ['ai'], contextTag: 'browser_ai', confidence: 0.97 }
   if (isCoding) return { categories: ['coding'], contextTag: 'browser_coding', confidence: 0.95 }
   if (isDesign) return { categories: ['design'], contextTag: 'browser_design', confidence: 0.93 }
   if (isMusic && isLearning) return { categories: ['music', 'learning'], contextTag: 'browser_music_learning', confidence: 0.9 }
@@ -709,7 +713,8 @@ export function categorizeDetailed(appName: string, windowTitle: string): Classi
   }
   // When process name is unknown (e.g. protected), infer from window title
   if (lowerApp === 'unknown' && lowerTitle) {
-    if (/cursor|visual studio|\.tsx?|\.jsx?|\.py\b|\.rs\b|\.go\b|code\s*\-/i.test(lowerTitle) || CODING_TITLE.test(lowerTitle)) return { categories: ['coding'], contextTag: 'unknown_title_coding', confidence: 0.85 }
+    if (AI_TITLE.test(lowerTitle) || BROWSER_HOST_AI.test(lowerTitle)) return { categories: ['ai'], contextTag: 'unknown_title_ai', confidence: 0.85 }
+    if (/visual studio|\.tsx?|\.jsx?|\.py\b|\.rs\b|\.go\b|code\s*\-/i.test(lowerTitle) || CODING_TITLE.test(lowerTitle)) return { categories: ['coding'], contextTag: 'unknown_title_coding', confidence: 0.85 }
     if (/chrome|firefox|edge|brave|opera|browser/i.test(lowerTitle)) return { categories: ['browsing'], contextTag: 'unknown_browser', confidence: 0.6 }
     if (MUSIC_TITLE.test(lowerTitle)) return { categories: ['music'], contextTag: 'unknown_title_music', confidence: 0.75 }
     if (LEARNING_TITLE.test(lowerTitle)) return { categories: ['learning'], contextTag: 'unknown_title_learning', confidence: 0.75 }
@@ -721,12 +726,17 @@ export function categorizeDetailed(appName: string, windowTitle: string): Classi
     if (DOC_READING_TITLE.test(lowerTitle) || /\.pdf\b|\.docx?\b|\.pptx?\b/i.test(lowerTitle)) {
       return { categories: ['learning'], contextTag: 'terminal_docs_learning', confidence: 0.88 }
     }
+    if (/\bclaude\b/i.test(lowerTitle)) {
+      return { categories: ['ai'], contextTag: 'terminal_claude_code', confidence: 0.95 }
+    }
     if (TERMINAL_WORK_TITLE.test(lowerTitle) || !lowerTitle) {
       return { categories: ['coding'], contextTag: 'terminal_work', confidence: 0.94 }
     }
     return { categories: ['coding'], contextTag: 'terminal_generic', confidence: 0.9 }
   }
-  if (/^(code|cursor|intellij|webstorm|pycharm|idea|devenv|rider|clion|goland|rubymine|phpstorm|datagrip|dbeaver|tableplus|pgadmin4|heidisql|sequel\s*pro|beekeeper|postman|insomnia|bruno|httpie|gitkraken|sourcetree|fork|tower|sublimemerge)$/i.test(lowerApp) || /visual studio/i.test(lowerApp)) return { categories: ['coding'], contextTag: 'native_ide', confidence: 0.98 }
+  // Native AI apps: Cursor IDE, Claude desktop, ChatGPT desktop
+  if (/^(cursor|claude|chatgpt)$/i.test(lowerApp)) return { categories: ['ai'], contextTag: 'native_ai', confidence: 0.98 }
+  if (/^(code|intellij|webstorm|pycharm|idea|devenv|rider|clion|goland|rubymine|phpstorm|datagrip|dbeaver|tableplus|pgadmin4|heidisql|sequel\s*pro|beekeeper|postman|insomnia|bruno|httpie|gitkraken|sourcetree|fork|tower|sublimemerge)$/i.test(lowerApp) || /visual studio/i.test(lowerApp)) return { categories: ['coding'], contextTag: 'native_ide', confidence: 0.98 }
   if (/\.(tsx?|jsx?|py|rs|go|cpp|cs|java)\b/i.test(lowerTitle)) return { categories: ['coding'], contextTag: 'source_file', confidence: 0.92 }
   if (/^(chrome|firefox|msedge|brave|opera|vivaldi|arc|yandex)$/i.test(lowerApp)) {
     return classifyBrowserContext(lowerTitle)

@@ -53,6 +53,7 @@ export const SKILLS: SkillDef[] = [
   { id: 'warrior', name: 'Warrior', icon: '⚔️', color: '#EF4444', category: 'warrior' },
   { id: 'crafter', name: 'Crafter', icon: '⚒️', color: '#f97316', category: 'crafting' },
   { id: 'chef', name: 'Cooking', icon: '🍳', color: '#fb923c', category: 'cooking' },
+  { id: 'ai', name: 'AI', icon: '🤖', color: '#818cf8', category: 'ai' },
   { id: 'grindly', name: 'Grindly', icon: '🏠', color: '#c084fc', category: 'grindly' },
 ]
 
@@ -78,6 +79,7 @@ export const SKILL_ACTIVITY_VERB: Record<string, string> = {
   warrior:      'Fighting in',
   crafter:      'Crafting in',
   chef:         'Cooking in',
+  ai:           'Using',
   grindly:      'On',
 }
 
@@ -114,6 +116,7 @@ const CATEGORY_TO_SKILL: Record<string, string> = {
   warrior:  'warrior',
   crafting: 'crafter',
   cooking:  'chef',
+  ai:       'ai',
   grindly:  'grindly',
   other:    'researcher',
 }

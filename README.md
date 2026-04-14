@@ -36,7 +36,7 @@ Open VS Code for 3 hours → **Developer** skill levels up. Browse research tabs
 | | |
 |---|---|
 | ⏱ **Session Tracker** | Start a grind session. Your active windows are tracked automatically. Stop and collect your rewards. |
-| 🎮 **13 Skills** | Developer, Designer, Gamer, Researcher, Creator, Communicator, Learner, Listener, Farmer, Warrior, Crafter, Chef, Grindly. Each has 99 levels + prestige. |
+| 🎮 **14 Skills** | Developer, Designer, Gamer, Researcher, Creator, Communicator, Learner, Listener, Farmer, Warrior, Crafter, Chef, AI, Grindly. Each has 99 levels + prestige. |
 | 🎁 **Loot Drops** | Sessions drop gear at 5 rarity tiers: Common → Rare → Epic → Legendary → Mythic. |
 | ⚔️ **Arena** | Turn-based boss battles. Your equipped gear stats determine your ATK and HP. Unlock 6 zones. |
 | ⚒️ **Crafting & Farming** | Salvage gear for materials. Grow plants. Craft better equipment. |
@@ -81,6 +81,56 @@ Open VS Code for 3 hours → **Developer** skill levels up. Browse research tabs
 ## Tech Stack
 
 Electron · React · TypeScript · Tailwind CSS · SQLite · Supabase · Framer Motion
+
+---
+
+## Development
+
+**Prerequisites:** Node.js 22+
+
+```bash
+git clone https://github.com/borissharikoff-droid/Grindly
+cd idly
+npm install
+npm run electron:dev
+```
+
+No `.env` needed — the app connects to the shared Supabase project by default.
+
+> Self-hosting? Copy `.env.example` to `.env` and fill in your own Supabase credentials.
+
+**Note:** `npm run dev` is renderer-only (browser preview, no Electron APIs). Use `npm run electron:dev` for the full app.
+
+### Code map
+
+| What you want to change | Where |
+|-------------------------|-------|
+| XP formula / level curve | `src/renderer/lib/xp.ts` |
+| Skills (names, categories, colors) | `src/renderer/lib/skills.ts` |
+| Items, loot, chests | `src/renderer/lib/loot.ts` |
+| Arena zones and bosses | `src/renderer/lib/combat.ts` |
+| Activity tracking (window detection) | `src/main/tracker.ts` |
+| IPC channels (main ↔ renderer) | `src/shared/ipcChannels.ts` |
+| Session logic, XP, achievements | `src/renderer/stores/sessionStore.ts` |
+| SQLite migrations | `src/main/migrations/index.ts` |
+
+**Database:** Migrations in `src/main/migrations/index.ts` are **append-only** — never edit or reorder existing entries, always add new ones at the end.
+
+### Troubleshooting
+
+If you see a native module error (`The module was compiled against a different Node.js version`):
+```bash
+npx electron-rebuild -f -w better-sqlite3
+```
+
+### Tests
+
+```bash
+npm test                                          # run all tests
+npx vitest run src/tests/xp.test.ts               # run a single test file
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to add new skills, items, arena zones, and more.
 
 ---
 

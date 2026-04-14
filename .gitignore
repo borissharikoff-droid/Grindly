@@ -10,7 +10,8 @@ Thumbs.db
 *.db
 .claude/worktrees
 .cursor
-.vscode
+.vscode/*
+!.vscode/extensions.json
 dashboard
 .gstack/
 
@@ -22,6 +23,7 @@ itch-*.css
 *-report.html
 grindly-v*.html
 grindly-brand-book.html
+patch-notes-*.html
 grindly-missing-skins.html
 test-pw.ts
 pw-launch-test.ts
