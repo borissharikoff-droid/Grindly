@@ -25,6 +25,25 @@ export default {
           neon: '#00ff88',
           glow: '#00ff8840',
         },
+        // ── Skill colors — SOURCE OF TRUTH: src/renderer/lib/skillColors.ts
+        // Duplicated here because tailwind.config.js runs in Node (no TS).
+        // Keep in sync with SKILL_COLORS in skillColors.ts.
+        skill: {
+          developer:    '#00ff88',
+          designer:     '#ff6b9d',
+          gamer:        '#5865F2',
+          communicator: '#57F287',
+          researcher:   '#faa61a',
+          creator:      '#eb459e',
+          learner:      '#00d4ff',
+          listener:     '#1db954',
+          farmer:       '#84cc16',
+          warrior:      '#EF4444',
+          crafter:      '#f97316',
+          chef:         '#fb923c',
+          ai:           '#818cf8',
+          grindly:      '#c084fc',
+        },
       },
       spacing: {
         'ui-xs': '0.25rem',

@@ -5,6 +5,7 @@
  * Early levels (1-25) use a flattened curve for faster progression and retention.
  * Levels 26+ use the original exponential curve.
  */
+import { SKILL_COLORS } from './skillColors'
 
 const MAX_LEVEL = 99
 const MAX_XP = 3_600_000 // 1000 hours in seconds
@@ -41,20 +42,20 @@ export interface SkillDef {
 }
 
 export const SKILLS: SkillDef[] = [
-  { id: 'developer', name: 'Developer', icon: '💻', color: '#00ff88', category: 'coding' },
-  { id: 'designer', name: 'Designer', icon: '🎨', color: '#ff6b9d', category: 'design' },
-  { id: 'gamer', name: 'Gamer', icon: '🎮', color: '#5865F2', category: 'games' },
-  { id: 'communicator', name: 'Communicator', icon: '💬', color: '#57F287', category: 'social' },
-  { id: 'researcher', name: 'Researcher', icon: '🔬', color: '#faa61a', category: 'browsing' },
-  { id: 'creator', name: 'Creator', icon: '🎬', color: '#eb459e', category: 'creative' },
-  { id: 'learner', name: 'Learner', icon: '📚', color: '#00d4ff', category: 'learning' },
-  { id: 'listener', name: 'Listener', icon: '🎵', color: '#1db954', category: 'music' },
-  { id: 'farmer', name: 'Farmer', icon: '🌾', color: '#84cc16', category: 'farming' },
-  { id: 'warrior', name: 'Warrior', icon: '⚔️', color: '#EF4444', category: 'warrior' },
-  { id: 'crafter', name: 'Crafter', icon: '⚒️', color: '#f97316', category: 'crafting' },
-  { id: 'chef', name: 'Cooking', icon: '🍳', color: '#fb923c', category: 'cooking' },
-  { id: 'ai', name: 'AI', icon: '🤖', color: '#818cf8', category: 'ai' },
-  { id: 'grindly', name: 'Grindly', icon: '🏠', color: '#c084fc', category: 'grindly' },
+  { id: 'developer',    name: 'Developer',    icon: '💻', color: SKILL_COLORS.developer,    category: 'coding'   },
+  { id: 'designer',     name: 'Designer',     icon: '🎨', color: SKILL_COLORS.designer,     category: 'design'   },
+  { id: 'gamer',        name: 'Gamer',        icon: '🎮', color: SKILL_COLORS.gamer,        category: 'games'    },
+  { id: 'communicator', name: 'Communicator', icon: '💬', color: SKILL_COLORS.communicator, category: 'social'   },
+  { id: 'researcher',   name: 'Researcher',   icon: '🔬', color: SKILL_COLORS.researcher,   category: 'browsing' },
+  { id: 'creator',      name: 'Creator',      icon: '🎬', color: SKILL_COLORS.creator,      category: 'creative' },
+  { id: 'learner',      name: 'Learner',      icon: '📚', color: SKILL_COLORS.learner,      category: 'learning' },
+  { id: 'listener',     name: 'Listener',     icon: '🎵', color: SKILL_COLORS.listener,     category: 'music'    },
+  { id: 'farmer',       name: 'Farmer',       icon: '🌾', color: SKILL_COLORS.farmer,       category: 'farming'  },
+  { id: 'warrior',      name: 'Warrior',      icon: '⚔️', color: SKILL_COLORS.warrior,      category: 'warrior'  },
+  { id: 'crafter',      name: 'Crafter',      icon: '⚒️', color: SKILL_COLORS.crafter,      category: 'crafting' },
+  { id: 'chef',         name: 'Cooking',      icon: '🍳', color: SKILL_COLORS.chef,         category: 'cooking'  },
+  { id: 'ai',           name: 'AI',           icon: '🤖', color: SKILL_COLORS.ai,           category: 'ai'       },
+  { id: 'grindly',      name: 'Grindly',      icon: '🏠', color: SKILL_COLORS.grindly,      category: 'grindly'  },
 ]
 
 /** Max total skill level (all skills at 99). */
