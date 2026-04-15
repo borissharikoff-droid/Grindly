@@ -242,7 +242,8 @@ These files define all game data. Any change here triggers sync obligations:
 | `src/renderer/lib/combat.ts` | Arena zones, mobs (HP/ATK/XP/gold/materials), bosses, warrior XP, boss requirements, gate items | `wiki/arena.html`, `wiki/item.html` (mob material sources), `wiki/materials.html` |
 | `src/renderer/lib/crafting.ts` | All recipes, intermediate items, crafted gear, crafter perks | `wiki/crafting.html`, `wiki/item.html` (RECIPES array, crafted items in ITEMS), `wiki/equipment.html` (crafted gear table) |
 | `src/renderer/lib/farming.ts` | Seed definitions, grow times, yields, XP, plant buffs, seed zips, farm slot costs | `wiki/farming.html`, `wiki/item.html` (plant items) |
-| `src/renderer/lib/skills.ts` | Skill definitions (names, colors, icons, categories) | `wiki/skills.html`, `wiki/index.html` (search index, hero stats) |
+| `src/renderer/lib/skills.ts` | Skill definitions (names, icons, categories); colors imported from `skillColors.ts` | `wiki/skills.html`, `wiki/index.html` (search index, hero stats) |
+| `src/renderer/lib/skillColors.ts` | Skill hex colors — single source of truth; `tailwind.config.js` holds a manual duplicate for build-time tokens | (no wiki page; affects all skill-colored UI) |
 | `src/renderer/lib/xp.ts` | XP formula, level curve | `wiki/skills.html` (XP formula section), `wiki/index.html` (quick reference) |
 
 ### Wiki Sync Checklist
