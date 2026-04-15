@@ -1,6 +1,17 @@
 # TODOS
 
-All current todos completed. Add new items here as they come up.
+---
+
+## Tests
+
+### [P0] Fix pre-existing tracker.test.ts failures
+
+**Priority:** P0 — failing tests on main
+**Noticed on:** claude/condescending-lamport (2026-04-15)
+**Failures:**
+- `categorize > categorizes Cursor as coding` — returns 'ai' instead of 'coding' (tracker.test.ts:16)
+- `categorize > categorizes Claude Code in browser as coding` — returns 'ai' instead of 'coding' (tracker.test.ts:217)
+- Root cause: tracker.ts categorize() classifies Cursor IDE and Claude Code browser tabs as 'ai' instead of 'coding'. App is working correctly but the tests' expectations need to match actual intended behavior (or tracker.ts needs a fix to prioritize coding category for dev tools).
 
 ---
 

@@ -24,6 +24,14 @@ export const CHANGE_TYPE_META: Record<ChangeType, { label: string; color: string
 
 export const CHANGELOG: PatchNote[] = [
   {
+    version: '4.8.2',
+    date: '2026-04-15',
+    title: 'Design System',
+    items: [
+      { type: 'ui', text: 'Skill colors unified into a shared design token — enables consistent theming across all skill UI' },
+    ],
+  },
+  {
     version: '4.8.1',
     date: '2026-04-11',
     title: 'Watching & Fixes',

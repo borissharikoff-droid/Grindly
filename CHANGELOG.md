@@ -2,6 +2,11 @@
 
 All notable changes to Grindly are documented here.
 
+## [4.8.2] - 2026-04-15
+
+### Changed
+- Skill colors centralized into a shared `skillColors.ts` constant and mirrored as `skill-*` Tailwind tokens — no visual changes, just design system cleanup
+
 ## [4.0.0] - 2026-03-18
 
 ### Added
