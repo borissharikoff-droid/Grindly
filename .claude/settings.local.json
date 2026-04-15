@@ -26,7 +26,22 @@
       "Bash(grep:*)",
       "Bash(python:*)",
       "Bash(npm version:*)",
-      "mcp__supabase__apply_migration"
+      "mcp__supabase__apply_migration",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"feat: auto-combat boss fight + 5-chip stat display matching app style:*)",
+      "Bash(git commit -m \"feat: implement all pcard demo functions + fix stat chip overflow:*)",
+      "Skill(browse)",
+      "Bash(git commit -m \"fix: marketplace badge overlap + polish loot/arena demos:*)",
+      "Bash(find /c/idly/src /c/idly/public /c/idly/assets -name *.webp)",
+      "Bash(find /c/idly/public/loot -name *.webp)",
+      "Bash(find /c/idly/src -name *.webp -o -name *.png)",
+      "Bash(mkdir -p C:/Users/fillo/.claude/plugins/cache/last30days-skill/last30days/2.9.6/commands)",
+      "Bash(cp /tmp/last30days_skill.md C:/Users/fillo/.claude/plugins/cache/last30days-skill/last30days/2.9.6/commands/last30days.md)",
+      "Skill(plan-ceo-review)",
+      "Skill(plan-ceo-review:*)",
+      "Skill(ship)",
+      "Skill(ship:*)"
     ]
   },
   "outputStyle": "default"
