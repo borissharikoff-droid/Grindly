@@ -81,7 +81,7 @@ const CH = {
     setAutoLaunch: 'settings:setAutoLaunch',
   },
   notify: { show: 'notify:show', smart: 'notification:smart' },
-  window: { flashFrame: 'window:flashFrame', setBadgeCount: 'window:setBadgeCount', show: 'window:show', setAlwaysOnTop: 'window:setAlwaysOnTop', getAlwaysOnTop: 'window:getAlwaysOnTop', openTabStats: 'window:openTabStats' },
+  window: { flashFrame: 'window:flashFrame', setBadgeCount: 'window:setBadgeCount', show: 'window:show', setAlwaysOnTop: 'window:setAlwaysOnTop', getAlwaysOnTop: 'window:getAlwaysOnTop', openTabStats: 'window:openTabStats', reopened: 'window:reopened' },
   data: { exportSessions: 'data:exportSessions', getLogsPath: 'data:getLogsPath', openLogsFolder: 'data:openLogsFolder' },
   updater: { status: 'updater:status', install: 'updater:install' },
   focus: { enable: 'focus:enable', disable: 'focus:disable', status: 'focus:status' },
@@ -203,6 +203,11 @@ try {
         const handler = () => cb()
         ipcRenderer.on(CH.window.openTabStats, handler)
         return () => ipcRenderer.removeListener(CH.window.openTabStats, handler)
+      },
+      onReopened: (cb: (reopenedAt: number) => void) => {
+        const handler = (_e: unknown, ts: number) => cb(ts)
+        ipcRenderer.on(CH.window.reopened, handler as never)
+        return () => ipcRenderer.removeListener(CH.window.reopened, handler as never)
       },
     },
     data: {

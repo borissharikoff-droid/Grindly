@@ -1029,6 +1029,7 @@ declare global {
         setAlwaysOnTop: (enabled: boolean) => Promise<void>
         getAlwaysOnTop: () => Promise<boolean>
         onOpenTabStats?: (cb: () => void) => () => void
+        onReopened?: (cb: (reopenedAt: number) => void) => () => void
       }
     }
   }

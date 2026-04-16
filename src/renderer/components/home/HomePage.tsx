@@ -126,47 +126,69 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
     onNavigateProfile()
   }
 
+  // Checkpoint-based "Session restored" notification. Fires both on first
+  // mount (fresh app launch after crash) AND on tray → show reopen (window
+  // came back from hidden). The cutoff is the most recent of app launch or
+  // last reopen: any checkpoint updated before that cutoff belongs to a
+  // previous run and we notify.
+  const cutoffRef = useRef<number>(APP_LAUNCHED_AT)
   useEffect(() => {
-    if (status !== 'idle') return
     const api = window.electronAPI
     if (!api?.db?.getCheckpoint) return
-    api.db.getCheckpoint().then((cp) => {
-      const belongsToPreviousRun = !!cp && cp.updated_at < (APP_LAUNCHED_AT - 5000)
-      if (cp && cp.elapsed_seconds >= 60 && belongsToPreviousRun) {
-        if (notifiedCheckpointUpdatedAtRef.current === cp.updated_at) return
-        notifiedCheckpointUpdatedAtRef.current = cp.updated_at
-        let parsedSkillXP: Record<string, number> = {}
-        try {
-          const raw = cp.session_skill_xp ? JSON.parse(cp.session_skill_xp) : {}
-          if (raw && typeof raw === 'object') {
-            parsedSkillXP = Object.fromEntries(
-              Object.entries(raw as Record<string, unknown>).filter(([, value]) => typeof value === 'number' && value > 0),
-            ) as Record<string, number>
+
+    const checkCheckpoint = () => {
+      api.db.getCheckpoint().then((cp) => {
+        const belongsToPreviousRun = !!cp && cp.updated_at < (cutoffRef.current - 5000)
+        if (cp && cp.elapsed_seconds >= 60 && belongsToPreviousRun) {
+          if (notifiedCheckpointUpdatedAtRef.current === cp.updated_at) return
+          notifiedCheckpointUpdatedAtRef.current = cp.updated_at
+          let parsedSkillXP: Record<string, number> = {}
+          try {
+            const raw = cp.session_skill_xp ? JSON.parse(cp.session_skill_xp) : {}
+            if (raw && typeof raw === 'object') {
+              parsedSkillXP = Object.fromEntries(
+                Object.entries(raw as Record<string, unknown>).filter(([, value]) => typeof value === 'number' && value > 0),
+              ) as Record<string, number>
+            }
+          } catch {
+            parsedSkillXP = {}
           }
-        } catch {
-          parsedSkillXP = {}
+          let parsedActivities: unknown[] | undefined
+          try {
+            const raw = cp.session_activities ? JSON.parse(cp.session_activities) : null
+            if (Array.isArray(raw) && raw.length > 0) parsedActivities = raw
+          } catch { /* ignore */ }
+          pushNotification({
+            type: 'progression',
+            icon: '🌱',
+            title: 'Session restored',
+            body: `Last run lasted ${formatRecoveryDuration(cp.elapsed_seconds)}. Your progress is safe and ready to claim.`,
+            timestamp: cp.updated_at,
+            recovery: {
+              sessionId: cp.session_id,
+              startTime: cp.start_time,
+              elapsedSeconds: cp.elapsed_seconds,
+              sessionSkillXP: parsedSkillXP,
+              sessionActivities: parsedActivities,
+            },
+          })
         }
-        let parsedActivities: unknown[] | undefined
-        try {
-          const raw = cp.session_activities ? JSON.parse(cp.session_activities) : null
-          if (Array.isArray(raw) && raw.length > 0) parsedActivities = raw
-        } catch { /* ignore */ }
-        pushNotification({
-          type: 'progression',
-          icon: '🌱',
-          title: 'Session restored',
-          body: `Last run lasted ${formatRecoveryDuration(cp.elapsed_seconds)}. Your progress is safe and ready to claim.`,
-          timestamp: cp.updated_at,
-          recovery: {
-            sessionId: cp.session_id,
-            startTime: cp.start_time,
-            elapsedSeconds: cp.elapsed_seconds,
-            sessionSkillXP: parsedSkillXP,
-            sessionActivities: parsedActivities,
-          },
-        })
-      }
-    }).catch(() => {})
+      }).catch(() => {})
+    }
+
+    // Initial check on mount (only meaningful when idle)
+    if (status === 'idle') checkCheckpoint()
+
+    // Re-check when window comes back from tray. Bump the cutoff so a
+    // checkpoint flushed while hidden counts as "previous run". Also clear
+    // the notify-once ref so the same checkpoint can surface again after a
+    // later reopen if still unclaimed.
+    const off = window.electronAPI?.window?.onReopened?.((reopenedAt) => {
+      cutoffRef.current = reopenedAt
+      notifiedCheckpointUpdatedAtRef.current = null
+      checkCheckpoint()
+    })
+    return () => { off?.() }
   }, [status, pushNotification])
 
   useEffect(() => {

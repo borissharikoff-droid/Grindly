@@ -102,6 +102,7 @@ export const IPC_CHANNELS = {
     setAlwaysOnTop: 'window:setAlwaysOnTop',
     getAlwaysOnTop: 'window:getAlwaysOnTop',
     openTabStats: 'window:openTabStats',
+    reopened: 'window:reopened',
   },
   discord: {
     update: 'discord:update',

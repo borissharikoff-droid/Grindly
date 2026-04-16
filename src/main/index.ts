@@ -191,6 +191,18 @@ function createWindow() {
       mainWindow?.hide()
     }
   })
+  // Fire a reopen event to the renderer whenever the window comes back from
+  // hidden (tray close → tray click / dock click / second-instance). The
+  // renderer uses this to re-check the session checkpoint and surface the
+  // "Session restored" notification, which previously only fired on a fresh
+  // app launch.
+  let wasHidden = false
+  mainWindow.on('hide', () => { wasHidden = true })
+  mainWindow.on('show', () => {
+    if (!wasHidden) return
+    wasHidden = false
+    mainWindow?.webContents.send('window:reopened', Date.now())
+  })
   mainWindow.on('closed', () => {
     setMainWindow(null)
     mainWindow = null
