@@ -2,6 +2,12 @@
 
 All notable changes to Grindly are documented here.
 
+## [4.8.4] - 2026-04-17
+
+### Fixed
+- **Cook tool icons** showing as broken images on the Cooking page. Public-asset folders unified under a single `public/` at repo root — 17 loot items and all 4 cook instruments now render their PNG skins instead of falling back to emoji.
+- **"Session restored" notification** now reappears after closing to tray and reopening. Previously only surfaced on a fresh launch; now the main process emits a `window:reopened` event and the renderer re-checks the session checkpoint against that reopen time.
+
 ## [4.8.3] - 2026-04-16
 
 ### Added

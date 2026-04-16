@@ -24,6 +24,15 @@ export const CHANGE_TYPE_META: Record<ChangeType, { label: string; color: string
 
 export const CHANGELOG: PatchNote[] = [
   {
+    version: '4.8.4',
+    date: '2026-04-17',
+    title: 'Cook Icons & Tray Reopen Fix',
+    items: [
+      { type: 'fix', text: 'Cooking tool icons (knife, pot, pan, bowl) now show their PNG skins on the Cooking page instead of a broken image' },
+      { type: 'fix', text: 'Session restored notification appears again after closing to tray and reopening — previously only fired on a fresh app launch' },
+    ],
+  },
+  {
     version: '4.8.3',
     date: '2026-04-16',
     title: 'Retention Engine',
