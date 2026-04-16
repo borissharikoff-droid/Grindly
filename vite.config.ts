@@ -11,7 +11,7 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(version),
   },
   root: 'src/renderer',
-  publicDir: 'public',
+  publicDir: path.resolve(__dirname, 'public'),
   base: './',
   envDir: path.join(__dirname),
   build: {
