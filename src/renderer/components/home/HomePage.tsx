@@ -10,6 +10,7 @@ import { SessionComplete } from './SessionComplete'
 import { WelcomeBanner } from './WelcomeBanner'
 import { GoalWidget } from './GoalWidget'
 import { FocusModeDock } from './FocusModeDock'
+import { TodayWidget } from './TodayWidget'
 import { OrbBlast } from './OrbBlast'
 import { useSessionStore } from '../../stores/sessionStore'
 import { MOTION } from '../../lib/motion'
@@ -430,6 +431,9 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
             </button>
           )}
           <GoalWidget trailingAction={<FocusModeDock />} />
+          {status === 'idle' && (
+            <TodayWidget onOpenStats={() => navigateTo?.('stats')} />
+          )}
         </div>
       </div>
 

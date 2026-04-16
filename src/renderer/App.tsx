@@ -168,6 +168,11 @@ export default function App() {
     }
   }, [])
   useEffect(() => { useNavigationStore.getState().setNavigateTo(navigateTo) }, [navigateTo])
+  // Daily recap notification click → jump to Stats tab
+  useEffect(() => {
+    const off = window.electronAPI?.window?.onOpenTabStats?.(() => { navigateTo('stats') })
+    return () => { off?.() }
+  }, [navigateTo])
   useEffect(() => {
     useNavigationStore.getState().setCurrentTab(activeTab)
     clearEscapeStack()

@@ -984,6 +984,13 @@ declare global {
           session_activities: string | null
         } | null>
         clearCheckpoint: () => Promise<void>
+        getTodaySkillXP: () => Promise<{ skill_id: string; xp: number }[]>
+        getTodayRecap: () => Promise<{
+          totalSeconds: number
+          sessionCount: number
+          topSkill: { skill_id: string; xp: number } | null
+          totalXP: number
+        }>
       }
       ai: {
         analyzeSession: (sessionId: string) => Promise<string>
@@ -1021,6 +1028,7 @@ declare global {
         show: () => Promise<void>
         setAlwaysOnTop: (enabled: boolean) => Promise<void>
         getAlwaysOnTop: () => Promise<boolean>
+        onOpenTabStats?: (cb: () => void) => () => void
       }
     }
   }
