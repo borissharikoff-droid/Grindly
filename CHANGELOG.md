@@ -2,6 +2,15 @@
 
 All notable changes to Grindly are documented here.
 
+## [4.8.3] - 2026-04-16
+
+### Added
+- **Today widget** on Home — shows today's sessions, time, and top skill. Tap to jump to the Stats tab.
+- **Daily recap notification** at 11pm summarises today's grind. Clicking it opens the app to the Stats tab.
+
+### Changed
+- **Streak-at-risk warning** now fires at 18:00 instead of 20:00 — gives ~2 more hours to salvage a streak before midnight.
+
 ## [4.8.2] - 2026-04-15
 
 ### Changed

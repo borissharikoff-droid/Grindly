@@ -24,6 +24,16 @@ export const CHANGE_TYPE_META: Record<ChangeType, { label: string; color: string
 
 export const CHANGELOG: PatchNote[] = [
   {
+    version: '4.8.3',
+    date: '2026-04-16',
+    title: 'Retention Engine',
+    items: [
+      { type: 'new', text: 'Today widget on Home — see today\'s sessions, time, and top skill at a glance. Tap to jump to Stats' },
+      { type: 'new', text: 'Daily recap notification at 11pm summarises your day; one click opens the Stats tab' },
+      { type: 'balance', text: 'Streak-at-risk warning now fires at 6pm instead of 8pm — more time to save your streak' },
+    ],
+  },
+  {
     version: '4.8.2',
     date: '2026-04-15',
     title: 'Design System',
