@@ -669,5 +669,52 @@ export function getDatabaseApi() {
     clearDoneTasks(): void {
       database.prepare('DELETE FROM grind_tasks WHERE done = 1').run()
     },
+
+    /** Aggregate XP gained today (local date), grouped by skill */
+    getTodaySkillXP(): { skill_id: string; xp: number }[] {
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+      return database.prepare(`
+        SELECT skill_id, COALESCE(SUM(xp_delta), 0) as xp
+        FROM skill_xp_log
+        WHERE recorded_at >= ?
+        GROUP BY skill_id
+        ORDER BY xp DESC
+      `).all(todayStart.getTime()) as { skill_id: string; xp: number }[]
+    },
+
+    /** One-shot recap of today's grind for the daily recap notification */
+    getTodayRecap(): {
+      totalSeconds: number
+      sessionCount: number
+      topSkill: { skill_id: string; xp: number } | null
+      totalXP: number
+    } {
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+      const sinceMs = todayStart.getTime()
+
+      const sessionRow = database.prepare(
+        'SELECT COUNT(*) as c, COALESCE(SUM(duration_seconds), 0) as s FROM sessions WHERE start_time >= ?'
+      ).get(sinceMs) as { c: number; s: number }
+
+      const xpRows = database.prepare(`
+        SELECT skill_id, COALESCE(SUM(xp_delta), 0) as xp
+        FROM skill_xp_log
+        WHERE recorded_at >= ?
+        GROUP BY skill_id
+        ORDER BY xp DESC
+      `).all(sinceMs) as { skill_id: string; xp: number }[]
+
+      const totalXP = xpRows.reduce((sum, r) => sum + r.xp, 0)
+      const topSkill = xpRows.length > 0 ? xpRows[0] : null
+
+      return {
+        totalSeconds: sessionRow.s,
+        sessionCount: sessionRow.c,
+        topSkill,
+        totalXP,
+      }
+    },
   }
 }

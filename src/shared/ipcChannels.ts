@@ -63,6 +63,8 @@ export const IPC_CHANNELS = {
     saveCheckpoint: 'db:saveCheckpoint',
     getCheckpoint: 'db:getCheckpoint',
     clearCheckpoint: 'db:clearCheckpoint',
+    getTodayRecap: 'db:getTodayRecap',
+    getTodaySkillXP: 'db:getTodaySkillXP',
   },
   ai: {
     analyzeSession: 'ai:analyzeSession',
@@ -99,6 +101,7 @@ export const IPC_CHANNELS = {
     show: 'window:show',
     setAlwaysOnTop: 'window:setAlwaysOnTop',
     getAlwaysOnTop: 'window:getAlwaysOnTop',
+    openTabStats: 'window:openTabStats',
   },
   discord: {
     update: 'discord:update',

@@ -10,17 +10,31 @@ let lastGrindReminder = 0
 let lastStreakWarning = 0
 let lastDistractionAlert = 0
 let lastFocusPraise = 0
+let lastDailyRecap = 0
 
 const ONE_HOUR = 60 * 60 * 1000
 const THIRTY_MIN = 30 * 60 * 1000
 
-function showNotification(title: string, body: string) {
+function showNotification(title: string, body: string, action?: string) {
   if (Notification.isSupported()) {
-    new Notification({ title, body }).show()
+    const n = new Notification({ title, body })
+    if (action === 'open_stats' && mainWin && !mainWin.isDestroyed()) {
+      n.on('click', () => {
+        try {
+          if (mainWin && !mainWin.isDestroyed()) {
+            if (mainWin.isMinimized()) mainWin.restore()
+            mainWin.show()
+            mainWin.focus()
+            mainWin.webContents.send('window:openTabStats')
+          }
+        } catch (err) { log.error('[notifications] click handler', err) }
+      })
+    }
+    n.show()
   }
   // Also send to renderer
   if (mainWin && !mainWin.isDestroyed()) {
-    mainWin.webContents.send('notification:smart', { title, body })
+    mainWin.webContents.send('notification:smart', { title, body, action })
   }
 }
 
@@ -60,9 +74,9 @@ function checkAndNotify() {
     }
   }
 
-  // 2. Streak at risk: past 20:00 and no session today
+  // 2. Streak at risk: past 18:00 and no session today (earlier warning = more recovery time)
   const streakWarningEnabled = getNotifPref(db, 'grindly_notif_streak_warning')
-  if (streakWarningEnabled && hour >= 20 && now - lastStreakWarning > 2 * ONE_HOUR) {
+  if (streakWarningEnabled && hour >= 18 && now - lastStreakWarning > 2 * ONE_HOUR) {
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
     const todaySessionCount = db.getSessionCount(todayStart.getTime())
@@ -105,7 +119,27 @@ function checkAndNotify() {
     }
   }
 
-  // 5. Milestone: round numbers
+  // 5. Daily recap: past 23:00, summarise today's grind with one tap to Stats
+  const recapEnabled = getNotifPref(db, 'grindly_notif_daily_recap')
+  if (recapEnabled && hour >= 23 && now - lastDailyRecap > 12 * ONE_HOUR) {
+    const recap = db.getTodayRecap()
+    if (recap.sessionCount > 0 && recap.totalSeconds > 0) {
+      const hours = Math.floor(recap.totalSeconds / 3600)
+      const mins = Math.floor((recap.totalSeconds % 3600) / 60)
+      const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
+      const topSkillPart = recap.topSkill
+        ? ` · top skill: ${recap.topSkill.skill_id} (+${Math.round(recap.topSkill.xp).toLocaleString()} XP)`
+        : ''
+      showNotification(
+        'Today\'s Recap 📊',
+        `${recap.sessionCount} session${recap.sessionCount === 1 ? '' : 's'} · ${timeStr}${topSkillPart}. Tap to see details.`,
+        'open_stats',
+      )
+      lastDailyRecap = now
+    }
+  }
+
+  // 6. Milestone: round numbers
   const stats = db.getUserStats()
   const totalHours = Math.floor(stats.totalSeconds / 3600)
   const milestones = [10, 25, 50, 100, 250, 500, 1000]

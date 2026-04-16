@@ -230,6 +230,10 @@ export function registerIpcHandlers() {
   ipcMain.handle(IPC_CHANNELS.db.getCheckpoint, () => db.getCheckpoint())
   ipcMain.handle(IPC_CHANNELS.db.clearCheckpoint, () => db.clearCheckpoint())
 
+  // Today widget / daily recap
+  ipcMain.handle(IPC_CHANNELS.db.getTodayRecap, () => db.getTodayRecap())
+  ipcMain.handle(IPC_CHANNELS.db.getTodaySkillXP, () => db.getTodaySkillXP())
+
   ipcMain.handle(IPC_CHANNELS.ai.analyzeSession, async (_, sessionId: unknown) => {
     const id = stringId.parse(sessionId)
     const session = db.getSessionById(id)

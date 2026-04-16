@@ -69,6 +69,8 @@ const CH = {
     clearCheckpoint: 'db:clearCheckpoint',
     restoreSkillXP: 'db:restoreSkillXP',
     forceSetSkillXP: 'db:forceSetSkillXP',
+    getTodayRecap: 'db:getTodayRecap',
+    getTodaySkillXP: 'db:getTodaySkillXP',
   },
   ai: {
     analyzeSession: 'ai:analyzeSession',
@@ -79,7 +81,7 @@ const CH = {
     setAutoLaunch: 'settings:setAutoLaunch',
   },
   notify: { show: 'notify:show', smart: 'notification:smart' },
-  window: { flashFrame: 'window:flashFrame', setBadgeCount: 'window:setBadgeCount', show: 'window:show', setAlwaysOnTop: 'window:setAlwaysOnTop', getAlwaysOnTop: 'window:getAlwaysOnTop' },
+  window: { flashFrame: 'window:flashFrame', setBadgeCount: 'window:setBadgeCount', show: 'window:show', setAlwaysOnTop: 'window:setAlwaysOnTop', getAlwaysOnTop: 'window:getAlwaysOnTop', openTabStats: 'window:openTabStats' },
   data: { exportSessions: 'data:exportSessions', getLogsPath: 'data:getLogsPath', openLogsFolder: 'data:openLogsFolder' },
   updater: { status: 'updater:status', install: 'updater:install' },
   focus: { enable: 'focus:enable', disable: 'focus:disable', status: 'focus:status' },
@@ -172,6 +174,8 @@ try {
         ipcRenderer.invoke(CH.db.saveCheckpoint, data),
       getCheckpoint: () => ipcRenderer.invoke(CH.db.getCheckpoint),
       clearCheckpoint: () => ipcRenderer.invoke(CH.db.clearCheckpoint),
+      getTodayRecap: () => ipcRenderer.invoke(CH.db.getTodayRecap),
+      getTodaySkillXP: () => ipcRenderer.invoke(CH.db.getTodaySkillXP),
     },
     ai: {
       analyzeSession: (sessionId: string) => ipcRenderer.invoke(CH.ai.analyzeSession, sessionId),
@@ -195,6 +199,11 @@ try {
       show: () => ipcRenderer.invoke(CH.window.show),
       setAlwaysOnTop: (enabled: boolean) => ipcRenderer.invoke(CH.window.setAlwaysOnTop, enabled),
       getAlwaysOnTop: () => ipcRenderer.invoke(CH.window.getAlwaysOnTop),
+      onOpenTabStats: (cb: () => void) => {
+        const handler = () => cb()
+        ipcRenderer.on(CH.window.openTabStats, handler)
+        return () => ipcRenderer.removeListener(CH.window.openTabStats, handler)
+      },
     },
     data: {
       exportSessions: (format: 'csv' | 'json') => ipcRenderer.invoke(CH.data.exportSessions, format),
