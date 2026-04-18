@@ -118,6 +118,28 @@ To get the repo URL, run `git remote get-url origin` and format it as a GitHub r
 
 ---
 
+## Step 9 — Offer auto-draft for X (manual post)
+
+After Step 8, offer the auto-composition pipeline. Use AskUserQuestion:
+
+> "The release is live. Want to auto-prepare a branded release card + tweet draft?
+>  • reads RELEASE_NOTES.md + changelog_draft.md
+>  • screenshots the relevant tab(s) from the running app (localhost:5174)
+>  • renders a 1600×900 release card in Grindly's design system
+>  • copies the card to clipboard + opens x.com/compose with text pre-filled
+>  • you paste the image (Ctrl+V), review, and click Post yourself"
+
+Options:
+- **A) Prepare + open Twitter now** — runs `bun run scripts/publish-release.ts`. Generates the card, copies it to clipboard, opens x.com/intent/post with the draft text pre-filled, and opens Explorer at the card file. You paste the image into the Twitter tab and click Post manually. No API keys needed.
+- **B) Draft only (don't open browser)** — runs `bun run scripts/publish-release.ts --no-open`. Writes `x_post.md` + `release_cards/vNEW_VERSION.png` to disk. Post yourself later — paste from `x_post.md` into x.com compose, attach the PNG.
+- **C) Skip** — no social post for this release.
+
+If A or B, invoke via Bash and relay output.
+
+App not running at 5174 → pipeline falls back to card-only mode (big version badge, no app screenshots). The user can pass `--skip-shots` to force this mode.
+
+---
+
 ## Rules
 
 - If there are **no commits since the last tag** and **no uncommitted changes**, tell the user "Nothing to release — no changes since vX.X.X" and stop.

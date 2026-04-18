@@ -28,6 +28,8 @@ grindly-missing-skins.html
 test-pw.ts
 pw-launch-test.ts
 x_post.md
+release_cards/
+fixtures/press-kit.sqlite
 ship-safe-report.html
 .ship-safe/
 .understand-anything/
