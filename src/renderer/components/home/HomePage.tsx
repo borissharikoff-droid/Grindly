@@ -454,7 +454,10 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
           )}
           <GoalWidget trailingAction={<FocusModeDock />} />
           {status === 'idle' && (
-            <TodayWidget onOpenStats={() => navigateTo?.('stats')} />
+            <TodayWidget onOpenStats={() => {
+              useNavigationStore.getState().setPendingStatsFilter('today')
+              navigateTo?.('stats')
+            }} />
           )}
         </div>
       </div>

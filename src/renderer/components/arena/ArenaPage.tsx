@@ -329,7 +329,7 @@ function ZoneCard({
             </div>
 
             {/* Food selector */}
-            {unlocked && !activeBattle && foodSlots && onFoodChange && (
+            {unlocked && !activeBattle && !activeDungeon && foodSlots && onFoodChange && (
               <div className="px-4 pb-3">
                 <FoodSelector slots={foodSlots} onChange={onFoodChange} ownedItems={ownedItems} />
               </div>
@@ -341,7 +341,7 @@ function ZoneCard({
                 <div className="w-full py-2.5 rounded text-micro font-mono text-center text-amber-500/70 border border-amber-500/20 bg-amber-500/05">
                   🔒 Raid in progress — dungeons locked
                 </div>
-              ) : activeBattle ? (
+              ) : activeBattle || activeDungeon ? (
                 <div className="w-full py-2.5 rounded text-micro font-mono text-center text-gray-500 border border-white/[0.06]">
                   In battle...
                 </div>

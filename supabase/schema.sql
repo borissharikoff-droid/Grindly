@@ -806,10 +806,10 @@ $$;
 
 create policy "member can read members" on group_chat_members
   for select using (public.is_group_member(group_id));
-create policy "owner can insert members" on group_chat_members
+create policy "member can insert members" on group_chat_members
   for insert with check (
     user_id = auth.uid()
-    or exists (select 1 from group_chats where id = group_id and owner_id = auth.uid())
+    or public.is_group_member(group_id)
   );
 create policy "owner or self can delete member" on group_chat_members
   for delete using (

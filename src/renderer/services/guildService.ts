@@ -168,42 +168,15 @@ export async function leaveGuild(userId: string, guildId: string): Promise<{ ok:
 }
 
 export async function depositGold(
-  userId: string,
+  _userId: string,
   guildId: string,
   amount: number,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!supabase) return { ok: false, error: 'Supabase not configured' }
   if (amount < 1) return { ok: false, error: 'Amount must be at least 1' }
 
-  const { data: guild, error: fetchErr } = await supabase
-    .from('guilds')
-    .select('chest_gold')
-    .eq('id', guildId)
-    .single()
-
-  if (fetchErr || !guild) return { ok: false, error: 'Guild not found' }
-
-  const newTotal = ((guild as { chest_gold: number }).chest_gold ?? 0) + amount
-  const { error } = await supabase.from('guilds').update({ chest_gold: newTotal }).eq('id', guildId)
+  const { error } = await supabase.rpc('deposit_guild_gold', { p_guild_id: guildId, p_amount: amount })
   if (error) return { ok: false, error: error.message }
-
-  const { data: member } = await supabase
-    .from('guild_members')
-    .select('contribution_gold')
-    .eq('guild_id', guildId)
-    .eq('user_id', userId)
-    .single()
-
-  const newContrib = ((member as { contribution_gold: number } | null)?.contribution_gold ?? 0) + amount
-  await tryRun(() => supabase!.from('guild_members')
-    .update({ contribution_gold: newContrib })
-    .eq('guild_id', guildId)
-    .eq('user_id', userId))
-
-  await tryRun(() => supabase!.from('guild_activity_log').insert({
-    guild_id: guildId, user_id: userId, event_type: 'deposit_gold', payload: { amount },
-  }))
-
   return { ok: true }
 }
 

@@ -232,6 +232,10 @@ export function registerIpcHandlers() {
 
   // Today widget / daily recap
   ipcMain.handle(IPC_CHANNELS.db.getTodayRecap, () => db.getTodayRecap())
+  ipcMain.handle(IPC_CHANNELS.db.getPeriodRecap, (_, sinceMs: unknown) => {
+    const parsed = optionalSinceMs.parse(sinceMs)
+    return db.getPeriodRecap(parsed)
+  })
   ipcMain.handle(IPC_CHANNELS.db.getTodaySkillXP, () => db.getTodaySkillXP())
 
   ipcMain.handle(IPC_CHANNELS.ai.analyzeSession, async (_, sessionId: unknown) => {

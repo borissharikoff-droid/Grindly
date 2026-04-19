@@ -215,8 +215,11 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
     })
     .filter(Boolean) as { idx: number; app: string; category: string; start: number }[]
 
-  const keysPerMin = session?.duration_seconds ? Math.round(totalKeystrokes / (session.duration_seconds / 60)) : 0
-  const switchRatePerMin = session?.duration_seconds ? contextSwitches / (session.duration_seconds / 60) : 0
+  // Use actual tracked activity time (non-Grindly) for rate metrics so they line up with
+  // the per-category percentages below. Fall back to session duration if nothing tracked.
+  const activeSeconds = totalSeconds > 0 ? totalSeconds : session?.duration_seconds || 0
+  const keysPerMin = activeSeconds > 0 ? Math.round(totalKeystrokes / (activeSeconds / 60)) : 0
+  const switchRatePerMin = activeSeconds > 0 ? contextSwitches / (activeSeconds / 60) : 0
   const focusRisk =
     switchRatePerMin > 0.7
       ? 'High interruption risk'
@@ -256,7 +259,9 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
   const sessionDate = new Date(session.start_time)
   const dateStr = sessionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   const timeStr = sessionDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-  const switchRate = session.duration_seconds > 0 ? (contextSwitches / (session.duration_seconds / 60)).toFixed(1) : '0'
+  const switchRate = switchRatePerMin.toFixed(1)
+  const trackedSeconds = Math.round(totalSeconds)
+  const hasTrackingGap = session.duration_seconds - trackedSeconds >= 30
 
   return (
     <div className="space-y-3">
@@ -264,9 +269,24 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
       <div className="flex items-center gap-3">
         <BackButton onClick={onBack} className="shrink-0" />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <span className="text-xs text-gray-500 font-mono">{dateStr.toUpperCase()}, {timeStr}</span>
-            <span className="text-lg font-mono font-bold text-white">{formatDuration(session.duration_seconds)}</span>
+            <div className="flex items-baseline gap-2">
+              {hasTrackingGap && (
+                <span
+                  className="text-micro text-gray-600 font-mono"
+                  title="Non-Grindly activity time — categories and rates below are based on this."
+                >
+                  {formatDuration(trackedSeconds)} tracked
+                </span>
+              )}
+              <span
+                className="text-lg font-mono font-bold text-white"
+                title="Total session length from start to end."
+              >
+                {formatDuration(session.duration_seconds)}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -292,7 +312,7 @@ export function SessionDetail({ sessionId, onBack }: SessionDetailProps) {
           <p className="text-micro uppercase tracking-wider text-accent/80 font-mono">What went well</p>
           <p className="text-xs text-gray-300 mt-1">
             {categoryGroups[0]
-              ? `${categoryGroups[0].label} led this session at ${Math.round(categoryGroups[0].pct)}% of tracked time.`
+              ? `${categoryGroups[0].label} led this session at ${Math.round(categoryGroups[0].pct)}% of activity time.`
               : 'Tracked activity is limited for this session.'}
           </p>
         </div>

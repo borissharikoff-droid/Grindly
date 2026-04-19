@@ -21,6 +21,9 @@ interface NavigationStore {
   /** Open Marketplace and land on a specific inner tab ('listings'|'sell'|'my_listings'|'history') */
   pendingMarketplaceTab: string | null
   setPendingMarketplaceTab: (tab: string | null) => void
+  /** Initial filter for the Stats page ('today'|'week'|'month'|'all'). Consumed once on mount. */
+  pendingStatsFilter: 'today' | 'week' | 'month' | 'all' | null
+  setPendingStatsFilter: (v: 'today' | 'week' | 'month' | 'all' | null) => void
 }
 
 export const useNavigationStore = create<NavigationStore>((set) => ({
@@ -38,4 +41,6 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
   setPendingTradesTab: (v) => set({ pendingTradesTab: v }),
   pendingMarketplaceTab: null,
   setPendingMarketplaceTab: (tab) => set({ pendingMarketplaceTab: tab }),
+  pendingStatsFilter: null,
+  setPendingStatsFilter: (v) => set({ pendingStatsFilter: v }),
 }))

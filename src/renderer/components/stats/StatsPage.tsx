@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { getBestStreak } from '../../services/dailyActivityService'
 import { useEscapeHandler } from '../../hooks/useEscapeHandler'
+import { useNavigationStore } from '../../stores/navigationStore'
 import { motion, AnimatePresence } from 'framer-motion'
 import { SessionDetail } from './SessionDetail'
 import { TrendsChart } from './TrendsChart'
@@ -13,6 +14,7 @@ import { SkeletonBlock } from '../shared/PageLoading'
 import { PageHeader } from '../shared/PageHeader'
 import { BarChart3, RefreshCw } from '../../lib/icons'
 import { fmt } from '../../lib/format'
+import { ShareStatsButton } from './ShareStatsButton'
 
 export interface SessionRecord {
   id: string
@@ -255,7 +257,17 @@ export function StatsPage() {
   useEscapeHandler(() => setSelectedId(null), selectedId !== null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [filter, setFilter] = useState<TimeFilter>('all')
+  // One-shot consume so opening Stats from the Today card starts with today's filter.
+  const pendingStatsFilter = useNavigationStore((s) => s.pendingStatsFilter)
+  const [filter, setFilter] = useState<TimeFilter>(() => {
+    return useNavigationStore.getState().pendingStatsFilter ?? 'all'
+  })
+  useEffect(() => {
+    if (pendingStatsFilter) {
+      setFilter(pendingStatsFilter)
+      useNavigationStore.getState().setPendingStatsFilter(null)
+    }
+  }, [pendingStatsFilter])
 
   const [totalSessions, setTotalSessions] = useState(0)
   const [totalSeconds, setTotalSeconds] = useState(0)
@@ -272,6 +284,7 @@ export function StatsPage() {
   const [distractionMetrics, setDistractionMetrics] = useState<DistractionMetrics | null>(null)
   const [periodComparison, setPeriodComparison] = useState<PeriodComparison | null>(null)
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
+  const [hourHover, setHourHover] = useState<{ x: number; y: number; hour: number; ms: number; pct: number } | null>(null)
 
   const loadData = async (resetPage = true) => {
     const useFullLoader = sessions.length === 0 && resetPage
@@ -458,6 +471,23 @@ export function StatsPage() {
                     <span className="text-xs px-3 py-1.5 rounded-full bg-surface-2 border border-white/10 text-gray-300 inline-flex items-center justify-center select-none">
                       Activity style: {persona.emoji} {persona.label}
                     </span>
+                  )}
+                  {totalSeconds > 0 && (
+                    <ShareStatsButton
+                      sinceMs={getFilterMs(filter)}
+                      periodLabel={
+                        filter === 'today' ? 'TODAY'
+                        : filter === 'week' ? 'LAST 7 DAYS'
+                        : filter === 'month' ? 'LAST 30 DAYS'
+                        : 'ALL TIME'
+                      }
+                      heroCaption={
+                        filter === 'today' ? 'tracked today'
+                        : filter === 'week' ? 'tracked this week'
+                        : filter === 'month' ? 'tracked this month'
+                        : 'tracked all-time'
+                      }
+                    />
                   )}
                   <button onClick={() => loadData(true)} className="w-7 h-7 rounded bg-surface-2 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors" title="Refresh">
                     <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
@@ -834,21 +864,80 @@ export function StatsPage() {
 
             {/* 6/6 Trend Over Time */}
             <div className="space-y-3">
-              <p className="text-xs font-semibold tracking-wide text-gray-300">Trend Over Time</p>
+              <div className="flex items-baseline justify-between">
+                <p className="text-xs font-semibold tracking-wide text-gray-300">Trends — {getPeriodLabel(filter)}</p>
+                <span className="text-micro text-gray-600 font-mono">hover for details</span>
+              </div>
               {hourly.length > 0 && (
                 <div className="rounded-card bg-surface-2/80 border border-white/10 p-3">
-                  <p className="text-micro uppercase tracking-wider text-gray-500 mb-2.5">Most Active Hours</p>
-                  <div className="flex items-end gap-0.5 h-12">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-micro uppercase tracking-wider text-gray-500">Most Active Hours</p>
+                    {(() => {
+                      const peak = hourly.reduce((best, h) => h.total_ms > best.total_ms ? h : best, hourly[0])
+                      return (
+                        <span className="text-micro text-gray-600 font-mono">
+                          peak {String(peak.hour).padStart(2, '0')}:00 · {formatMs(peak.total_ms)}
+                        </span>
+                      )
+                    })()}
+                  </div>
+                  <div className="relative flex items-end gap-0.5 h-12" onMouseLeave={() => setHourHover(null)}>
                     {Array.from({ length: 24 }, (_, h) => {
                       const data = hourly.find((d) => d.hour === h)
                       const ms = data?.total_ms || 0
                       const pct = maxHourMs > 0 ? (ms / maxHourMs) * 100 : 0
+                      const isActive = hourHover?.hour === h
                       return (
-                        <div key={h} className="flex-1 h-full flex items-end" title={`${h}:00 — ${formatMs(ms)}`}>
-                          <div className="w-full rounded-t-sm bg-accent/40 hover:bg-accent/60 transition-colors" style={{ height: `${Math.max(pct, 2)}%` }} />
+                        <div
+                          key={h}
+                          className="flex-1 h-full flex items-end cursor-pointer"
+                          onMouseEnter={(e) => {
+                            const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+                            setHourHover({
+                              x: rect.left + rect.width / 2,
+                              y: rect.top,
+                              hour: h,
+                              ms,
+                              pct,
+                            })
+                          }}
+                        >
+                          <div
+                            className={`w-full rounded-t-sm transition-colors ${isActive ? 'bg-accent' : 'bg-accent/40 hover:bg-accent/60'}`}
+                            style={{ height: `${Math.max(pct, 2)}%` }}
+                          />
                         </div>
                       )
                     })}
+                    {hourHover && (() => {
+                      const h = hourHover.hour
+                      const partOfDay = h < 6 ? 'late night' : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening'
+                      return (
+                        <div
+                          className="fixed z-50 pointer-events-none rounded px-2 py-1.5 text-xs font-mono leading-tight"
+                          style={{
+                            left: Math.min(Math.max(hourHover.x - 72, 8), (typeof window !== 'undefined' ? window.innerWidth : 800) - 152),
+                            top: hourHover.y - 62,
+                            background: 'rgba(15,14,26,0.97)',
+                            border: '1px solid rgba(0,255,136,0.3)',
+                            color: '#eae6f5',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                            whiteSpace: 'nowrap',
+                            width: 144,
+                          }}
+                        >
+                          <div className="text-gray-500" style={{ fontSize: 10 }}>
+                            {String(h).padStart(2, '0')}:00–{String((h + 1) % 24).padStart(2, '0')}:00 · {partOfDay}
+                          </div>
+                          <div className="flex items-baseline justify-between mt-0.5">
+                            <span className="text-accent font-bold">{hourHover.ms > 0 ? formatMs(hourHover.ms) : 'no activity'}</span>
+                            {hourHover.ms > 0 && (
+                              <span className="text-gray-600" style={{ fontSize: 10 }}>{Math.round(hourHover.pct)}% of peak</span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </div>
                   <div className="flex justify-between mt-1.5">
                     <span className="text-micro text-gray-600 font-mono">0:00</span>

@@ -64,6 +64,7 @@ export const IPC_CHANNELS = {
     getCheckpoint: 'db:getCheckpoint',
     clearCheckpoint: 'db:clearCheckpoint',
     getTodayRecap: 'db:getTodayRecap',
+    getPeriodRecap: 'db:getPeriodRecap',
     getTodaySkillXP: 'db:getTodaySkillXP',
   },
   ai: {

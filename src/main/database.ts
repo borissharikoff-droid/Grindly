@@ -683,20 +683,32 @@ export function getDatabaseApi() {
       `).all(todayStart.getTime()) as { skill_id: string; xp: number }[]
     },
 
-    /** One-shot recap of today's grind for the daily recap notification */
-    getTodayRecap(): {
+    /** One-shot recap for share cards — supports today (default) or any window. */
+    getPeriodRecap(sinceMs?: number): {
       totalSeconds: number
       sessionCount: number
       topSkill: { skill_id: string; xp: number } | null
       totalXP: number
+      skills: { skill_id: string; xp: number }[]
+      keystrokes: number
+      focusedSeconds: number
+      distractedSeconds: number
+      longestSessionSeconds: number
+      topApp: { app_name: string; seconds: number } | null
+      topApps: { app_name: string; category: string | null; seconds: number }[]
     } {
-      const todayStart = new Date()
-      todayStart.setHours(0, 0, 0, 0)
-      const sinceMs = todayStart.getTime()
+      let effectiveSince: number
+      if (sinceMs == null) {
+        const todayStart = new Date()
+        todayStart.setHours(0, 0, 0, 0)
+        effectiveSince = todayStart.getTime()
+      } else {
+        effectiveSince = sinceMs
+      }
 
       const sessionRow = database.prepare(
-        'SELECT COUNT(*) as c, COALESCE(SUM(duration_seconds), 0) as s FROM sessions WHERE start_time >= ?'
-      ).get(sinceMs) as { c: number; s: number }
+        'SELECT COUNT(*) as c, COALESCE(SUM(duration_seconds), 0) as s, COALESCE(MAX(duration_seconds), 0) as longest FROM sessions WHERE start_time >= ?'
+      ).get(effectiveSince) as { c: number; s: number; longest: number }
 
       const xpRows = database.prepare(`
         SELECT skill_id, COALESCE(SUM(xp_delta), 0) as xp
@@ -704,17 +716,51 @@ export function getDatabaseApi() {
         WHERE recorded_at >= ?
         GROUP BY skill_id
         ORDER BY xp DESC
-      `).all(sinceMs) as { skill_id: string; xp: number }[]
+      `).all(effectiveSince) as { skill_id: string; xp: number }[]
 
       const totalXP = xpRows.reduce((sum, r) => sum + r.xp, 0)
       const topSkill = xpRows.length > 0 ? xpRows[0] : null
+
+      const actRow = database.prepare(`
+        SELECT
+          COALESCE(SUM(keystrokes), 0) as keys,
+          COALESCE(SUM(CASE WHEN category IN ('coding','learning','creative','design') THEN (end_time - start_time)/1000 ELSE 0 END), 0) as focused,
+          COALESCE(SUM(CASE WHEN category IN ('social','games') THEN (end_time - start_time)/1000 ELSE 0 END), 0) as distracted
+        FROM activities
+        WHERE start_time >= ?
+      `).get(effectiveSince) as { keys: number; focused: number; distracted: number }
+
+      const topAppsRows = database.prepare(`
+        SELECT app_name, category, COALESCE(SUM((end_time - start_time)/1000), 0) as seconds
+        FROM activities
+        WHERE start_time >= ? AND app_name IS NOT NULL AND app_name NOT IN ('Grindly','electron','Electron','Grindly.exe')
+        GROUP BY app_name
+        ORDER BY seconds DESC
+        LIMIT 5
+      `).all(effectiveSince) as { app_name: string; category: string | null; seconds: number }[]
+
+      const topApps = topAppsRows
+        .filter((r) => r.seconds >= 30)
+        .map((r) => ({ app_name: r.app_name, category: r.category, seconds: Math.round(r.seconds) }))
 
       return {
         totalSeconds: sessionRow.s,
         sessionCount: sessionRow.c,
         topSkill,
         totalXP,
+        skills: xpRows.slice(0, 5),
+        keystrokes: actRow.keys,
+        focusedSeconds: Math.round(actRow.focused),
+        distractedSeconds: Math.round(actRow.distracted),
+        longestSessionSeconds: sessionRow.longest,
+        topApp: topApps.length > 0 ? { app_name: topApps[0].app_name, seconds: topApps[0].seconds } : null,
+        topApps,
       }
+    },
+
+    /** Back-compat wrapper for notifications + widget. */
+    getTodayRecap() {
+      return this.getPeriodRecap()
     },
   }
 }

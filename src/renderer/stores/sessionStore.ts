@@ -92,6 +92,8 @@ interface SessionStore {
   skillLevelNotified: Record<string, number>
   /** Pending skill level-up to show modal */
   pendingSkillLevelUpSkill: { skillId: string; level: number } | null
+  /** Timestamp of the last session fully saved to disk. Bumps after SQLite write so widgets can reload. */
+  lastSessionSavedAt: number | null
   dismissSkillLevelUp: () => void
   tick: () => void
   start: (options?: { focusDurationMs?: number }) => Promise<void>
@@ -352,6 +354,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   skillXPAtStart: {},
   skillLevelNotified: {},
   pendingSkillLevelUpSkill: null,
+  lastSessionSavedAt: null,
   isGrindPageActive: true,
   setGrindPageActive: (v) => set({ isGrindPageActive: v }),
   async enableFocusMode(durationMs: number) {
@@ -611,7 +614,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         api,
         segments.map((a) => ({ category: a.category, startTime: a.startTime, endTime: a.endTime })),
       )
-      set({ skillXPGains })
+      // Session row + XP rows are now both persisted — bump so widgets reload with fresh top-skill.
+      set({ skillXPGains, lastSessionSavedAt: Date.now() })
 
       // Sync skills to Supabase with explicit status state
       useSkillSyncStore.getState().setSyncState({ status: 'syncing' })
@@ -657,7 +661,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       try {
         saveSessionBrowser(sessionId, sessionStartTime, endTime, elapsedSeconds)
         const skillXPGains = computeAndSaveSkillXPBrowser(sessionStartTime, endTime)
-        set({ skillXPGains })
+        set({ skillXPGains, lastSessionSavedAt: Date.now() })
       } catch { /* ignore */ }
     }
 
@@ -990,6 +994,26 @@ declare global {
           sessionCount: number
           topSkill: { skill_id: string; xp: number } | null
           totalXP: number
+          skills: { skill_id: string; xp: number }[]
+          keystrokes: number
+          focusedSeconds: number
+          distractedSeconds: number
+          longestSessionSeconds: number
+          topApp: { app_name: string; seconds: number } | null
+          topApps: { app_name: string; category: string | null; seconds: number }[]
+        }>
+        getPeriodRecap: (sinceMs?: number) => Promise<{
+          totalSeconds: number
+          sessionCount: number
+          topSkill: { skill_id: string; xp: number } | null
+          totalXP: number
+          skills: { skill_id: string; xp: number }[]
+          keystrokes: number
+          focusedSeconds: number
+          distractedSeconds: number
+          longestSessionSeconds: number
+          topApp: { app_name: string; seconds: number } | null
+          topApps: { app_name: string; category: string | null; seconds: number }[]
         }>
       }
       ai: {

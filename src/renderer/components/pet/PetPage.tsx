@@ -526,6 +526,7 @@ function AbilitiesPanel({ pet, petName }: { pet: PetInstance; petName: string })
       setTimeout(() => setScavengeResult(null), 4_000)
       pushNotification({
         type: 'progression',
+        icon: '🎒',
         title: `${petName} found loot!`,
         body: `Scavenged: ${names}`,
         timestamp: Date.now(),
@@ -537,7 +538,8 @@ function AbilitiesPanel({ pet, petName }: { pet: PetInstance; petName: string })
     activateMotivationBurst()
     pushNotification({
       type: 'progression',
-      title: `⚡ Motivation Burst!`,
+      icon: '⚡',
+      title: `Motivation Burst!`,
       body: `${petName} is giving you +50% XP for 20 minutes`,
       timestamp: Date.now(),
     })

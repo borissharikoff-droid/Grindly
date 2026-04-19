@@ -7,6 +7,36 @@ interface DailyTotal {
   sessions_count: number
 }
 
+interface BarHover {
+  x: number
+  y: number
+  date: string
+  seconds: number
+  sessions: number
+  keystrokes: number
+  diffVsAvg: number
+}
+
+interface HeatHover {
+  x: number
+  y: number
+  date: string
+  seconds: number
+  rank: number
+  total: number
+}
+
+function formatFullDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00')
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function formatNum(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+  return `${n}`
+}
+
 type TrendRange = '7d' | '30d' | '90d' | 'custom'
 
 interface TrendsChartProps {
@@ -42,6 +72,8 @@ export const TrendsChart = memo(function TrendsChart({
   const [data, setData] = useState<DailyTotal[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [barHover, setBarHover] = useState<BarHover | null>(null)
+  const [heatHover, setHeatHover] = useState<HeatHover | null>(null)
 
   useEffect(() => {
     loadData()
@@ -106,6 +138,12 @@ export const TrendsChart = memo(function TrendsChart({
   }, [heatmapFullData])
 
   const heatmapMax = Math.max(...heatmap90.map(d => d.seconds), 1)
+  const heatmapRanks = useMemo(() => {
+    const active = heatmap90.filter(d => d.seconds > 0).sort((a, b) => b.seconds - a.seconds)
+    const map = new Map<string, number>()
+    active.forEach((d, i) => map.set(d.date, i + 1))
+    return { map, total: active.length }
+  }, [heatmap90])
 
   function getHeatColor(seconds: number): string {
     if (seconds === 0) return 'rgba(255,255,255,0.03)'
@@ -192,15 +230,27 @@ export const TrendsChart = memo(function TrendsChart({
         </div>
 
         {/* Bar chart */}
-        <div className="relative overflow-hidden">
+        <div className="relative overflow-hidden" onMouseLeave={() => setBarHover(null)}>
           <div className="flex items-end gap-0.5 h-20">
           {filledData.map((d, i) => {
             const pct = (d.total_seconds / maxSeconds) * 100
+            const isActive = barHover?.date === d.date
             return (
               <div
                 key={d.date}
-                className="flex-1 h-full flex items-end group relative"
-                title={`${getShortDate(d.date)}: ${formatDuration(d.total_seconds)} (${d.sessions_count} sessions)`}
+                className="flex-1 h-full flex items-end group relative cursor-pointer"
+                onMouseEnter={(e) => {
+                  const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+                  setBarHover({
+                    x: rect.left + rect.width / 2,
+                    y: rect.top,
+                    date: d.date,
+                    seconds: d.total_seconds,
+                    sessions: d.sessions_count,
+                    keystrokes: d.total_keystrokes,
+                    diffVsAvg: d.total_seconds - avgDailySeconds,
+                  })
+                }}
               >
                 <div
                   style={{
@@ -209,13 +259,48 @@ export const TrendsChart = memo(function TrendsChart({
                     transitionDelay: `${Math.min(i * 8, 120)}ms`,
                   }}
                   className={`w-full rounded-t-sm ${
-                    d.total_seconds > 0 ? 'bg-accent/60 group-hover:bg-accent/80' : 'bg-white/[0.03]'
+                    d.total_seconds > 0
+                      ? isActive
+                        ? 'bg-accent'
+                        : 'bg-accent/60 group-hover:bg-accent/80'
+                      : isActive
+                        ? 'bg-white/10'
+                        : 'bg-white/[0.03]'
                   }`}
                 />
               </div>
             )
           })}
           </div>
+          {barHover && (
+            <div
+              className="fixed z-50 pointer-events-none rounded px-2 py-1.5 text-xs font-mono leading-tight"
+              style={{
+                left: Math.min(Math.max(barHover.x - 80, 8), (typeof window !== 'undefined' ? window.innerWidth : 800) - 168),
+                top: barHover.y - 78,
+                background: 'rgba(15,14,26,0.97)',
+                border: '1px solid rgba(0,255,136,0.3)',
+                color: '#eae6f5',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                whiteSpace: 'nowrap',
+                width: 160,
+              }}
+            >
+              <div className="text-gray-500" style={{ fontSize: 10 }}>{formatFullDate(barHover.date)}</div>
+              <div className="flex items-baseline justify-between">
+                <span className="text-accent font-bold">{formatDuration(barHover.seconds)}</span>
+                <span className="text-gray-600" style={{ fontSize: 10 }}>{barHover.sessions} sess</span>
+              </div>
+              <div className="flex items-baseline justify-between mt-0.5">
+                <span className="text-gray-500" style={{ fontSize: 10 }}>{formatNum(barHover.keystrokes)} keys</span>
+                {barHover.seconds > 0 && avgDailySeconds > 0 && (
+                  <span className={barHover.diffVsAvg >= 0 ? 'text-accent/80' : 'text-amber-300/80'} style={{ fontSize: 10 }}>
+                    {barHover.diffVsAvg >= 0 ? '+' : '−'}{formatDuration(Math.abs(barHover.diffVsAvg))}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex justify-between mt-1">
           {range === '7d' ? (
@@ -234,20 +319,63 @@ export const TrendsChart = memo(function TrendsChart({
 
       {/* Contribution Heatmap */}
       <div className="rounded-card bg-surface-2/80 border border-white/10 p-3">
-        <p className="text-micro uppercase tracking-wider text-gray-500 font-mono mb-2">Activity Heatmap (90 days)</p>
-        <div className="flex gap-0.5">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-micro uppercase tracking-wider text-gray-500 font-mono">Activity Heatmap · 90 days</p>
+          <span className="text-micro text-gray-600 font-mono">{heatmapRanks.total} active / 90</span>
+        </div>
+        <div className="flex gap-0.5 relative" onMouseLeave={() => setHeatHover(null)}>
           {weeks.map((week, wi) => (
             <div key={wi} className="flex flex-col gap-0.5 flex-1">
-              {week.map((day) => (
-                <div
-                  key={day.date}
-                  className="aspect-square rounded-[2px] transition-colors"
-                  style={{ backgroundColor: getHeatColor(day.seconds) }}
-                  title={`${day.date}: ${formatDuration(day.seconds)}`}
-                />
-              ))}
+              {week.map((day) => {
+                const isActive = heatHover?.date === day.date
+                return (
+                  <div
+                    key={day.date}
+                    className={`aspect-square rounded-[2px] transition-all cursor-pointer ${isActive ? 'ring-1 ring-accent/80' : ''}`}
+                    style={{ backgroundColor: getHeatColor(day.seconds) }}
+                    onMouseEnter={(e) => {
+                      const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+                      setHeatHover({
+                        x: rect.left + rect.width / 2,
+                        y: rect.top,
+                        date: day.date,
+                        seconds: day.seconds,
+                        rank: heatmapRanks.map.get(day.date) || 0,
+                        total: heatmapRanks.total,
+                      })
+                    }}
+                  />
+                )
+              })}
             </div>
           ))}
+          {heatHover && (
+            <div
+              className="fixed z-50 pointer-events-none rounded px-2 py-1.5 text-xs font-mono leading-tight"
+              style={{
+                left: Math.min(Math.max(heatHover.x - 80, 8), (typeof window !== 'undefined' ? window.innerWidth : 800) - 168),
+                top: heatHover.y - 60,
+                background: 'rgba(15,14,26,0.97)',
+                border: '1px solid rgba(0,255,136,0.3)',
+                color: '#eae6f5',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                whiteSpace: 'nowrap',
+                width: 160,
+              }}
+            >
+              <div className="text-gray-500" style={{ fontSize: 10 }}>{formatFullDate(heatHover.date)}</div>
+              {heatHover.seconds > 0 ? (
+                <div className="flex items-baseline justify-between">
+                  <span className="text-accent font-bold">{formatDuration(heatHover.seconds)}</span>
+                  {heatHover.rank > 0 && (
+                    <span className="text-gray-600" style={{ fontSize: 10 }}>#{heatHover.rank} of {heatHover.total}</span>
+                  )}
+                </div>
+              ) : (
+                <div className="text-gray-600">no activity</div>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex items-center justify-end gap-1 mt-2">
           <span className="text-micro text-gray-600 font-mono">Less</span>

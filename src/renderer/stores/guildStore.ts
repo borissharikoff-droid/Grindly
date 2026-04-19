@@ -172,7 +172,7 @@ export const useGuildStore = create<GuildState>()((set, get) => ({
     const user = useAuthStore.getState().user
     const { myGuild, membership } = get()
     if (!user || !myGuild) return { ok: false, error: 'Not in a guild' }
-    if (!membership || !['owner', 'officer'].includes(membership.role)) return { ok: false, error: 'Need officer+ role' }
+    if (!membership) return { ok: false, error: 'Not a guild member' }
     return sendGuildInvite(myGuild.id, user.id, inviteeId)
   },
 

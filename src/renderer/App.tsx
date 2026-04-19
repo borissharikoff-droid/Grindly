@@ -13,6 +13,7 @@ import { LootDrop } from './components/alerts/LootDrop'
 import { ChestDrop } from './components/alerts/ChestDrop'
 import { ToastStack } from './components/alerts/ToastStack'
 import { ChestOpenModal } from './components/animations/ChestOpenModal'
+import { BattleDock } from './components/arena/BattleDock'
 import { useArenaBattleTick } from './hooks/useArenaBattleTick'
 import { useArenaStore } from './stores/arenaStore'
 import { LOOT_ITEMS } from './lib/loot'
@@ -689,6 +690,7 @@ export default function App() {
           </AnimatePresence>
           <LootDrop />
           <ChestDrop />
+          <BattleDock activeTab={activeTab} />
           <ToastStack onNavigate={navigateTo} />
           <ChestOpenModal
             open={Boolean(arenaResultModal)}

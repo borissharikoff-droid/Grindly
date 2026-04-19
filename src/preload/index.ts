@@ -70,6 +70,7 @@ const CH = {
     restoreSkillXP: 'db:restoreSkillXP',
     forceSetSkillXP: 'db:forceSetSkillXP',
     getTodayRecap: 'db:getTodayRecap',
+    getPeriodRecap: 'db:getPeriodRecap',
     getTodaySkillXP: 'db:getTodaySkillXP',
   },
   ai: {
@@ -175,6 +176,7 @@ try {
       getCheckpoint: () => ipcRenderer.invoke(CH.db.getCheckpoint),
       clearCheckpoint: () => ipcRenderer.invoke(CH.db.clearCheckpoint),
       getTodayRecap: () => ipcRenderer.invoke(CH.db.getTodayRecap),
+      getPeriodRecap: (sinceMs?: number) => ipcRenderer.invoke(CH.db.getPeriodRecap, sinceMs),
       getTodaySkillXP: () => ipcRenderer.invoke(CH.db.getTodaySkillXP),
     },
     ai: {
