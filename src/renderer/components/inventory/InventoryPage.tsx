@@ -17,6 +17,7 @@ import { syncInventoryToSupabase } from '../../services/supabaseSync'
 import { useAuthStore } from '../../stores/authStore'
 import { supabase } from '../../lib/supabase'
 import { useNotificationStore } from '../../stores/notificationStore'
+import { useNavigationStore } from '../../stores/navigationStore'
 import { useFarmStore } from '../../stores/farmStore'
 import { SEED_DEFS, formatGrowTime } from '../../lib/farming'
 import { SLOT_LABEL, LootVisual, RARITY_THEME, normalizeRarity } from '../loot/LootUI'
@@ -300,6 +301,22 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
   useEffect(() => {
     if (inspectSlotId && !slots.some((slot) => slot.id === inspectSlotId)) setInspectSlotId(null)
   }, [slots, inspectSlotId])
+
+  // Consume pending focus from navigation store — triggered by notification click.
+  // Waits for hydration (slots populated) before matching, so we don't drop the request.
+  const pendingInventoryFocus = useNavigationStore((s) => s.pendingInventoryFocus)
+  const setPendingInventoryFocus = useNavigationStore((s) => s.setPendingInventoryFocus)
+  useEffect(() => {
+    if (!pendingInventoryFocus) return
+    if (slots.length === 0) return
+    const match = slots.find((slot) => slot.id === pendingInventoryFocus)
+    if (match) {
+      setInspectSlotId(match.id)
+      setFilterBy('all')
+      setSearchQuery('')
+    }
+    setPendingInventoryFocus(null)
+  }, [pendingInventoryFocus, slots, setPendingInventoryFocus])
 
   useEffect(() => {
     if (!openChestModal) return

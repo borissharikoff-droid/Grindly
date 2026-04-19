@@ -118,6 +118,7 @@ interface SessionStore {
 
 let tickInterval: ReturnType<typeof setInterval> | null = null
 let xpTickInterval: ReturnType<typeof setInterval> | null = null
+let xpEarlyFirstTickTimeout: ReturnType<typeof setTimeout> | null = null
 let checkpointInterval: ReturnType<typeof setInterval> | null = null
 let pausedAccumulated = 0 // ms accumulated while paused
 /** Module-level flag — survives React remounts, only resets on full app restart */
@@ -232,13 +233,15 @@ function sendStreakNotification(api: NonNullable<Window['electronAPI']>): void {
 
 // ── Real-Time XP Tick Constants ──
 const XP_TICK_INTERVAL_MS = 30_000
+/** First-session users get one bonus early tick so the onboarding tour's XP drip feels real. */
+const XP_EARLY_FIRST_TICK_MS = 12_000
 
 // ── Progression Tick Functions (skill-only model) ──
 function startXpTicking() {
   stopXpTicking()
   lastXpTickTime = Date.now()
 
-  xpTickInterval = setInterval(async () => {
+  const runXpTick = async () => {
     const { status, currentActivity, elapsedSeconds, sessionStartTime, isGrindPageActive } = useSessionStore.getState()
     if (status !== 'running' || !sessionStartTime) return
     if (!isGrindPageActive) return
@@ -314,13 +317,28 @@ function startXpTicking() {
       const result = useInventoryStore.getState().rollSessionChestDrop({ source: 'skill_grind', focusCategory })
       useChestDropStore.getState().enqueue(result.rewardId, result.chestType)
     }
-  }, XP_TICK_INTERVAL_MS)
+  }
+
+  // Onboarding: fire one early tick at ~12s so the tour's +XP floaters reflect real XP being granted.
+  // Regular 30s interval continues normally; tickDurationMs on the next tick self-corrects.
+  if (localStorage.getItem('grindly_first_chest_pending') === '1') {
+    xpEarlyFirstTickTimeout = setTimeout(() => {
+      xpEarlyFirstTickTimeout = null
+      void runXpTick()
+    }, XP_EARLY_FIRST_TICK_MS)
+  }
+
+  xpTickInterval = setInterval(runXpTick, XP_TICK_INTERVAL_MS)
 }
 
 function stopXpTicking() {
   if (xpTickInterval) {
     clearInterval(xpTickInterval)
     xpTickInterval = null
+  }
+  if (xpEarlyFirstTickTimeout) {
+    clearTimeout(xpEarlyFirstTickTimeout)
+    xpEarlyFirstTickTimeout = null
   }
 }
 
@@ -706,6 +724,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           title: `${petName} found something!`,
           body: `Sniffed out ${matDef.name} while you worked.`,
           dedupeKey: `pet_drop_${petDrop.materialId}`,
+          focusSlotId: `item:${petDrop.materialId}`,
         }, api)
       }
     }

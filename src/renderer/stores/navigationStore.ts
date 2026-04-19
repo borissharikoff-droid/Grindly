@@ -21,6 +21,9 @@ interface NavigationStore {
   /** Open Marketplace and land on a specific inner tab ('listings'|'sell'|'my_listings'|'history') */
   pendingMarketplaceTab: string | null
   setPendingMarketplaceTab: (tab: string | null) => void
+  /** Open Inventory and auto-inspect this slot ID (e.g. 'item:orc_shard', 'chest:common_bag'). Consumed once. */
+  pendingInventoryFocus: string | null
+  setPendingInventoryFocus: (slotId: string | null) => void
 }
 
 export const useNavigationStore = create<NavigationStore>((set) => ({
@@ -38,4 +41,6 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
   setPendingTradesTab: (v) => set({ pendingTradesTab: v }),
   pendingMarketplaceTab: null,
   setPendingMarketplaceTab: (tab) => set({ pendingMarketplaceTab: tab }),
+  pendingInventoryFocus: null,
+  setPendingInventoryFocus: (slotId) => set({ pendingInventoryFocus: slotId }),
 }))

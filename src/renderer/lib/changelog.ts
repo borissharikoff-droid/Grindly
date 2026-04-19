@@ -24,6 +24,20 @@ export const CHANGE_TYPE_META: Record<ChangeType, { label: string; color: string
 
 export const CHANGELOG: PatchNote[] = [
   {
+    version: '4.8.6',
+    date: '2026-04-20',
+    title: 'Cross-Platform Polish & Secret Frames',
+    items: [
+      { type: 'new', text: '8 secret avatar frames — Motherland, Banned Tape, Creeper, Blurple, Vice, Bolt, Nyan, Pride' },
+      { type: 'new', text: 'Click a notification to jump straight to the matching item in your inventory' },
+      { type: 'ui', text: 'Onboarding tour: live XP drip while you grind, streamlined phases, real stats recap at the end' },
+      { type: 'ui', text: 'Cross-platform polish: copy and docs now reflect Windows + macOS support everywhere' },
+      { type: 'ui', text: 'Harvest, cook, chest, and session XP now render with thousands separators (73,030 instead of 73030)' },
+      { type: 'fix', text: 'Pet scavenge and motivation-burst notifications now show the pet emoji instead of an empty icon box' },
+      { type: 'fix', text: 'Wiki data now matches the app: 14 skills, correct item / recipe / zone counts, correct perk IP formulas' },
+    ],
+  },
+  {
     version: '4.8.4',
     date: '2026-04-17',
     title: 'Cook Icons & Tray Reopen Fix',

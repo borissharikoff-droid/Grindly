@@ -15,6 +15,8 @@ export interface RoutedNotificationEvent {
   dedupeKey: string
   desktop?: boolean
   friendLevelUp?: { friendId: string; friendName: string; newLevel: number }
+  /** Inventory slot ID to auto-open when clicked. */
+  focusSlotId?: string
 }
 
 const COOLDOWNS_MS: Record<RoutedNotificationEventType, number> = {
@@ -69,6 +71,7 @@ export async function routeNotification(
     title: event.title,
     body: event.body,
     ...(event.friendLevelUp ? { friendLevelUp: event.friendLevelUp } : {}),
+    ...(event.focusSlotId ? { focusSlotId: event.focusSlotId } : {}),
   })
 
   const globalEnabled = typeof localStorage !== 'undefined'

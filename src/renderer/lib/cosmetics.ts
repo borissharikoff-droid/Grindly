@@ -59,7 +59,9 @@ export const BADGES: Badge[] = [
 // ─── FRAMES ──────────────────────────────────────────────
 // Frames are avatar borders. Limited/rare, only from specific achievements.
 
-export type FrameStyle = 'pixel' | 'broken' | 'matrix' | 'liquid' | 'glitch' | 'holographic' | 'flame' | 'royal' | 'admin' | 'void' | 'ice' | 'toxic'
+export type FrameStyle =
+  | 'pixel' | 'broken' | 'matrix' | 'liquid' | 'glitch' | 'holographic' | 'flame' | 'royal' | 'admin' | 'void' | 'ice' | 'toxic'
+  | 'tricolor' | 'tape' | 'creeper' | 'blurple' | 'vice' | 'bolt' | 'nyan' | 'pride'
 
 export interface Frame {
   id: string
@@ -183,6 +185,79 @@ export const FRAMES: Frame[] = [
     style: 'toxic',
     unlockHint: 'Defeat 50 monsters',
     achievementId: 'arena_kills_50',
+  },
+  // ── Meme / pop-culture frames (secret unlocks) ──
+  {
+    id: 'motherland',
+    name: 'Motherland',
+    color: '#D52B1E',
+    gradient: 'linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 33%, #0039A6 33%, #0039A6 66%, #D52B1E 66%, #D52B1E 100%)',
+    rarity: 'Rare',
+    style: 'tricolor',
+    unlockHint: 'За родину — secret frame',
+  },
+  {
+    id: 'tape',
+    name: 'Banned Tape',
+    color: '#FF9000',
+    gradient: 'repeating-linear-gradient(45deg, #000000 0px, #000000 8px, #FF9000 8px, #FF9000 16px)',
+    rarity: 'Rare',
+    style: 'tape',
+    unlockHint: 'Incognito mode — secret frame',
+  },
+  {
+    id: 'creeper',
+    name: 'Creeper',
+    color: '#4ADE80',
+    gradient: 'conic-gradient(from 45deg, #16A34A 0% 25%, #14532D 25% 50%, #16A34A 50% 75%, #14532D 75% 100%)',
+    rarity: 'Rare',
+    style: 'creeper',
+    unlockHint: '"Aw man…" — secret frame',
+  },
+  {
+    id: 'blurple',
+    name: 'Blurple',
+    color: '#5865F2',
+    gradient: 'linear-gradient(135deg, #404EED 0%, #5865F2 40%, #7289DA 70%, #2F3136 100%)',
+    rarity: 'Epic',
+    style: 'blurple',
+    unlockHint: 'Server booster energy — secret frame',
+  },
+  {
+    id: 'vice',
+    name: 'Vice',
+    color: '#FF006E',
+    gradient: 'linear-gradient(135deg, #0A0033 0%, #FF006E 35%, #8338EC 65%, #00F5FF 100%)',
+    rarity: 'Epic',
+    style: 'vice',
+    unlockHint: 'Grind past 2 AM — secret frame',
+  },
+  {
+    id: 'bolt',
+    name: 'Bolt',
+    color: '#FCD34D',
+    gradient: 'linear-gradient(135deg, #000000 0%, #FCD34D 50%, #F59E0B 100%)',
+    rarity: 'Epic',
+    style: 'bolt',
+    unlockHint: 'Gotta grind \'em all — secret frame',
+  },
+  {
+    id: 'nyan',
+    name: 'Nyan',
+    color: '#FF71CE',
+    gradient: 'repeating-linear-gradient(0deg, #FF0000 0px, #FF0000 6px, #FF8800 6px, #FF8800 12px, #FFFF00 12px, #FFFF00 18px, #00FF00 18px, #00FF00 24px, #00BFFF 24px, #00BFFF 30px, #8B5CF6 30px, #8B5CF6 36px)',
+    rarity: 'Legendary',
+    style: 'nyan',
+    unlockHint: 'Pop-tart cat approved — secret frame',
+  },
+  {
+    id: 'pride',
+    name: 'Pride',
+    color: '#FF8C00',
+    gradient: 'conic-gradient(from 0deg, #E40303 0deg, #FF8C00 60deg, #FFED00 120deg, #008026 180deg, #004DFF 240deg, #750787 300deg, #E40303 360deg)',
+    rarity: 'Legendary',
+    style: 'pride',
+    unlockHint: 'Love wins — secret frame',
   },
   // Admin-only
   {

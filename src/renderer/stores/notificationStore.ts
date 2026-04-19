@@ -47,6 +47,11 @@ export interface Notification {
     friendName: string
     newLevel: number
   }
+  /**
+   * Optional inventory slot to open when the notification is clicked.
+   * Format matches InventoryPage slot IDs: `item:<id>`, `chest:<type>`, `pending:<type>`, `seed:<id>`.
+   */
+  focusSlotId?: string
 }
 
 interface NotificationStore {

@@ -503,6 +503,7 @@ function AbilitiesPanel({ pet, petName }: { pet: PetInstance; petName: string })
   const pushNotification = useNotificationStore((s) => s.push)
   const [scavengeResult, setScavengeResult] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
+  const petEmoji = getPetDef(pet.defId)?.emoji ?? '🐾'
 
   // Keep burst timer live
   useEffect(() => {
@@ -524,11 +525,14 @@ function AbilitiesPanel({ pet, petName }: { pet: PetInstance; petName: string })
         .join(', ')
       setScavengeResult(names)
       setTimeout(() => setScavengeResult(null), 4_000)
+      const firstMat = result.materials[0]
       pushNotification({
         type: 'progression',
+        icon: petEmoji,
         title: `${petName} found loot!`,
         body: `Scavenged: ${names}`,
         timestamp: Date.now(),
+        ...(firstMat ? { focusSlotId: `item:${firstMat.id}` } : {}),
       })
     }
   }
@@ -537,7 +541,8 @@ function AbilitiesPanel({ pet, petName }: { pet: PetInstance; petName: string })
     activateMotivationBurst()
     pushNotification({
       type: 'progression',
-      title: `⚡ Motivation Burst!`,
+      icon: '⚡',
+      title: `Motivation Burst!`,
       body: `${petName} is giving you +50% XP for 20 minutes`,
       timestamp: Date.now(),
     })
