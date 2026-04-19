@@ -1170,7 +1170,7 @@ function Cauldron({ items, onConsume, onGrant, onRecipeFound }: {
                 </div>
                 <div className="text-caption mb-1" style={{ color: K.cream }}>{result.foodName}</div>
                 {result.xpGained > 0 && (
-                  <div className="text-micro font-mono" style={{ color: K.xp }}>+{result.xpGained} XP</div>
+                  <div className="text-micro font-mono" style={{ color: K.xp }}>+{result.xpGained.toLocaleString()} XP</div>
                 )}
                 {result.type === 'mystery_stew' && (
                   <p className="text-micro mt-2" style={{ color: K.muted }}>

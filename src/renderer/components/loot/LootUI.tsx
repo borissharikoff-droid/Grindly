@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { LootSlot } from '../../lib/loot'
 
 export const SLOT_META: Record<LootSlot, { label: string; icon: string }> = {
@@ -82,7 +83,8 @@ export function LootVisual({
   className?: string
   scale?: number
 }) {
-  if (image) {
+  const [imgFailed, setImgFailed] = useState(false)
+  if (image && !imgFailed) {
     return (
       <img
         src={image}
@@ -90,9 +92,10 @@ export function LootVisual({
         className={className ?? 'w-7 h-7 object-contain'}
         style={{ imageRendering: 'pixelated', transform: `scale(${scale})`, transformOrigin: 'center center' }}
         draggable={false}
+        onError={() => setImgFailed(true)}
       />
     )
   }
-  return <span className={className}>{icon}</span>
+  return <span className={`grindly-emoji ${className ?? ''}`}>{icon || '📦'}</span>
 }
 

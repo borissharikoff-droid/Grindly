@@ -51,6 +51,30 @@ function NavHint() {
   )
 }
 
+/**
+ * Guaranteed non-empty icon for every notification.
+ * Tries the item's own icon → loot-item icon (via focusSlotId) → type-based fallback → 🔔.
+ */
+function resolveNotifIcon(item: { icon?: string; type: NotificationType; focusSlotId?: string; title?: string; body?: string }): string {
+  if (item.icon && item.icon.trim().length > 0) return item.icon
+  if (item.focusSlotId?.startsWith('item:')) {
+    const id = item.focusSlotId.slice(5)
+    const loot = LOOT_ITEMS.find((x) => x.id === id)
+    if (loot?.icon) return loot.icon
+  }
+  switch (item.type) {
+    case 'friend_levelup': return '⬆️'
+    case 'trade_offer':    return '🤝'
+    case 'arena_result':   return '⚔️'
+    case 'marketplace_sale': return '💰'
+    case 'poll':           return '📊'
+    case 'patch_notes':
+    case 'update':         return '🆕'
+    case 'progression':    return '✨'
+    default:               return '🔔'
+  }
+}
+
 function timeAgo(ts: number): string {
   const sec = Math.floor(Math.max(0, Date.now() - ts) / 1000)
   if (sec < 60) return 'just now'
@@ -73,6 +97,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
   const globalNavigate = useNavigationStore((s) => s.navigateTo)
   const setPendingTradesTab = useNavigationStore((s) => s.setPendingTradesTab)
   const setPendingMarketplaceTab = useNavigationStore((s) => s.setPendingMarketplaceTab)
+  const setPendingInventoryFocus = useNavigationStore((s) => s.setPendingInventoryFocus)
   const presentRecoveryComplete = useSessionStore((s) => s.presentRecoveryComplete)
   const claimPendingReward = useInventoryStore((s) => s.claimPendingReward)
   const openChestAndGrantItem = useInventoryStore((s) => s.openChestAndGrantItem)
@@ -204,11 +229,17 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                         title="Go to Arena"
                       >
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded flex items-center justify-center shrink-0" style={{ background: iconBg, border: `1px solid ${accentBorder}` }}>
-                            {ar.chest?.image ? (
-                              <img src={ar.chest.image} alt="" className="w-6 h-6 object-contain" style={{ imageRendering: 'pixelated' }} draggable={false} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                            ) : (
-                              <span className="text-sm leading-none">{ar.chest?.icon ?? item.icon}</span>
+                          <div className="relative w-8 h-8 rounded flex items-center justify-center shrink-0" style={{ background: iconBg, border: `1px solid ${accentBorder}` }}>
+                            <span className="grindly-emoji text-sm leading-none">{ar.chest?.icon || resolveNotifIcon(item)}</span>
+                            {ar.chest?.image && (
+                              <img
+                                src={ar.chest.image}
+                                alt=""
+                                className="absolute inset-0 m-auto w-6 h-6 object-contain"
+                                style={{ imageRendering: 'pixelated' }}
+                                draggable={false}
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                              />
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
@@ -252,7 +283,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                     <div className="rounded border border-accent/20 bg-accent/[0.06] px-3 py-2">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 bg-accent/12 border border-accent/25">
-                          <span className="text-sm leading-none">{item.icon}</span>
+                          <span className="grindly-emoji text-sm leading-none">{resolveNotifIcon(item)}</span>
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-baseline justify-between gap-1">
@@ -288,25 +319,33 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                   return (
                     <div key={item.id} className="px-2.5 py-1.5 border-b border-white/[0.03] last:border-0">
                       <div
-                        className="rounded px-3 py-2"
+                        className="rounded px-3 py-2 cursor-pointer hover:brightness-110 transition-all"
                         style={{ border: `1px solid ${rTheme.border}`, background: `${rTheme.color}0a` }}
+                        onClick={() => {
+                          if (!globalNavigate) return
+                          playClickSound()
+                          setPendingInventoryFocus(`pending:${cr.chestType}`)
+                          globalNavigate('inventory')
+                          dismiss(item.id)
+                          onClose()
+                        }}
+                        title="View in Inventory"
                       >
                         <div className="flex items-center gap-2.5">
                           <div
-                            className="w-8 h-8 rounded flex items-center justify-center shrink-0"
+                            className="relative w-8 h-8 rounded flex items-center justify-center shrink-0"
                             style={{ background: `${rTheme.color}15`, border: `1px solid ${rTheme.border}` }}
                           >
-                            {cr.chestImage ? (
+                            <span className="grindly-emoji text-sm leading-none">{resolveNotifIcon(item)}</span>
+                            {cr.chestImage && (
                               <img
                                 src={cr.chestImage}
                                 alt=""
-                                className="w-6 h-6 object-contain"
+                                className="absolute inset-0 m-auto w-6 h-6 object-contain"
                                 style={{ imageRendering: 'pixelated' }}
                                 draggable={false}
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                               />
-                            ) : (
-                              <span className="text-sm leading-none">{item.icon}</span>
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
@@ -318,7 +357,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleOpenChest(item.id, cr.rewardId, cr.chestType)}
+                            onClick={(e) => { e.stopPropagation(); handleOpenChest(item.id, cr.rewardId, cr.chestType) }}
                             className="shrink-0 px-2.5 py-1 rounded text-caption font-semibold transition-colors"
                             style={{ color: rTheme.color, background: `${rTheme.color}20`, border: `1px solid ${rTheme.border}` }}
                           >
@@ -334,7 +373,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                     <div className="rounded border border-purple-400/20 bg-purple-400/[0.06] px-3 py-2">
                       <div className="flex items-center gap-2.5 mb-2">
                         <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 bg-purple-400/12 border border-purple-400/25">
-                          <span className="text-sm leading-none">{item.icon}</span>
+                          <span className="grindly-emoji text-sm leading-none">{resolveNotifIcon(item)}</span>
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-baseline justify-between gap-1">
@@ -380,7 +419,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                     <div className="rounded border border-green-400/20 bg-green-400/[0.06] px-3 py-2">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 bg-green-400/12 border border-green-400/25">
-                          <span className="text-sm leading-none">{item.icon}</span>
+                          <span className="grindly-emoji text-sm leading-none">{resolveNotifIcon(item)}</span>
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-baseline justify-between gap-1">
@@ -416,7 +455,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                       >
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 bg-emerald-400/10 border border-emerald-400/20">
-                            <span className="text-sm leading-none">{item.icon}</span>
+                            <span className="grindly-emoji text-sm leading-none">{resolveNotifIcon(item)}</span>
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-baseline justify-between gap-1">
@@ -456,7 +495,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                       >
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 bg-blue-400/10 border border-blue-400/20">
-                            <span className="text-sm leading-none">{item.icon}</span>
+                            <span className="grindly-emoji text-sm leading-none">{resolveNotifIcon(item)}</span>
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-baseline justify-between gap-1">
@@ -493,7 +532,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                   )
                 })()
                 : (() => {
-                  const tab = tabForNotifType(item.type, item.title, item.body)
+                  const tab = item.focusSlotId ? 'inventory' : tabForNotifType(item.type, item.title, item.body)
                   return (
                     <div
                       key={item.id}
@@ -502,6 +541,10 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                         if (tab && globalNavigate) {
                           playClickSound()
                           if (item.type === 'marketplace_sale') setPendingMarketplaceTab('history')
+                          if (item.focusSlotId) {
+                            setPendingInventoryFocus(item.focusSlotId)
+                            dismiss(item.id)
+                          }
                           globalNavigate(tab)
                           onClose()
                         }
@@ -509,7 +552,7 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                       title={tab ? `Go to ${tab}` : undefined}
                     >
                       <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 bg-white/[0.05] border border-white/[0.08]">
-                        <span className="text-sm leading-none">{item.icon}</span>
+                        <span className="grindly-emoji text-sm leading-none">{resolveNotifIcon(item)}</span>
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-baseline justify-between gap-1">

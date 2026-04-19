@@ -1186,7 +1186,7 @@ function HarvestRevealModal({ result, remaining = 0, onClose }: { result: Harves
           {/* XP */}
           <div className="flex items-center justify-between relative">
             <span className="text-micro text-gray-400 font-mono">Farmer XP</span>
-            <span className="text-sm font-bold text-lime-400">+{result.xpGained}</span>
+            <span className="text-sm font-bold text-lime-400">+{result.xpGained.toLocaleString()}</span>
           </div>
 
           {/* Compost drops */}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavCustomizationStore, ADVANCED_TABS } from '../../stores/navCustomizationStore'
 import { motion, AnimatePresence } from 'framer-motion'
 import mascotImg from '../../assets/mascot.png'
@@ -7,6 +7,7 @@ import { MOTION } from '../../lib/motion'
 import { Zap, Package, Sword, Shield } from '../../lib/icons'
 import { Target, Gift, Monitor, PauseCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { track } from '../../lib/analytics'
 
 const WORK_SKILL_IDS = ['developer', 'designer', 'gamer', 'communicator', 'researcher', 'creator', 'learner', 'listener']
 
@@ -35,7 +36,7 @@ const SLIDE = {
 }
 
 const FEATURES: { Icon: LucideIcon; color: string; bg: string; label: string; sub: string }[] = [
-  { Icon: Zap,     color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', label: '8 skills to level up',     sub: 'Developer, Designer, Gamer...' },
+  { Icon: Zap,     color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', label: '14 skills to level up',    sub: 'Developer, Designer, Gamer, Warrior...' },
   { Icon: Package, color: '#60a5fa', bg: 'rgba(96,165,250,0.12)',  label: 'Loot drops from real work', sub: 'Gear, chests, rare items' },
   { Icon: Sword,   color: '#f87171', bg: 'rgba(248,113,113,0.12)', label: 'Dungeons, raids & guilds',   sub: 'Fight bosses, party with friends' },
 ]
@@ -57,6 +58,10 @@ export function OnboardingWizard({ onDone }: Props) {
 
   const workSkills = SKILLS.filter((s) => WORK_SKILL_IDS.includes(s.id))
 
+  useEffect(() => {
+    track('onboarding_wizard_started')
+  }, [])
+
   function toggleSkill(id: string) {
     setSelectedSkills((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
@@ -72,6 +77,10 @@ export function OnboardingWizard({ onDone }: Props) {
     localStorage.setItem('grindly_onboarding_done', '1')
     // Lock advanced tabs for new users — they unlock after 3 sessions
     useNavCustomizationStore.getState().setLockedTabs(ADVANCED_TABS)
+    track('onboarding_wizard_completed', {
+      skills: selectedSkills,
+      daily_goal_secs: goalSecs,
+    })
     onDone()
   }
 
@@ -271,8 +280,8 @@ export function OnboardingWizard({ onDone }: Props) {
               <div>
                 <h2 className="text-base font-bold text-white mb-1">First mission</h2>
                 <p className="text-body text-gray-400 leading-relaxed">
-                  Keep Grindly open while you work.<br />
-                  XP drops every 30 seconds.
+                  Press GRIND and keep the app open.<br />
+                  XP ticks live while you work.
                 </p>
               </div>
 
@@ -288,8 +297,8 @@ export function OnboardingWizard({ onDone }: Props) {
                   <Gift size={16} color="#60a5fa" strokeWidth={1.75} />
                 </span>
                 <div>
-                  <p className="text-xs font-semibold text-white">Grind 10 minutes</p>
-                  <p className="text-caption text-gray-400">Guaranteed chest drop — your first loot</p>
+                  <p className="text-xs font-semibold text-white">First loot in 10 seconds</p>
+                  <p className="text-caption text-gray-400">Your guaranteed starter chest drops on session start</p>
                 </div>
               </div>
 

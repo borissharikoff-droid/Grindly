@@ -149,7 +149,7 @@ export function FocusModeDock() {
               ? 'Focus mode is active'
               : !hasElectron
                 ? 'Focus mode requires the desktop app (Electron)'
-                : 'Enable Focus mode — blocks Windows notifications'
+                : 'Enable Focus mode — blocks system notifications'
           }
           className={`text-xs py-2 px-3 rounded-lg border transition-all duration-150 ${
             focusModeActive

@@ -6,7 +6,7 @@
 <br>
 
 **Your screen time, gamified.**<br>
-XP, skills, loot drops, and arena battles — powered by what you actually do on your PC.
+XP, skills, loot drops, and arena battles — powered by what you actually do on your computer.
 
 <br>
 
@@ -21,7 +21,7 @@ XP, skills, loot drops, and arena battles — powered by what you actually do on
 
 ## What is Grindly?
 
-Grindly watches what you're doing on your PC and turns it into an RPG — in real time.
+Grindly watches what you're doing on your Mac or PC and turns it into an RPG — in real time.
 
 Open VS Code for 3 hours → **Developer** skill levels up. Browse research tabs → **Researcher** XP. Play games → **Gamer**. Every active window is tracked and converted into progression.
 

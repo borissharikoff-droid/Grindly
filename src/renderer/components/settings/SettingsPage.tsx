@@ -223,8 +223,8 @@ export function SettingsPage() {
       {/* ─── GENERAL ────────────────────────────────────────── */}
       <Section id="general" title="General" icon="settings" open={openSections.has('general')} onToggle={toggleSection}>
         <ToggleRow
-          label="Start with Windows"
-          sublabel="Launch Grindly on PC boot"
+          label="Start at Login"
+          sublabel="Launch Grindly at system startup"
           enabled={autoLaunch}
           onChange={handleAutoLaunch}
         />

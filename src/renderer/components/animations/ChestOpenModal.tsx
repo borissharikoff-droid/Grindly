@@ -281,7 +281,7 @@ export function ChestOpenModal({
               {warriorXP > 0 && (
                 <div className="flex flex-col items-center gap-1 rounded-lg border border-red-500/25 bg-red-500/08 px-3 py-2">
                   <span className="text-xl">🗡️</span>
-                  <span className="text-sm font-bold text-red-400">+{warriorXP}</span>
+                  <span className="text-sm font-bold text-red-400">+{warriorXP.toLocaleString()}</span>
                   <span className="text-micro font-mono text-red-600 uppercase tracking-widest">Warrior XP</span>
                 </div>
               )}
@@ -708,7 +708,7 @@ export function ChestOpenModal({
                         >
                           <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at 50% 35%, rgba(239,68,68,0.18) 0%, transparent 65%)' }} />
                           <span className="text-3xl relative">🗡️</span>
-                          <span className="text-xl font-bold text-red-400 tabular-nums relative">+{warriorXP}</span>
+                          <span className="text-xl font-bold text-red-400 tabular-nums relative">+{warriorXP.toLocaleString()}</span>
                           <span className="text-micro font-mono text-red-500/60 uppercase tracking-widest relative">Warrior XP</span>
                         </motion.div>
                       )}

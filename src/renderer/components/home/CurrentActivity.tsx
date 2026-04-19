@@ -154,7 +154,7 @@ export function CurrentActivity() {
                 transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
                 className="text-caption font-mono text-gray-400"
               >
-                +{xpThisSession} XP
+                +{xpThisSession.toLocaleString()} XP
               </motion.span>
             )}
             <AnimatePresence>

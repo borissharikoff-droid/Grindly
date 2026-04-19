@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Grindly is a Windows desktop productivity tracker built with Electron + React + TypeScript. It monitors active window usage, categorizes activities into skills, and provides gamification (XP, levels, streaks, achievements). Social features (friends, chat, leaderboard) are powered by Supabase. Optional AI session analysis via DeepSeek. There is also a web admin dashboard deployed on Railway. Always consider both client and dashboard when making changes.
+Grindly is a cross-platform desktop productivity tracker (Windows + macOS) built with Electron + React + TypeScript. It monitors active window usage, categorizes activities into skills, and provides gamification (XP, levels, streaks, achievements). Social features (friends, chat, leaderboard) are powered by Supabase. Optional AI session analysis via DeepSeek. There is also a web admin dashboard deployed on Railway. Always consider both client and dashboard when making changes.
 
 ## Commands
 
@@ -16,7 +16,8 @@ npm run build:electron        # Compile main + preload TypeScript only
 
 # Build
 npm run build                 # Full build (TS compile + Vite bundle)
-npm run electron:build        # Package into Windows installer (.exe)
+npm run electron:build        # Package Windows installer (.exe)
+npm run electron:build:mac    # Package macOS universal .dmg (x64 + arm64)
 
 # Tests (Vitest)
 npm run test                  # Run all tests once
@@ -31,7 +32,7 @@ This is a TypeScript Electron + Supabase RPG game with complex sync layers (loca
 
 ### Three-Process Electron Model
 
-- **Main process** (`src/main/`, CommonJS via `tsconfig.main.json`) — app lifecycle, tray, SQLite database, PowerShell activity tracker subprocess, IPC handlers, auto-updater
+- **Main process** (`src/main/`, CommonJS via `tsconfig.main.json`) — app lifecycle, tray, SQLite database, platform-specific activity tracker subprocess (PowerShell on Windows, Swift on macOS), IPC handlers, auto-updater
 - **Preload** (`src/preload/`, CommonJS via `tsconfig.preload.json`) — context bridge exposing `window.electronAPI` to renderer
 - **Renderer** (`src/renderer/`, ESNext via `tsconfig.json`) — React SPA bundled by Vite
 
@@ -43,11 +44,13 @@ Each process has its own tsconfig. Main/preload compile to CommonJS (`dist/main/
 
 ### Activity Tracking
 
-`src/main/tracker.ts` spawns a PowerShell subprocess using Win32 APIs (GetForegroundWindow, GetAsyncKeyState, GetLastInputInfo). Outputs activity data every ~1.5s in format `WIN:ProcessName|Title|KeystrokeCount|IdleMs`. Windows-only.
+Platform-specific subprocess, same output contract (`WIN:ProcessName|Title|KeystrokeCount|IdleMs`, ~1.5s cadence):
+- **Windows**: `src/main/tracker.ts` spawns PowerShell using Win32 APIs (GetForegroundWindow, GetAsyncKeyState, GetLastInputInfo).
+- **macOS**: `native/macos-tracker/main.swift` — a Swift binary compiled to a universal (x64 + arm64) helper via `npm run build:macos-tracker`, bundled as an `extraResource` by electron-builder. Uses Foundation, AppKit, ApplicationServices, IOKit.
 
 ### Data Storage
 
-- **Local:** SQLite via better-sqlite3 at `%APPDATA%/Grindly/grindly.sqlite`. Schema managed by numbered migrations in `src/main/migrations/index.ts`. Core tables: sessions, activities, skill_xp, achievements_unlocked, grind_tasks, session_checkpoint.
+- **Local:** SQLite via better-sqlite3 at Electron's `app.getPath('userData')`. On Windows this resolves to `%APPDATA%/Grindly/grindly.sqlite`; on macOS to `~/Library/Application Support/Grindly/grindly.sqlite`. Schema managed by numbered migrations in `src/main/migrations/index.ts`. Core tables: sessions, activities, skill_xp, achievements_unlocked, grind_tasks, session_checkpoint.
 - **Cloud (optional):** Supabase for auth, profiles, friends, messages, leaderboard. Schema in `supabase/schema.sql`. Skill XP synced from SQLite → Supabase via `src/renderer/services/supabaseSync.ts`.
 
 ### State Management
@@ -56,7 +59,7 @@ Zustand stores in `src/renderer/stores/`. The central store is `sessionStore.ts`
 
 ### Gamification
 
-8 skills (Developer, Designer, Gamer, Communicator, Researcher, Creator, Learner, Listener) defined in `src/renderer/lib/skills.ts`. XP formulas in `src/renderer/lib/xp.ts` — 99 levels per skill with formula `xpForLevel(L) = floor(pow(L/99, 2.2) * 3_600_000)`. Activity categories map to skills via `skillXPService.ts`. Achievements checked in `achievementService.ts`.
+14 skills (Developer, Designer, Gamer, Communicator, Researcher, Creator, Learner, Listener, Farmer, Warrior, Crafter, Chef, AI, Grindly) defined in `src/renderer/lib/skills.ts`. The first 8 (+ AI) are earned passively from app activity; Farmer/Warrior/Crafter/Chef/Grindly are earned through in-game actions (harvesting, arena kills, crafting, cooking, general play). XP formulas in `src/renderer/lib/xp.ts` — 99 levels per skill with formula `xpForLevel(L) = floor(pow(L/99, 2.2) * 3_600_000)`. Activity categories map to skills via `skillXPService.ts`. Achievements checked in `achievementService.ts`.
 
 ### Loot, Inventory & Economy
 
