@@ -37,11 +37,7 @@
       "Bash(find /c/idly/public/loot -name *.webp)",
       "Bash(find /c/idly/src -name *.webp -o -name *.png)",
       "Bash(mkdir -p C:/Users/fillo/.claude/plugins/cache/last30days-skill/last30days/2.9.6/commands)",
-      "Bash(cp /tmp/last30days_skill.md C:/Users/fillo/.claude/plugins/cache/last30days-skill/last30days/2.9.6/commands/last30days.md)",
-      "Skill(plan-ceo-review)",
-      "Skill(plan-ceo-review:*)",
-      "Skill(ship)",
-      "Skill(ship:*)"
+      "Bash(cp /tmp/last30days_skill.md C:/Users/fillo/.claude/plugins/cache/last30days-skill/last30days/2.9.6/commands/last30days.md)"
     ]
   },
   "outputStyle": "default"

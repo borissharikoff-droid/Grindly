@@ -24,6 +24,20 @@ export const CHANGE_TYPE_META: Record<ChangeType, { label: string; color: string
 
 export const CHANGELOG: PatchNote[] = [
   {
+    version: '4.9.0',
+    date: '2026-04-20',
+    title: 'Period Share & Top Apps',
+    items: [
+      { type: 'new', text: 'Share your stats for any period — Today, last 7 days, last 30 days, or all time — from the Stats page' },
+      { type: 'new', text: 'Share card now shows a Top Apps section with category-colored chips' },
+      { type: 'new', text: 'Today widget on Home shows your top skills strip + most-used app of the day' },
+      { type: 'new', text: 'Friend picker in the Share modal now has avatars with rarity frames + search' },
+      { type: 'ui', text: 'Share card accent color now matches your top skill — cards feel personal to each grinder' },
+      { type: 'ui', text: 'Hero time auto-scales on long periods (e.g. 107h) so nothing clips' },
+      { type: 'fix', text: 'Fixed bow-tie artifact on the share card\u2019s accent top-bar' },
+    ],
+  },
+  {
     version: '4.8.4',
     date: '2026-04-17',
     title: 'Cook Icons & Tray Reopen Fix',
