@@ -211,8 +211,15 @@ function PetBoostCallout({ emoji, imageUrl, name, bonusXP, hunger, skillLabel, d
 }
 
 export function SessionComplete({ onNavigateFriends, hasFriends }: SessionCompleteProps = {}) {
-  const { lastSessionSummary, skillXPGains, streakMultiplier, sessionSkillXPEarned, sessionPetBonusXP, sessionPetDrop, sessionRewards, newAchievements, dismissComplete } =
-    useSessionStore()
+  const lastSessionSummary = useSessionStore((s) => s.lastSessionSummary)
+  const skillXPGains = useSessionStore((s) => s.skillXPGains)
+  const streakMultiplier = useSessionStore((s) => s.streakMultiplier)
+  const sessionSkillXPEarned = useSessionStore((s) => s.sessionSkillXPEarned)
+  const sessionPetBonusXP = useSessionStore((s) => s.sessionPetBonusXP)
+  const sessionPetDrop = useSessionStore((s) => s.sessionPetDrop)
+  const sessionRewards = useSessionStore((s) => s.sessionRewards)
+  const newAchievements = useSessionStore((s) => s.newAchievements)
+  const dismissComplete = useSessionStore((s) => s.dismissComplete)
   const hasLootOpen = useAlertStore((s) => s.currentAlert !== null)
   const user = useAuthStore((s) => s.user)
   const showFriendsCTA = useMemo(

@@ -477,11 +477,9 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     set((state) => {
       const nextItems = { ...state.items }
       for (const { item_id, quantity } of rows) {
-        if (quantity <= 0) {
-          delete nextItems[item_id]
-        } else {
-          nextItems[item_id] = quantity
-        }
+        // Preserve 0-keys (don't delete) — deleteItem/consumePotion rely on the 0-key
+        // to block mergeFromCloud from restoring consumed items from stale cloud data.
+        nextItems[item_id] = Math.max(0, quantity)
       }
       const next: InventoryState = { ...state, items: nextItems }
       saveSnapshot(next)

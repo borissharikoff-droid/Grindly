@@ -6,7 +6,8 @@ import { PixelConfetti } from './PixelConfetti'
 import { useEffect } from 'react'
 
 export function LevelUpModal() {
-  const { pendingLevelUp, dismissLevelUp } = useSessionStore()
+  const pendingLevelUp = useSessionStore((s) => s.pendingLevelUp)
+  const dismissLevelUp = useSessionStore((s) => s.dismissLevelUp)
 
   useEffect(() => {
     if (pendingLevelUp) {

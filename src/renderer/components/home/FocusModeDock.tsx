@@ -15,15 +15,13 @@ function formatShort(seconds: number): string {
 }
 
 export function FocusModeDock() {
-  const {
-    focusModeActive,
-    focusModeEndsAt,
-    elapsedSeconds,
-    status,
-    start,
-    enableFocusMode,
-    disableFocusMode,
-  } = useSessionStore()
+  const focusModeActive = useSessionStore((s) => s.focusModeActive)
+  const focusModeEndsAt = useSessionStore((s) => s.focusModeEndsAt)
+  const elapsedSeconds = useSessionStore((s) => s.elapsedSeconds)
+  const status = useSessionStore((s) => s.status)
+  const start = useSessionStore((s) => s.start)
+  const enableFocusMode = useSessionStore((s) => s.enableFocusMode)
+  const disableFocusMode = useSessionStore((s) => s.disableFocusMode)
   const pushNotification = useNotificationStore((s) => s.push)
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)

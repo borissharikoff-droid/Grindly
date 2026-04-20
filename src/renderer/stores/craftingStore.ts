@@ -170,13 +170,14 @@ export const useCraftingStore = create<CraftingState>((set, get) => ({
       ingredients: recipe.ingredients,
     }
 
-    const { activeJob, queue } = get()
-    const newActive = activeJob ? activeJob : job
-    const newQueue  = activeJob ? [...queue, job] : queue
-
-    const snap = { craftXp: get().craftXp, activeJob: newActive, queue: newQueue, recipeMastery: get().recipeMastery }
-    save(snap)
-    set({ activeJob: newActive, queue: newQueue })
+    // Use functional set to read fresh store state — if tick ran between earlier reads
+    // and this call, its activeJob/queue updates must not be clobbered.
+    set((s) => {
+      const newActive = s.activeJob ? s.activeJob : job
+      const newQueue  = s.activeJob ? [...s.queue, job] : s.queue
+      save({ craftXp: s.craftXp, activeJob: newActive, queue: newQueue, recipeMastery: s.recipeMastery })
+      return { activeJob: newActive, queue: newQueue }
+    })
     return 'ok'
   },
 
@@ -206,6 +207,32 @@ export const useCraftingStore = create<CraftingState>((set, get) => ({
       if (masteryTier >= 3 && Math.random() < 0.10)        outputQty += activeJob.outputQty
     }
 
+    const newDone = activeJob.doneQty + completable
+    const jobComplete = newDone >= activeJob.totalQty
+
+    // Commit state FIRST. Side effects (onGrant, onRefund, achievement increments)
+    // only fire if the set() commits — guards against phantom grants if the
+    // id-match bail triggers (e.g. cancelled under us).
+    let committed = false
+    set((s) => {
+      if (!s.activeJob || s.activeJob.id !== activeJob.id) return s
+      committed = true
+      const freshQueue = [...s.queue]
+      let nextActive: CraftJob | null
+      if (jobComplete) {
+        const next = freshQueue.shift() ?? null
+        nextActive = next ? { ...next, startedAt: now, doneQty: 0 } : null
+      } else {
+        nextActive = { ...s.activeJob, doneQty: newDone, startedAt: now }
+      }
+      const nextCraftXp  = s.craftXp + xpGained
+      const nextMastery  = { ...s.recipeMastery, [activeJob.recipeId]: (s.recipeMastery[activeJob.recipeId] ?? 0) + completable }
+      save({ craftXp: nextCraftXp, activeJob: nextActive, queue: freshQueue, recipeMastery: nextMastery })
+      return { craftXp: nextCraftXp, activeJob: nextActive, queue: freshQueue, recipeMastery: nextMastery }
+    })
+
+    if (!committed) return
+
     onGrant(activeJob.outputItemId, outputQty, xpGained)
 
     // Mastery ingredient refund (tier 2: 15%, tier 3: 20%) — per item roll
@@ -220,32 +247,14 @@ export const useCraftingStore = create<CraftingState>((set, get) => ({
       }
     }
 
-    const newDone = activeJob.doneQty + completable
-    const newCraftXp = get().craftXp + xpGained
-    const newQueue = [...get().queue]
-    const newMastery = {
-      ...get().recipeMastery,
-      [activeJob.recipeId]: masteryCount + completable,
-    }
-
-    let newActiveJob: CraftJob | null
-    if (newDone >= activeJob.totalQty) {
+    if (jobComplete) {
       recordCraftComplete()
       useAchievementStatsStore.getState().incrementCrafts()
       useBountyStore.getState().incrementCraft(completable)
       useWeeklyStore.getState().incrementCraft(completable)
       import('./guildStore').then(({ useGuildStore }) => useGuildStore.getState().incrementRaidProgress('craft', completable)).catch(() => {})
       track('craft_complete', { item_id: activeJob.outputItemId, recipe_id: activeJob.recipeId })
-      const next = newQueue.shift() ?? null
-      newActiveJob = next ? { ...next, startedAt: now, doneQty: 0 } : null
-    } else {
-      // Advance anchor so next tick computes delta from now
-      newActiveJob = { ...activeJob, doneQty: newDone, startedAt: now }
     }
-
-    const snap = { craftXp: newCraftXp, activeJob: newActiveJob, queue: newQueue, recipeMastery: newMastery }
-    save(snap)
-    set({ craftXp: newCraftXp, activeJob: newActiveJob, queue: newQueue, recipeMastery: newMastery })
   },
 
   cancelJob(jobId, onRefund) {

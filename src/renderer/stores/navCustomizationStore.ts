@@ -27,6 +27,19 @@ export const useNavCustomizationStore = create<NavCustomizationState>()(
       unlockTab: (tab) => set((s) => ({ lockedTabs: s.lockedTabs.filter((t) => t !== tab) })),
       unlockAllAdvanced: () => set((s) => ({ lockedTabs: s.lockedTabs.filter((t) => !ADVANCED_TABS.includes(t)) })),
     }),
-    { name: 'grindly_nav_customization' }
+    {
+      name: 'grindly_nav_customization',
+      version: 1,
+      migrate: (persisted, version) => {
+        const state = (persisted ?? {}) as Partial<NavCustomizationState>
+        if (version < 1) {
+          return {
+            pinnedTabs: Array.isArray(state.pinnedTabs) ? state.pinnedTabs : DEFAULT_PINNED,
+            lockedTabs: Array.isArray(state.lockedTabs) ? state.lockedTabs : [],
+          } as NavCustomizationState
+        }
+        return state as NavCustomizationState
+      },
+    }
   )
 )

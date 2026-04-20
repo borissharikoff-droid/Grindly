@@ -88,6 +88,9 @@ interface SessionStore {
   sessionSkillXP: Record<string, number>
   /** Skill XP at session start (for level-up detection and live display) */
   skillXPAtStart: Record<string, number>
+  /** True once skillXPAtStart has been populated from SQLite. Guards tick XP awarding so a
+   * pre-load tick doesn't compare against an empty baseline and fire a false level-up. */
+  skillXPAtStartLoaded: boolean
   /** Skill levels we've already shown level-up for this session */
   skillLevelNotified: Record<string, number>
   /** Pending skill level-up to show modal */
@@ -352,6 +355,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   sessionRewards: [],
   sessionSkillXP: {},
   skillXPAtStart: {},
+  skillXPAtStartLoaded: false,
   skillLevelNotified: {},
   pendingSkillLevelUpSkill: null,
   lastSessionSavedAt: null,
@@ -388,7 +392,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   tick() {
-    const { sessionStartTime, status, currentActivity, sessionSkillXP, skillXPAtStart, skillLevelNotified } = get()
+    const { sessionStartTime, status, currentActivity, sessionSkillXP, skillXPAtStart, skillXPAtStartLoaded, skillLevelNotified } = get()
     if (!sessionStartTime) return
     const elapsed = Math.floor((Date.now() - sessionStartTime - pausedAccumulated) / 1000)
     const updates: {
@@ -397,7 +401,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       pendingSkillLevelUpSkill?: { skillId: string; level: number } | null
       skillLevelNotified?: Record<string, number>
     } = { elapsedSeconds: Math.max(0, elapsed) }
-    if (status === 'running' && currentActivity) {
+    // Defer XP accrual until skillXPAtStart loads — otherwise baseXP=0 + current XP
+    // can fake a level-up on the first tick of every session restart.
+    if (status === 'running' && currentActivity && skillXPAtStartLoaded) {
       const now = Date.now()
       const { focusModeActive, focusModeEndsAt } = get()
       if (focusModeActive && focusModeEndsAt && now >= focusModeEndsAt) {
@@ -503,6 +509,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       sessionRewards: [],
       sessionSkillXP: {},
       skillXPAtStart: {},
+      skillXPAtStartLoaded: false,
       skillLevelNotified: {},
       pendingSkillLevelUpSkill: null,
     })
@@ -522,7 +529,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         }
       } catch { /* fallback: empty */ }
       if (get().sessionId === sessionId) {
-        set({ skillXPAtStart })
+        set({ skillXPAtStart, skillXPAtStartLoaded: true })
       }
     })
     track('session_start')

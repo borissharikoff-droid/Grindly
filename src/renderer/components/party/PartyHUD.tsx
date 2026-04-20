@@ -70,7 +70,9 @@ export function PartyHUD() {
   const fetchParty = usePartyStore((s) => s.fetchParty)
   const fetchInvites = usePartyStore((s) => s.fetchInvites)
   const partyId = usePartyStore((s) => s.party?.id ?? null)
-  const { subscribeRealtime, unsubscribeRealtime, fetchSession } = usePartyCraftStore()
+  const subscribeRealtime = usePartyCraftStore((s) => s.subscribeRealtime)
+  const unsubscribeRealtime = usePartyCraftStore((s) => s.unsubscribeRealtime)
+  const fetchSession = usePartyCraftStore((s) => s.fetchSession)
 
   useEffect(() => {
     if (!user) return

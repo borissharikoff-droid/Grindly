@@ -216,6 +216,10 @@ export interface AutoRunResult {
   foodUsed?: Array<{ foodId: string; qty: number }>
 }
 
+/** Re-entrancy guard for endBattle. Prevents two concurrent callers (ArenaPage effect + useArenaBattleTick)
+ * from both processing the same battle and double-granting gold/items. */
+let _endBattleInFlight = false
+
 export const useArenaStore = create<ArenaState>()(
   persist(
     (set, get) => ({
@@ -419,10 +423,14 @@ export const useArenaStore = create<ArenaState>()(
 
       endBattle() {
         const { activeBattle, activeDungeon } = get()
-        if (!activeBattle) return { goldLost: 0, chest: null, lostItem: null, materialDrop: null, dungeonGold: 0, warriorXP: 0, insuranceUsed: false }
-        // Immediately clear activeBattle to make this call idempotent —
-        // prevents ArenaPage and useArenaBattleTick from both resolving the same battle.
-        set({ activeBattle: null })
+        const emptyResult = { goldLost: 0, chest: null, lostItem: null, materialDrop: null, dungeonGold: 0, warriorXP: 0, insuranceUsed: false }
+        if (!activeBattle || _endBattleInFlight) return emptyResult
+        // Re-entrancy guard instead of splitting the activeBattle clear into a separate set().
+        // The old pattern — set({ activeBattle: null }) here, followed by an atomic set that also
+        // updated activeDungeon.goldEarned — left a transient window where consumers could read
+        // a null battle with stale dungeon gold. Each branch below now does a single atomic set()
+        // that clears activeBattle and applies its dungeon update together.
+        _endBattleInFlight = true
 
         const fightElapsed = (Date.now() - activeBattle.startTime) / 1000
         let state: ReturnType<typeof computeBattleStateAtTime>
@@ -631,8 +639,10 @@ export const useArenaStore = create<ArenaState>()(
         return { goldLost, chest: droppedChest, lostItem, materialDrop: matDrop, dungeonGold, warriorXP, insuranceUsed }
         } catch (err) {
           console.error('[arenaStore] endBattle compute failed:', err)
-          set({ activeDungeon: null })
+          set({ activeBattle: null, activeDungeon: null })
           return { goldLost: 0, chest: null, lostItem: null, materialDrop: null, dungeonGold: 0, warriorXP: 0, insuranceUsed: false }
+        } finally {
+          _endBattleInFlight = false
         }
       },
 

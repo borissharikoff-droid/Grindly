@@ -1,16 +1,20 @@
-## What's new in v4.9.0
+## What's new in v4.9.1
 
-**New:**
-- Share your stats for any period (Today / 7 days / 30 days / All time) from the Stats page
-- Share card now shows a TOP APPS section with category-colored chips
-- TodayWidget on Home shows multi-skill strip + top app
-- Friend picker in Share modal: avatars with rarity frames + search
+### Fixed
+- Gold no longer gets lost when two devices earn at once — server-side delta RPC preserves concurrent earnings
+- Consumed potions can no longer be restored by stale cloud data (0-key tombstone)
+- Crafting can no longer grant phantom items if a job gets cancelled mid-tick
+- Arena battles can no longer double-reward if endBattle fires twice
+- XP no longer applies against a 0 baseline when SQLite lags at session start
+- Dismissed notifications stay dismissed across app restarts (cooldowns persist)
+- Settings-customized nav bar survives schema changes (safe migration)
+- Marketplace commission deduction now syncs correctly to cloud
+- Several UI screens no longer trigger infinite re-render loops
 
-**Improved:**
-- Share card accent now matches your top skill's color
-- Hero time font auto-scales down on long periods so nothing clips
-- TOP APPS section adapts to available space (1–3 rows)
-- Fixed bow-tie artifact on the accent top-bar
+### Improved
+- Marketplace seller profiles load in a single query (was N+1)
+- Cursor and Claude Code now categorize as AI skill (was Coding)
+- +19 regression tests (1289 total)
 
 ---
-Released: 2026-04-20
+Released: 2026-04-21

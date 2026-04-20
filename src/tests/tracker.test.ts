@@ -12,8 +12,8 @@ describe('categorize', () => {
     expect(categorize('Code', '')).toBe('coding')
   })
 
-  it('categorizes Cursor as coding', () => {
-    expect(categorize('Cursor', '')).toBe('coding')
+  it('categorizes Cursor as ai', () => {
+    expect(categorize('Cursor', '')).toBe('ai')
   })
 
   it('categorizes IntelliJ IDEA as coding', () => {
@@ -213,10 +213,10 @@ describe('categorize', () => {
     expect(categorize('msedge', '')).toBe('browsing')
   })
 
-  it('categorizes Claude Code in browser as coding', () => {
-    expect(categorize('chrome', 'Claude Code - claude.ai')).toBe('coding')
-    expect(categorize('msedge', 'Claude - claude.ai/chat')).toBe('coding')
-    expect(categorize('chrome', 'Code - code.claude.ai/session/123')).toBe('coding')
+  it('categorizes Claude Code in browser as ai', () => {
+    expect(categorize('chrome', 'Claude Code - claude.ai')).toBe('ai')
+    expect(categorize('msedge', 'Claude - claude.ai/chat')).toBe('ai')
+    expect(categorize('chrome', 'Code - code.claude.ai/session/123')).toBe('ai')
   })
 
   it('categorizes GitHub pages in browser as coding', () => {

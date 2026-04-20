@@ -24,6 +24,24 @@ export const CHANGE_TYPE_META: Record<ChangeType, { label: string; color: string
 
 export const CHANGELOG: PatchNote[] = [
   {
+    version: '4.9.1',
+    date: '2026-04-21',
+    title: 'Cross-Device Sync Fixes',
+    items: [
+      { type: 'fix', text: 'Gold no longer gets lost when two devices earn at once — server-side delta RPC preserves concurrent earnings' },
+      { type: 'fix', text: 'Consumed potions can no longer be restored by stale cloud data (0-key tombstone)' },
+      { type: 'fix', text: 'Crafting can no longer grant phantom items if a job gets cancelled mid-tick' },
+      { type: 'fix', text: 'Arena battles can no longer double-reward if endBattle fires twice' },
+      { type: 'fix', text: 'XP no longer applies against a 0 baseline when SQLite lags at session start' },
+      { type: 'fix', text: 'Dismissed notifications stay dismissed across app restarts (cooldowns persist)' },
+      { type: 'fix', text: 'Settings-customized nav bar survives schema changes (safe migration)' },
+      { type: 'fix', text: 'Marketplace commission deduction now syncs correctly to cloud' },
+      { type: 'fix', text: 'Several UI screens no longer trigger infinite re-render loops' },
+      { type: 'ui', text: 'Marketplace seller profiles load in a single query (was N+1)' },
+      { type: 'ui', text: 'Cursor and Claude Code now categorize as AI skill (was Coding)' },
+    ],
+  },
+  {
     version: '4.9.0',
     date: '2026-04-20',
     title: 'Period Share & Top Apps',

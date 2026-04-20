@@ -46,29 +46,17 @@ export interface ListingWithSeller {
 
 export async function fetchActiveListings(): Promise<ListingWithSeller[]> {
   if (!supabase) return []
+  // Single-query embedded select via the seller_id → profiles FK
   const { data: listings, error } = await supabase
     .from('marketplace_listings')
-    .select('id, seller_id, item_id, quantity, price_gold, created_at')
+    .select('id, seller_id, item_id, quantity, price_gold, created_at, profiles:seller_id(username, avatar_url)')
     .eq('status', 'active')
     .order('created_at', { ascending: false })
 
   if (error || !listings?.length) return []
 
-  const sellerIds = [...new Set((listings as { seller_id: string }[]).map((l) => l.seller_id))]
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, username, avatar_url')
-    .in('id', sellerIds)
-
-  const profileMap = new Map(
-    (profiles || []).map((p: { id: string; username?: string; avatar_url?: string }) => [
-      p.id,
-      { username: p.username ?? null, avatar_url: p.avatar_url ?? null },
-    ]),
-  )
-
   return (listings as Record<string, unknown>[]).map((row) => {
-    const p = profileMap.get(row.seller_id as string)
+    const p = row.profiles as { username?: string | null; avatar_url?: string | null } | null | undefined
     return {
       id: row.id as string,
       seller_id: row.seller_id as string,

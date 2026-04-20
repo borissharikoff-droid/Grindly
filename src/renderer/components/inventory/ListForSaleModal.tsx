@@ -51,13 +51,13 @@ export function ListForSaleModal({ itemId, onClose, onListed, maxQty = 1, onDedu
     setError(null)
     setLoading(true)
     const { deleteItem, addItem } = useInventoryStore.getState()
-    const { setGold, addGold, gold: currentGold, syncToSupabase } = useGoldStore.getState()
+    const { addGold, gold: currentGold, syncToSupabase } = useGoldStore.getState()
     if (currentGold < commission) {
       setLoading(false)
       setError(`Commission ${commission} gold required (5% of total)`)
       return
     }
-    setGold(currentGold - commission)
+    addGold(-commission)
     syncToSupabase(user.id).catch(() => {})
     if (onDeductItem) {
       onDeductItem(qty)

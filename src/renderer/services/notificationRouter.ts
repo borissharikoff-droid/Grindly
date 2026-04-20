@@ -25,8 +25,40 @@ const COOLDOWNS_MS: Record<RoutedNotificationEventType, number> = {
   update: 120_000,
 }
 
-const lastSentByKey = new Map<string, number>()
+const PERSIST_KEY = 'grindly_notification_cooldowns'
 const MAX_COOLDOWN_ENTRIES = 500
+
+const lastSentByKey: Map<string, number> = (() => {
+  // Rehydrate cooldowns from last session so a fresh app start doesn't replay the same
+  // toast/desktop notification a user dismissed 10 seconds before a restart.
+  if (typeof localStorage === 'undefined') return new Map()
+  try {
+    const raw = localStorage.getItem(PERSIST_KEY)
+    if (!raw) return new Map()
+    const parsed = JSON.parse(raw) as Record<string, number>
+    const map = new Map<string, number>()
+    const now = Date.now()
+    const maxCooldown = Math.max(...Object.values(COOLDOWNS_MS))
+    for (const [key, ts] of Object.entries(parsed)) {
+      if (typeof ts === 'number' && now - ts < maxCooldown) map.set(key, ts)
+    }
+    return map
+  } catch { return new Map() }
+})()
+
+let _persistTimer: ReturnType<typeof setTimeout> | null = null
+function schedulePersist(): void {
+  if (typeof localStorage === 'undefined') return
+  if (_persistTimer) return
+  _persistTimer = setTimeout(() => {
+    _persistTimer = null
+    try {
+      const out: Record<string, number> = {}
+      for (const [k, v] of lastSentByKey) out[k] = v
+      localStorage.setItem(PERSIST_KEY, JSON.stringify(out))
+    } catch { /* quota or private mode — best-effort */ }
+  }, 2_000)
+}
 
 function evictStaleEntries(now: number): void {
   if (lastSentByKey.size < MAX_COOLDOWN_ENTRIES) return
@@ -62,6 +94,7 @@ export async function routeNotification(
   if (now - prev < cooldown) return false
   evictStaleEntries(now)
   lastSentByKey.set(event.dedupeKey, now)
+  schedulePersist()
 
   useNotificationStore.getState().push({
     type: mapTypeForPanel(event.type),

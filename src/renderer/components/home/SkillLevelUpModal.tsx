@@ -12,7 +12,10 @@ import { MOTION } from '../../lib/motion'
 const AUTO_CLOSE_MS = 10_000
 
 export function SkillLevelUpModal() {
-  const { pendingSkillLevelUpSkill, dismissSkillLevelUp, currentActivity, progressionEvents } = useSessionStore()
+  const pendingSkillLevelUpSkill = useSessionStore((s) => s.pendingSkillLevelUpSkill)
+  const dismissSkillLevelUp = useSessionStore((s) => s.dismissSkillLevelUp)
+  const currentActivity = useSessionStore((s) => s.currentActivity)
+  const progressionEvents = useSessionStore((s) => s.progressionEvents)
   const [progress, setProgress] = useState(100)
 
   const skillId = pendingSkillLevelUpSkill?.skillId ?? ''

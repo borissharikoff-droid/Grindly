@@ -5,7 +5,12 @@ import { playClickSound } from '../../lib/sounds'
 import { MOTION } from '../../lib/motion'
 
 export function SessionControls() {
-  const { status, elapsedSeconds, start, stop, pause, resume } = useSessionStore()
+  const status = useSessionStore((s) => s.status)
+  const elapsedSeconds = useSessionStore((s) => s.elapsedSeconds)
+  const start = useSessionStore((s) => s.start)
+  const stop = useSessionStore((s) => s.stop)
+  const pause = useSessionStore((s) => s.pause)
+  const resume = useSessionStore((s) => s.resume)
   const isRunning = status === 'running'
   const isPaused = status === 'paused'
   const isActive = isRunning || isPaused

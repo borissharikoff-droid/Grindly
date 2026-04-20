@@ -758,11 +758,17 @@ const CATEGORY_LABELS: Array<{ id: CraftCategory; label: string; icon: string }>
 
 export function CraftPage() {
   const navigateTo = useNavigationStore((s) => s.navigateTo)
-  const { craftXp, activeJob, queue, recipeMastery, hydrate, startCraft, cancelJob } = useCraftingStore()
+  const craftXp = useCraftingStore((s) => s.craftXp)
+  const activeJob = useCraftingStore((s) => s.activeJob)
+  const queue = useCraftingStore((s) => s.queue)
+  const recipeMastery = useCraftingStore((s) => s.recipeMastery)
+  const hydrate = useCraftingStore((s) => s.hydrate)
+  const startCraft = useCraftingStore((s) => s.startCraft)
+  const cancelJob = useCraftingStore((s) => s.cancelJob)
   const partyId = usePartyStore((s) => s.party?.id ?? null)
   const partyMembers = usePartyStore((s) => s.members)
   const partySize = partyId ? partyMembers.length : 1
-  const { initiateSession } = usePartyCraftStore()
+  const initiateSession = usePartyCraftStore((s) => s.initiateSession)
   const items = useInventoryStore((s) => s.items)
   const deleteItem = useInventoryStore((s) => s.deleteItem)
   const addItem = useInventoryStore((s) => s.addItem)
