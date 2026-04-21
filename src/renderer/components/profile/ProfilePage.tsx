@@ -15,7 +15,7 @@ import { useNotificationStore } from '../../stores/notificationStore'
 import { PageHeader } from '../shared/PageHeader'
 import { User } from '../../lib/icons'
 import { InlineSuccess } from '../shared/InlineSuccess'
-import { getEquippedPerkRuntime, getItemPower, getRarityTheme, LOOT_ITEMS, CHEST_DEFS, RARITY_COLORS, estimateChestDropRate, type LootSlot, type ChestType, type LootItemDef, type BonusMaterial } from '../../lib/loot'
+import { getEquippedPerkRuntime, getItemPower, LOOT_ITEMS, CHEST_DEFS, RARITY_COLORS, estimateChestDropRate, type LootSlot, type ChestType, type LootItemDef, type BonusMaterial } from '../../lib/loot'
 import { ensureInventoryHydrated, useInventoryStore } from '../../stores/inventoryStore'
 import { getDailyActivities, getWeeklyActivities } from '../../services/dailyActivityService'
 import { QuestsSection } from '../quests/QuestsSection'
@@ -1040,7 +1040,7 @@ export function ProfilePage({ onBack }: { onBack?: () => void }) {
 // ── Flex Card ─────────────────────────────────────────────────────────────────
 
 function FlexCard({ avatar, username, frameId, equippedLootItems, unlockedCount, totalSkillLevel,
-  onAvatarClick, onUsernameClick, isUsernameEditing, draftUsername, onDraftChange, onDraftSubmit, onDraftCancel, syncButton, onItemInspect, guildTag,
+  onAvatarClick, onUsernameClick, isUsernameEditing, draftUsername, onDraftChange, onDraftSubmit, onDraftCancel, syncButton, onItemInspect: _onItemInspect, guildTag,
 }: {
   avatar: string
   username: string

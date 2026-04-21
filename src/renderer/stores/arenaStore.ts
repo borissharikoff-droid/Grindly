@@ -486,7 +486,7 @@ export const useArenaStore = create<ArenaState>()(
             const taxAmount = (taxPct > 0 && user && guildSnap.myGuild)
               ? Math.floor(gold * taxPct / 100)
               : 0
-            if (taxAmount > 0) {
+            if (taxAmount > 0 && user) {
               // Persist tax to guild chest async — non-fatal, local deduction already applied
               applyGuildTax(user.id, guildSnap.myGuild!.id, gold, taxPct).catch(() => {})
             }

@@ -615,13 +615,6 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
               ? getItemPerkDescription(lootItem)
               : null
             const rarityNorm = normalizeRarity(slotRarity)
-            const typeLabel = slot.kind === 'seed' ? 'SEED'
-              : slot.kind === 'chest' || slot.kind === 'pending'
-              ? (isPending ? 'INBOX' : 'BAG')
-              : lootItem?.slot === 'consumable' ? 'POTION'
-              : lootItem?.slot === 'plant' ? 'PLANT'
-              : lootItem ? SLOT_LABEL[lootItem.slot]
-              : '?'
             const onClickCard = () => { playClickSound(); setInspectSlotId(slot.id); setContextMenu(null) }
             const onRightClick = (e: React.MouseEvent) => {
               e.preventDefault()

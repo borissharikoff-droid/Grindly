@@ -15,7 +15,7 @@ import { OrbBlast } from './OrbBlast'
 import { useSessionStore } from '../../stores/sessionStore'
 import { MOTION } from '../../lib/motion'
 import { useNotificationStore } from '../../stores/notificationStore'
-import { getQuestStreak } from '../../services/dailyActivityService'
+
 import { useBountyStore } from '../../stores/bountyStore'
 import { useWeeklyStore } from '../../stores/weeklyStore'
 import { useCraftingStore } from '../../stores/craftingStore'
@@ -118,9 +118,6 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
   const dailyTotal = bounties.length
   const weeklyDone = weeklyBounties.filter((b) => b.progress >= b.targetCount).length
   const weeklyTotal = weeklyBounties.length
-  const questStreak = getQuestStreak()
-
-
   const handleOpenQuests = () => {
     setProfileInitialTab('quests')
     onNavigateProfile()

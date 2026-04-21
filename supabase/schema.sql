@@ -827,6 +827,27 @@ create policy "member can send messages" on group_messages
     and exists (select 1 from group_chat_members where group_id = group_messages.group_id and user_id = auth.uid())
   );
 
+-- ── DM message reactions ─────────────────────────────────────────────────────
+create table if not exists message_reactions (
+  id          uuid primary key default gen_random_uuid(),
+  message_id  uuid not null references public.messages(id) on delete cascade,
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  reaction    text not null,
+  created_at  timestamptz default now(),
+  unique(message_id, user_id, reaction)
+);
+
+alter table message_reactions enable row level security;
+
+create policy "Anyone can read reactions"
+  on message_reactions for select using (true);
+
+create policy "Users can insert own reactions"
+  on message_reactions for insert with check (auth.uid() = user_id);
+
+create policy "Users can delete own reactions"
+  on message_reactions for delete using (auth.uid() = user_id);
+
 -- ── Group message reactions ──────────────────────────────────────────────────
 create table if not exists group_message_reactions (
   id               uuid primary key default gen_random_uuid(),

@@ -8,7 +8,7 @@ export interface CreateListingResult {
 }
 
 export async function createListing(
-  sellerId: string,
+  _sellerId: string,
   itemId: string,
   quantity: number,
   priceGold: number,

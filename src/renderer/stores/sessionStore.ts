@@ -1045,6 +1045,7 @@ declare global {
       }
       admin?: {
         pickImageFile: () => Promise<string | null>
+        getAppInfo?: () => Promise<{ platform: string; version: string }>
       }
       window?: {
         flashFrame: () => Promise<void>

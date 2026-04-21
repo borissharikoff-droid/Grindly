@@ -57,7 +57,7 @@ function ItemTooltipCard({ item }: { item: NonNullable<BuffTooltipProps['item']>
               ? { background: `radial-gradient(circle at 50% 40%, ${theme.glow}50 0%, rgba(5,5,10,0.95) 70%)`, border: `1px solid ${theme.border}66` }
               : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
           >
-            <LootVisual icon={item.icon} image={item.image} className="w-6 h-6 object-contain" scale={item.renderScale ?? 1} />
+            <LootVisual icon={item.icon ?? ''} image={item.image} className="w-6 h-6 object-contain" scale={item.renderScale ?? 1} />
           </div>
         )}
         <div className="min-w-0 flex-1">

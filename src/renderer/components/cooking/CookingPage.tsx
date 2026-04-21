@@ -889,7 +889,7 @@ const MAX_CAULDRON_SLOTS = 4
 const mkSlots = (): string[] => Array(MAX_CAULDRON_SLOTS).fill('')
 
 /** Render an item icon with image support. */
-function ItemIcon({ item, size = 'md' }: { item: LootItemDef | null; size?: 'sm' | 'md' | 'lg' }) {
+function ItemIcon({ item, size = 'md' }: { item: { icon: string; image?: string; renderScale?: number } | null; size?: 'sm' | 'md' | 'lg' }) {
   const cls = size === 'sm' ? 'w-4 h-4' : size === 'lg' ? 'w-8 h-8' : 'w-6 h-6'
   if (!item) return <span className={`${cls} flex items-center justify-center text-sm`} style={{ color: K.muted }}>?</span>
   return <LootVisual icon={item.icon} image={item.image} className={`${cls} object-contain`} scale={item.renderScale ?? 1} />

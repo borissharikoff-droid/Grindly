@@ -43,8 +43,6 @@ export function StreakBar({ sessionVersion }: StreakBarProps) {
 
   const hour = new Date().getHours()
   const atRisk = streak > 0 && !sessionToday && hour >= 20
-  const noStreak = streak === 0 && !sessionToday
-
   // Only render the at-risk warning — the "no streak" placeholder is noise
   if (!atRisk) return null
 

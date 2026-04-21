@@ -210,7 +210,7 @@ export function getPetLevelImage(defId: string, level: number, mood?: PetMood): 
   // 'ecstatic' maps to 'idle' filename (fully-fed, calm animation)
   const moodFile = mood === 'ecstatic' ? 'idle' : mood
   if (defId === 'pet_cat') return moodFile ? `pets/cat_lv${lv}_${moodFile}.webp` : `pets/cat_lv${lv}.png`
-  if (defId === 'pet_dog') return moodFile ? `pets/dog_lv${lv}_${moodFile}.webp` : `pets/dog_lv${lv}.png`
+  if (defId === 'pet_dog') return `pets/dog_lv${lv}.png`
   return null
 }
 

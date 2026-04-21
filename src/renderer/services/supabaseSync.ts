@@ -62,12 +62,6 @@ type SkillPayloadFull = {
   updated_at: string
 }
 
-type SkillPayloadLevelOnly = {
-  user_id: string
-  skill_id: string
-  level: number
-  updated_at: string
-}
 
 type ExistingSkillRow = {
   id: string
@@ -90,83 +84,6 @@ function mergeSkillPayload(
     total_xp: mergedXp,
     level: Math.max(local.level, existingLevel, skillLevelFromXP(mergedXp)),
     prestige_count: Math.max(local.prestige_count, existingPrestige),
-  }
-}
-
-async function manualSyncWithoutConflict(
-  userId: string,
-  fullPayload: SkillPayloadFull[],
-  levelOnlyPayload: SkillPayloadLevelOnly[],
-): Promise<void> {
-  if (!supabase) return
-
-  const existingRes = await withTimeout(
-    supabase
-      .from('user_skills')
-      .select('id, skill_id, level, total_xp, prestige_count')
-      .eq('user_id', userId),
-    10000,
-    'user_skills select existing',
-  )
-  if (existingRes.error) throw existingRes.error
-
-  const existingBySkill = new Map<string, ExistingSkillRow>()
-  for (const row of existingRes.data || []) {
-    const skillId = normalizeSkillId((row as { skill_id: string }).skill_id)
-    const typed = row as ExistingSkillRow
-    if (typed.id) existingBySkill.set(skillId, typed)
-  }
-
-  for (const row of fullPayload) {
-    const existing = existingBySkill.get(row.skill_id)
-    const merged = mergeSkillPayload(row, existing)
-    if (existing?.id) {
-      const updateRes = await withTimeout(
-        supabase
-          .from('user_skills')
-          .update({
-            level: merged.level,
-            total_xp: merged.total_xp,
-            prestige_count: merged.prestige_count,
-            updated_at: merged.updated_at,
-          })
-          .eq('id', existing.id),
-        10000,
-        'user_skills update full',
-      )
-      if (updateRes.error) {
-        // Fallback for schemas without total_xp.
-        const updateLevelOnlyRes = await withTimeout(
-          supabase
-            .from('user_skills')
-            .update({
-              level: merged.level,
-              updated_at: merged.updated_at,
-            })
-            .eq('id', existing.id),
-          10000,
-          'user_skills update level-only',
-        )
-        if (updateLevelOnlyRes.error) throw updateLevelOnlyRes.error
-      }
-      continue
-    }
-
-    const insertRes = await withTimeout(
-      supabase.from('user_skills').insert(merged),
-      10000,
-      'user_skills insert full',
-    )
-    if (insertRes.error) {
-      const fallbackInsert = levelOnlyPayload.find((x) => x.skill_id === row.skill_id)
-      if (!fallbackInsert) throw insertRes.error
-      const insertLevelOnlyRes = await withTimeout(
-        supabase.from('user_skills').insert(fallbackInsert),
-        10000,
-        'user_skills insert level-only',
-      )
-      if (insertLevelOnlyRes.error) throw insertLevelOnlyRes.error
-    }
   }
 }
 

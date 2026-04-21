@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   canClaimToday, claimDailyLoginReward, getCalendarDays, getDailyLoginState,
@@ -16,12 +16,6 @@ import { ChestOpenModal } from '../animations/ChestOpenModal'
 
 // ── Chest visuals ─────────────────────────────────────────────────────────────
 
-const CHEST_ICON: Record<ChestType, string> = {
-  common_chest:    '📦',
-  rare_chest:      '💠',
-  epic_chest:      '💜',
-  legendary_chest: '🏆',
-}
 
 const CHEST_COLOR: Record<ChestType, string> = {
   common_chest:    '#9CA3AF',
@@ -99,12 +93,6 @@ const WEEK_GROUPS = [
 
 // ── Cell reward icon — real sprites ───────────────────────────────────────────
 
-type CellToken = {
-  node: React.ReactNode
-  label: string
-  color: string
-}
-
 function CellIcon({ reward, isFuture, isClaimed }: { reward: DailyLoginReward; isFuture: boolean; isClaimed: boolean }) {
   const imgFilter = isClaimed ? 'grayscale(0.7) brightness(0.55)' : 'none'
   const alpha = isClaimed ? 0.45 : isFuture ? 0.80 : 1
@@ -177,67 +165,6 @@ function getRewardAccent(reward: DailyLoginReward): string {
     return def ? (RARITY_COLORS[def.rarity as keyof typeof RARITY_COLORS]?.color ?? '#9CA3AF') : '#9CA3AF'
   }
   return '#9CA3AF'
-}
-
-function getRewardBigIcon(reward: DailyLoginReward): { type: 'img'; src: string } | { type: 'emoji'; char: string } {
-  if (reward.chests?.length) {
-    const def = CHEST_DEFS[reward.chests[0].type]
-    if (def.image) return { type: 'img', src: def.image }
-    return { type: 'emoji', char: def.icon }
-  }
-  if (reward.gold) return { type: 'emoji', char: '🪙' }
-  if (reward.materials?.length) {
-    const def = findItem(reward.materials[0].id)
-    return { type: 'emoji', char: def?.icon ?? '✨' }
-  }
-  return { type: 'emoji', char: '✨' }
-}
-
-function BigRewardIcon({ icon, size = 80, glow }: { icon: ReturnType<typeof getRewardBigIcon>; size?: number; glow?: string }) {
-  if (icon.type === 'img') return (
-    <img
-      src={icon.src}
-      alt=""
-      style={{ width: size, height: size, imageRendering: 'pixelated', filter: glow ? `drop-shadow(0 0 18px ${glow})` : undefined }}
-      draggable={false}
-    />
-  )
-  return (
-    <span style={{ fontSize: size * 0.7, lineHeight: 1, filter: glow ? `drop-shadow(0 0 18px ${glow})` : undefined }}>
-      {icon.char}
-    </span>
-  )
-}
-
-// ── Reward line (used in ClaimBurst) ─────────────────────────────────────────
-
-function RewardLine({ reward, size = 'sm' }: { reward: DailyLoginReward; size?: 'sm' | 'lg' }) {
-  const lines: { icon: string; text: string; color: string }[] = []
-  if (reward.gold) lines.push({ icon: '🪙', text: `${reward.gold.toLocaleString()} gold`, color: '#FACC15' })
-  if (reward.chests) {
-    for (const c of reward.chests) {
-      const def = CHEST_DEFS[c.type]
-      lines.push({ icon: CHEST_ICON[c.type], text: c.qty > 1 ? `${def.name} ×${c.qty}` : def.name, color: CHEST_COLOR[c.type] })
-    }
-  }
-  if (reward.materials) {
-    for (const m of reward.materials) {
-      const def = findItem(m.id)
-      if (!def) continue
-      lines.push({ icon: def.icon, text: `${def.name} ×${m.qty}`, color: RARITY_COLORS[def.rarity as keyof typeof RARITY_COLORS]?.color ?? '#9CA3AF' })
-    }
-  }
-  const textSize = size === 'lg' ? 'text-sm' : 'text-xs'
-  return (
-    <div className="flex flex-col gap-1">
-      {lines.map((l, i) => (
-        <div key={i} className={`flex items-center gap-1.5 ${textSize}`}>
-          <span className="leading-none">{l.icon}</span>
-          <span style={{ color: l.color }} className="font-semibold">{l.text}</span>
-        </div>
-      ))}
-    </div>
-  )
 }
 
 // ── Single reward item block — icon cube ──────────────────────────────────────
@@ -671,7 +598,7 @@ interface DailyLoginCalendarProps {
 }
 
 export function DailyLoginCalendar({ onClose, onClaimed }: DailyLoginCalendarProps) {
-  const [days, setDays] = useState<CalendarDay[]>(getCalendarDays)
+  const [days] = useState<CalendarDay[]>(getCalendarDays)
   const [claimable, setClaimable] = useState(canClaimToday)
   const [selectedDay, setSelectedDay] = useState<CalendarDay>(() => {
     const d = getCalendarDays()

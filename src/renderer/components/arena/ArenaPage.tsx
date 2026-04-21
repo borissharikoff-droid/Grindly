@@ -54,7 +54,7 @@ function ZoneCard({
   activeBattle,
   battleState,
   playerFlash,
-  bossFlash,
+  bossFlash: _bossFlash,
   confirmForfeit,
   setConfirmForfeit,
   onEnter,
@@ -66,7 +66,7 @@ function ZoneCard({
   onFoodChange,
   lastInsuranceUsed,
   isHotZone,
-  playerAtk,
+  playerAtk: _playerAtk,
   inActiveRaid,
 }: {
   zone: ZoneDef
@@ -667,6 +667,7 @@ function ZoneCard({
 
 export function ArenaPage() {
   useAdminConfigStore((s) => s.rev)
+  const navigateTo = useNavigationStore((s) => s.navigateTo)
   const [showBackpack, setShowBackpack] = useState(false)
   const [arenaTab, setArenaTab] = useState<'dungeons' | 'raids' | 'hall'>('dungeons')
 
