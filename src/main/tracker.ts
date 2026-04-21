@@ -685,6 +685,8 @@ function classifyBrowserContext(lowerTitle: string): ClassificationResult {
 
   if (isMusic && isDocReading) return { categories: ['music', 'learning'], contextTag: 'browser_music_learning', confidence: 0.9 }
   if (isDocReading) return { categories: ['learning'], contextTag: 'browser_docs_learning', confidence: 0.92 }
+  // claude.ai in browser = coding assistant session (takes priority over generic isAI)
+  if (/claude\.ai|code\.claude\.ai/i.test(lowerTitle)) return { categories: ['coding'], contextTag: 'browser_claude_code', confidence: 0.93 }
   if (isAI) return { categories: ['ai'], contextTag: 'browser_ai', confidence: 0.97 }
   if (isCoding) return { categories: ['coding'], contextTag: 'browser_coding', confidence: 0.95 }
   if (isDesign) return { categories: ['design'], contextTag: 'browser_design', confidence: 0.93 }
@@ -734,9 +736,9 @@ export function categorizeDetailed(appName: string, windowTitle: string): Classi
     }
     return { categories: ['coding'], contextTag: 'terminal_generic', confidence: 0.9 }
   }
-  // Native AI apps: Cursor IDE, Claude desktop, ChatGPT desktop
-  if (/^(cursor|claude|chatgpt)$/i.test(lowerApp)) return { categories: ['ai'], contextTag: 'native_ai', confidence: 0.98 }
-  if (/^(code|intellij|webstorm|pycharm|idea|devenv|rider|clion|goland|rubymine|phpstorm|datagrip|dbeaver|tableplus|pgadmin4|heidisql|sequel\s*pro|beekeeper|postman|insomnia|bruno|httpie|gitkraken|sourcetree|fork|tower|sublimemerge)$/i.test(lowerApp) || /visual studio/i.test(lowerApp)) return { categories: ['coding'], contextTag: 'native_ide', confidence: 0.98 }
+  // Native AI apps: Claude desktop, ChatGPT desktop (Cursor is an IDE → coding)
+  if (/^(claude|chatgpt)$/i.test(lowerApp)) return { categories: ['ai'], contextTag: 'native_ai', confidence: 0.98 }
+  if (/^(cursor|code|intellij|webstorm|pycharm|idea|devenv|rider|clion|goland|rubymine|phpstorm|datagrip|dbeaver|tableplus|pgadmin4|heidisql|sequel\s*pro|beekeeper|postman|insomnia|bruno|httpie|gitkraken|sourcetree|fork|tower|sublimemerge)$/i.test(lowerApp) || /visual studio/i.test(lowerApp)) return { categories: ['coding'], contextTag: 'native_ide', confidence: 0.98 }
   if (/\.(tsx?|jsx?|py|rs|go|cpp|cs|java)\b/i.test(lowerTitle)) return { categories: ['coding'], contextTag: 'source_file', confidence: 0.92 }
   if (/^(chrome|firefox|msedge|brave|opera|vivaldi|arc|yandex)$/i.test(lowerApp)) {
     return classifyBrowserContext(lowerTitle)
