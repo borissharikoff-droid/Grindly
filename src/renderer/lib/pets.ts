@@ -50,6 +50,9 @@ export interface PetInstance {
   lastInteractedAt?: number | null    // last feed or pet action (for sleeping detection)
   pettedCount?: number                // daily petting count
   pettedDate?: string                 // date string for resetting daily count
+  // ── Level-up skill choices ────────────────────────────────────────────────────
+  /** One entry per level-up pick (levels 2–10). Each pick adds +1% XP to that skill. */
+  levelUpChoices?: string[]
 }
 
 export type PetMood = 'ecstatic' | 'happy' | 'hungry' | 'starving' | 'exhausted' | 'sleeping' | 'playful'
@@ -365,11 +368,32 @@ export function getPetArenaGoldBonus(activePet: PetInstance | null): number {
 
 // ── XP multiplier ─────────────────────────────────────────────────────────────
 
+/** XP bonus per level-up skill pick (1% per pick for that skill). */
+export const LEVEL_UP_CHOICE_BONUS_PCT = 1
+
+/**
+ * Returns per-skill bonus % accumulated from level-up choices.
+ * 'all' choices contribute 1% to every skill.
+ */
+export function getLevelUpChoiceBonuses(pet: PetInstance): Record<string, number> {
+  const choices = pet.levelUpChoices ?? []
+  const result: Record<string, number> = {}
+  for (const choice of choices) {
+    if (choice === 'all') {
+      // 'all' choice: apply to a special 'all' key — handled per-skill in multiplier
+      result['all'] = (result['all'] ?? 0) + LEVEL_UP_CHOICE_BONUS_PCT
+    } else {
+      result[choice] = (result[choice] ?? 0) + LEVEL_UP_CHOICE_BONUS_PCT
+    }
+  }
+  return result
+}
+
 /**
  * Returns skill XP multiplier from the active pet for a given skillId.
  * Returns 1.0 when no pet, wrong skill, pet is dead, or pet is on adventure.
  * Incorporates: species buff, hunger factor, level factor, bond bonus,
- * Legendary Bond XP buff, and Motivation Burst.
+ * Legendary Bond XP buff, Motivation Burst, and stacked level-up choice bonuses.
  */
 export function getPetSkillXpMultiplier(activePet: PetInstance | null, skillId: string): number {
   if (!activePet) return 1
@@ -404,7 +428,11 @@ export function getPetSkillXpMultiplier(activePet: PetInstance | null, skillId: 
     }
   }
 
-  const baseMultiplier = 1 + speciesBuff + bondBonus + legendaryBuff
+  // Stacked level-up choice bonuses (+1% per pick for this skill, 'all' picks apply everywhere)
+  const choiceBonuses = getLevelUpChoiceBonuses(activePet)
+  const choiceBonus = ((choiceBonuses[skillId] ?? 0) + (choiceBonuses['all'] ?? 0)) / 100
+
+  const baseMultiplier = 1 + speciesBuff + bondBonus + legendaryBuff + choiceBonus
 
   // Motivation Burst multiplier (Lv6 ability: ×1.5 for 20 min)
   const burst = getPetMotivationBurstMultiplier(activePet)

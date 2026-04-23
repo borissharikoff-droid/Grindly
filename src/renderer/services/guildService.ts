@@ -322,7 +322,7 @@ export interface GuildInvite {
 
 export async function sendGuildInvite(guildId: string, inviterId: string, inviteeId: string): Promise<{ ok: boolean; error?: string }> {
   if (!supabase) return { ok: false, error: 'Supabase not configured' }
-  // Check no existing pending invite
+  // Delete any existing pending invite (expired or not) so it can be re-sent
   const { data: existing } = await supabase
     .from('guild_invites')
     .select('id')
@@ -330,7 +330,9 @@ export async function sendGuildInvite(guildId: string, inviterId: string, invite
     .eq('invitee_id', inviteeId)
     .eq('status', 'pending')
     .maybeSingle()
-  if (existing) return { ok: false, error: 'Invite already sent' }
+  if (existing) {
+    await supabase.from('guild_invites').delete().eq('id', existing.id)
+  }
   const { error } = await supabase.from('guild_invites').insert({ guild_id: guildId, inviter_id: inviterId, invitee_id: inviteeId })
   return error ? { ok: false, error: error.message } : { ok: true }
 }
@@ -342,6 +344,7 @@ export async function fetchPendingInvites(userId: string): Promise<GuildInvite[]
     .select('*, guilds!inner(name, tag), profiles!inviter_id(username)')
     .eq('invitee_id', userId)
     .eq('status', 'pending')
+    .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
   if (!data) return []
   return (data as unknown[]).map((row) => {

@@ -731,20 +731,38 @@ REVOKE ALL  ON FUNCTION public.record_login_attempt(text, boolean) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.record_login_attempt(text, boolean) TO anon, authenticated;
 
 -- Resolve a username to its email for the login-by-username flow.
--- Security definer so anon callers cannot read the profiles table directly.
+-- Reads email from auth.users (profiles.email is often NULL — trigger doesn't set it).
+-- Case-insensitive username match.
 CREATE OR REPLACE FUNCTION public.get_email_by_username(p_username text)
 RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, auth
 AS $$
 DECLARE
-  v_email text;
+  v_user_id uuid;
+  v_email   text;
+  v_rate    json;
 BEGIN
-  SELECT email INTO v_email
-  FROM   public.profiles
-  WHERE  username = trim(p_username)
+  -- Rate-gate username lookups to prevent email enumeration via username guessing.
+  -- Reuses the same 5-failures-per-15-min window as the login rate limiter.
+  v_rate := public.check_login_rate_limit(lower(trim(p_username)));
+  IF (v_rate->>'blocked')::boolean THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT p.id INTO v_user_id
+  FROM   public.profiles p
+  WHERE  lower(p.username) = lower(trim(p_username))
   LIMIT  1;
+
+  IF v_user_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT u.email INTO v_email
+  FROM   auth.users u
+  WHERE  u.id = v_user_id;
 
   RETURN v_email;
 END;
@@ -839,11 +857,24 @@ create table if not exists message_reactions (
 
 alter table message_reactions enable row level security;
 
-create policy "Anyone can read reactions"
-  on message_reactions for select using (true);
+create policy "Participants can read reactions"
+  on message_reactions for select using (
+    exists (
+      select 1 from public.messages m
+      where m.id = message_reactions.message_id
+        and (m.sender_id = auth.uid() or m.receiver_id = auth.uid())
+    )
+  );
 
-create policy "Users can insert own reactions"
-  on message_reactions for insert with check (auth.uid() = user_id);
+create policy "Participants can insert own reactions"
+  on message_reactions for insert with check (
+    auth.uid() = user_id
+    and exists (
+      select 1 from public.messages m
+      where m.id = message_reactions.message_id
+        and (m.sender_id = auth.uid() or m.receiver_id = auth.uid())
+    )
+  );
 
 create policy "Users can delete own reactions"
   on message_reactions for delete using (auth.uid() = user_id);

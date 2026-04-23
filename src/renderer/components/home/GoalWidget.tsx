@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react'
 import { X } from '../../lib/icons'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CHEST_DEFS, estimateChestDropRate } from '../../lib/loot'
@@ -35,13 +35,13 @@ const CATEGORY_ICONS: Record<string, string> = {
   browsing: '🌐', creative: '🎬', learning: '📚', music: '🎵', other: '📁',
 }
 
-const CATEGORIES = [
-  { value: '', label: 'All categories' },
-  { value: 'coding', label: '💻 Coding' },
-  { value: 'design', label: '🎨 Design' },
-  { value: 'learning', label: '📚 Learning' },
-  { value: 'creative', label: '🎬 Creative' },
-  { value: 'browsing', label: '🌐 Browsing' },
+const CAT_PILLS = [
+  { value: '', label: 'All' },
+  { value: 'coding', label: '💻' },
+  { value: 'design', label: '🎨' },
+  { value: 'learning', label: '📚' },
+  { value: 'creative', label: '🎬' },
+  { value: 'browsing', label: '🌐' },
 ]
 
 const TASKS_STORAGE_KEY = 'grindly_tasks'
@@ -70,15 +70,25 @@ function formatDuration(seconds: number): string {
 
 /* ── Main Widget ── */
 
-type ViewMode = 'list' | 'add-pick' | 'add-time' | 'add-task' | 'edit'
+export interface GoalWidgetHandle {
+  openGoal: () => void
+  openTask: () => void
+}
 
-export function GoalWidget({ trailingAction }: { trailingAction?: React.ReactNode }) {
+type ViewMode = 'list' | 'add-time' | 'add-task' | 'edit'
+
+export const GoalWidget = forwardRef<GoalWidgetHandle>(function GoalWidget(_props, ref) {
   const [goals, setGoals] = useState<GoalWithProgress[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [view, setView] = useState<ViewMode>('list')
   const [editingGoal, setEditingGoal] = useState<GoalWithProgress | null>(null)
   const [reachedGoal, setReachedGoal] = useState<GoalWithProgress | null>(null)
   const prevProgressRef = useRef<Record<string, number>>({})
+
+  useImperativeHandle(ref, () => ({
+    openGoal: () => setView('add-time'),
+    openTask: () => setView('add-task'),
+  }))
 
   const loadGoals = useCallback(async () => {
     const api = window.electronAPI
@@ -246,8 +256,6 @@ export function GoalWidget({ trailingAction }: { trailingAction?: React.ReactNod
     loadTasks()
   }, [loadTasks])
 
-  const isEmpty = goals.length === 0 && tasks.length === 0
-
   return (
     <div className="w-full flex flex-col items-center gap-2">
       {/* Existing goals */}
@@ -295,34 +303,18 @@ export function GoalWidget({ trailingAction }: { trailingAction?: React.ReactNod
 
       {/* Add flow */}
       <AnimatePresence mode="wait">
-        {view === 'add-pick' && (
-          <motion.div
-            key="pick"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
-            className="w-full overflow-hidden"
-          >
-            <GoalTypePicker
-              onPickTime={() => setView('add-time')}
-              onPickTask={() => setView('add-task')}
-              onCancel={() => setView('list')}
-            />
-          </motion.div>
-        )}
         {view === 'add-time' && (
           <motion.div
             key="time"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
             className="w-full overflow-hidden"
           >
             <GoalCreator
               onCreated={() => { setView('list'); loadGoals() }}
-              onCancel={() => setView('add-pick')}
+              onCancel={() => setView('list')}
             />
           </motion.div>
         )}
@@ -332,29 +324,17 @@ export function GoalWidget({ trailingAction }: { trailingAction?: React.ReactNod
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
             className="w-full overflow-hidden"
           >
             <TaskCreator
               onCreated={() => { setView('list'); loadTasks() }}
-              onCancel={() => setView('add-pick')}
+              onCancel={() => setView('list')}
             />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Action row */}
-      {view === 'list' && (
-        <div className="flex items-center justify-center gap-2">
-          <button
-            onClick={() => setView('add-pick')}
-            className="text-xs text-gray-500 hover:text-gray-300 hover:border-white/20 hover:bg-white/[0.03] transition-all py-2 px-3 rounded-lg active:scale-[0.98] border border-white/10"
-          >
-            {isEmpty ? '+ set a goal' : '+ add'}
-          </button>
-          {trailingAction}
-        </div>
-      )}
 
       <GoalReachedModal
         goal={reachedGoal}
@@ -363,38 +343,7 @@ export function GoalWidget({ trailingAction }: { trailingAction?: React.ReactNod
       />
     </div>
   )
-}
-
-/* ── Goal Type Picker ── */
-
-function GoalTypePicker({ onPickTime, onPickTask, onCancel }: { onPickTime: () => void; onPickTask: () => void; onCancel: () => void }) {
-  return (
-    <div className="rounded-card bg-surface-2/70 border border-white/10 p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-micro font-mono text-gray-500 uppercase tracking-wider">New goal</span>
-        <button onClick={onCancel} className="text-gray-600 hover:text-gray-400 transition-colors"><X className="w-3.5 h-3.5" /></button>
-      </div>
-      <div className="flex gap-2">
-        <button
-          onClick={onPickTime}
-          className="flex-1 flex flex-col items-center gap-1.5 py-3 rounded bg-surface-0 border border-white/5 hover:border-accent/30 hover:bg-accent/5 transition-all active:scale-[0.97]"
-        >
-          <span className="text-lg">⏱</span>
-          <span className="text-caption text-gray-300 font-medium">Time goal</span>
-          <span className="text-micro text-gray-600">Track hours</span>
-        </button>
-        <button
-          onClick={onPickTask}
-          className="flex-1 flex flex-col items-center gap-1.5 py-3 rounded bg-surface-0 border border-white/5 hover:border-accent/30 hover:bg-accent/5 transition-all active:scale-[0.97]"
-        >
-          <span className="text-lg">✅</span>
-          <span className="text-caption text-gray-300 font-medium">Task</span>
-          <span className="text-micro text-gray-600">Checklist item</span>
-        </button>
-      </div>
-    </div>
-  )
-}
+})
 
 /* ── Task Item ── */
 
@@ -520,7 +469,7 @@ function TaskCreator({ onCreated, onCancel }: { onCreated: () => void; onCancel:
           disabled={!text.trim()}
           className={`flex-1 text-xs py-1.5 rounded border font-semibold transition-all active:scale-95 ${
             text.trim()
-              ? 'bg-violet-500/20 text-violet-500 border-violet-500/30 hover:bg-violet-500/30'
+              ? 'bg-accent/20 text-accent border-accent/30 hover:bg-accent/30'
               : 'bg-surface-0 text-gray-600 border-white/5 cursor-default'
           }`}
         >
@@ -561,7 +510,7 @@ function GoalReachedModal({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 6 }}
           transition={{ type: 'spring', damping: 20, stiffness: 260 }}
-          className="rounded-card bg-surface-2 border border-accent/25 shadow-[0_0_40px_rgba(0,255,136,0.10)] max-w-sm w-full p-5 space-y-3"
+          className="rounded-card bg-surface-2 border border-accent/25 shadow-[0_0_32px_rgba(88,101,242,0.18)] max-w-sm w-full p-5 space-y-3"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="text-center space-y-1">
@@ -653,9 +602,7 @@ function GoalCard({ goal, onEdit }: { goal: GoalWithProgress; onEdit: () => void
       </div>
       {!isComplete && rewardChest && (
         <div className="mt-1.5 flex items-center gap-1">
-          <span className="text-micro text-gray-600 font-mono">
-            {rewardChest.icon} {rewardChest.name} on completion
-          </span>
+          <span className="text-micro text-gray-700 font-mono">{rewardChest.icon} reward on complete</span>
         </div>
       )}
     </div>
@@ -711,10 +658,19 @@ function GoalEditor({
           onChange={(e) => setHours(parseInt(e.target.value, 10))} className="flex-1 accent-accent h-1 cursor-pointer" />
         <span className="text-xs font-mono text-accent w-6 text-right font-bold">{hours}</span>
       </div>
-      <select value={category} onChange={(e) => setCategory(e.target.value)}
-        className="w-full text-xs py-1.5 px-2.5 rounded bg-surface-0 border border-white/10 text-gray-300 focus:outline-none focus:border-accent/40 transition-colors cursor-pointer">
-        {CATEGORIES.map((c) => (<option key={c.value} value={c.value}>{c.label}</option>))}
-      </select>
+      <div className="flex gap-1 flex-wrap">
+        {CAT_PILLS.map((c) => (
+          <button key={c.value} type="button" onClick={() => setCategory(c.value)}
+            className={`px-2.5 py-1 rounded-full text-micro font-mono border transition-all active:scale-95 ${
+              category === c.value
+                ? 'bg-accent/20 border-accent/40 text-accent'
+                : 'bg-transparent border-white/10 text-gray-500 hover:text-gray-300 hover:border-white/20'
+            }`}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
       <div className="flex gap-2 pt-0.5">
         {confirmDelete ? (
           <div className="flex gap-1.5 flex-1">
@@ -788,13 +744,22 @@ function GoalCreator({ onCreated, onCancel }: { onCreated: () => void; onCancel:
           onChange={(e) => setHours(parseInt(e.target.value, 10))} className="flex-1 accent-accent h-1 cursor-pointer" />
         <span className="text-xs font-mono text-accent w-6 text-right font-bold">{hours}</span>
       </div>
-      <select value={category} onChange={(e) => setCategory(e.target.value)}
-        className="w-full text-xs py-1.5 px-2.5 rounded bg-surface-0 border border-white/10 text-gray-300 focus:outline-none focus:border-accent/40 transition-colors cursor-pointer">
-        {CATEGORIES.map((c) => (<option key={c.value} value={c.value}>{c.label}</option>))}
-      </select>
+      <div className="flex gap-1 flex-wrap">
+        {CAT_PILLS.map((c) => (
+          <button key={c.value} type="button" onClick={() => setCategory(c.value)}
+            className={`px-2.5 py-1 rounded-full text-micro font-mono border transition-all active:scale-95 ${
+              category === c.value
+                ? 'bg-accent/20 border-accent/40 text-accent'
+                : 'bg-transparent border-white/10 text-gray-500 hover:text-gray-300 hover:border-white/20'
+            }`}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
       <div className="flex gap-2 pt-0.5">
         <button onClick={onCancel}
-          className="flex-1 text-xs py-1.5 rounded bg-surface-0 text-gray-400 border border-white/5 hover:border-white/10 transition-colors active:scale-95">Back</button>
+          className="flex-1 text-xs py-1.5 rounded bg-surface-0 text-gray-400 border border-white/5 hover:border-white/10 transition-colors active:scale-95">Cancel</button>
         <button onClick={handleCreate}
           className="flex-1 text-xs py-1.5 rounded bg-accent/20 text-accent border border-accent/30 font-semibold hover:bg-accent/30 transition-colors active:scale-95">Create</button>
       </div>

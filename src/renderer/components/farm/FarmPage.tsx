@@ -20,7 +20,6 @@ import { useFarmRotTick } from '../../hooks/useFarmRotTick'
 import { useAdminConfigStore } from '../../stores/adminConfigStore'
 import { LOOT_ITEMS, getRarityTheme } from '../../lib/loot'
 import { fmt } from '../../lib/format'
-import { RARITY_THEME, normalizeRarity } from '../loot/LootUI'
 import { PageHeader } from '../shared/PageHeader'
 import { useNavigationStore } from '../../stores/navigationStore'
 import { Sprout } from '../../lib/icons'
@@ -47,10 +46,6 @@ function useSkillXP(): Record<string, number> {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function rarityTheme(rarity: string) {
-  return RARITY_THEME[normalizeRarity(rarity as never)] ?? { color: '#9CA3AF', border: 'rgba(156,163,175,0.35)', glow: 'rgba(156,163,175,0.15)' }
-}
 
 /** Format seconds as HH:MM:SS or MM:SS */
 function fmtCountdown(seconds: number): string {
@@ -902,7 +897,7 @@ function SeedCabinetSection() {
       ) : (
         <div className="space-y-1.5">
           {SEED_DEFS.filter((s) => (seeds[s.id] ?? 0) > 0).map((seed, i) => {
-            const t = rarityTheme(seed.rarity)
+            const t = getRarityTheme(seed.rarity)
             return (
               <motion.div
                 key={seed.id}
@@ -1016,7 +1011,7 @@ function SeedZipSection() {
 
       <div className="space-y-1.5">
         {ZIP_TIER_ORDER.filter((tier) => (seedZips[tier] ?? 0) > 0).map((tier) => {
-          const t = rarityTheme(tier)
+          const t = getRarityTheme(tier)
           const count = seedZips[tier] ?? 0
           return (
             <motion.div key={tier} layout className="rounded border flex items-center gap-2.5 px-2.5 py-2"
@@ -1216,7 +1211,7 @@ function HarvestRevealModal({ result, remaining = 0, onClose }: { result: Harves
 
           {/* Seed Zip drops */}
           {zipDrops.map(({ tier, count }) => {
-            const zt = rarityTheme(tier)
+            const zt = getRarityTheme(tier)
             const d = getSeedZipDisplay(tier)
             return (
               <div
@@ -1282,7 +1277,7 @@ function FarmSlot({
     if (planted) setCancelConfirm(false)
   }, [planted?.seedId, planted?.plantedAt]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const theme = seed ? rarityTheme(seed.rarity) : null
+  const theme = seed ? getRarityTheme(seed.rarity) : null
 
   const handleHarvest = useCallback(() => {
     if (bursting || !isReady) return
@@ -1674,7 +1669,7 @@ function SeedPicker({ slotIndex, seeds, onClose }: { slotIndex: number; seeds: R
         ) : (
           <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-0.5">
             {available.map((seed) => {
-              const t = rarityTheme(seed.rarity)
+              const t = getRarityTheme(seed.rarity)
               const plant = LOOT_ITEMS.find((x) => x.id === seed.yieldPlantId)
               return (
                 <motion.button
@@ -1799,7 +1794,7 @@ function PlantAllPicker({ seeds, emptyCount, onClose }: { seeds: Record<string, 
         ) : (
           <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-0.5">
             {available.map((seed) => {
-              const t = rarityTheme(seed.rarity)
+              const t = getRarityTheme(seed.rarity)
               const plant = LOOT_ITEMS.find((x) => x.id === seed.yieldPlantId)
               const qty = mergedSeeds[seed.id] ?? 0
               const willPlant = Math.min(qty, emptyCount)

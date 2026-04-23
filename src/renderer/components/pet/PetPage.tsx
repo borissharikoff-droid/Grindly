@@ -15,6 +15,7 @@ import {
   computePetMood,
   getPetGlobalBuffs,
   getEffectiveSkillId,
+  getLevelUpChoiceBonuses,
   xpToNextLevel,
   MOOD_COLOR,
   getPetLevelImage,
@@ -229,9 +230,9 @@ function PetPortrait({
     if (isEvolving && !evolvingRef.current) {
       evolvingRef.current = true
       void controls.start({
-        scale: [1, 1.18, 0.92, 1.12, 1],
-        rotate: [0, -6, 6, -3, 0],
-        transition: { duration: 0.9, ease: 'easeInOut' },
+        scale: [1, 1.3, 0.88, 1.22, 0.94, 1.12, 1],
+        rotate: [0, -10, 10, -7, 7, -3, 0],
+        transition: { duration: 2.2, ease: 'easeInOut' },
       }).then(() => { evolvingRef.current = false })
     }
   }, [isEvolving, controls])
@@ -274,8 +275,8 @@ function PetPortrait({
           <motion.div
             className="absolute inset-0 rounded-full bg-white pointer-events-none"
             initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 0.7, 0] }}
-            transition={{ duration: 0.6 }}
+            animate={{ opacity: [0, 0.8, 0.3, 0.6, 0] }}
+            transition={{ duration: 2.0 }}
           />
         )}
       </AnimatePresence>
@@ -739,7 +740,7 @@ function LevelUpSkillPicker({
 }) {
   const def = getPetDef(pet.defId)
   const name = pet.customName ?? def?.name ?? 'Your pet'
-  const currentSkillId = getEffectiveSkillId(pet)
+  const choiceBonuses = getLevelUpChoiceBonuses(pet)
 
   return createPortal(
     <motion.div
@@ -752,7 +753,7 @@ function LevelUpSkillPicker({
         className="w-full max-w-xs rounded-card bg-surface-2 border border-white/[0.10] overflow-hidden"
         initial={{ y: 24, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.05, duration: 0.25 }}
+        transition={{ duration: 0.3 }}
       >
         {/* Header */}
         <div className="px-4 pt-4 pb-3 border-b border-white/[0.06] text-center">
@@ -765,7 +766,7 @@ function LevelUpSkillPicker({
             ⭐
           </motion.div>
           <p className="text-sm font-bold text-white">{name} reached LVL {newLevel}!</p>
-          <p className="text-micro font-mono text-gray-400 mt-0.5">Choose a skill to boost with XP:</p>
+          <p className="text-micro font-mono text-gray-400 mt-0.5">Pick a skill — each pick stacks +1% XP bonus:</p>
         </div>
 
         {/* Skill grid */}
@@ -773,37 +774,33 @@ function LevelUpSkillPicker({
           {/* All Skills — prominent option */}
           <button
             onClick={() => onPick('all')}
-            className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all text-left ${
-              currentSkillId === 'all'
-                ? 'border-accent/60 bg-accent/10 text-white'
-                : 'border-white/[0.08] bg-surface-1 text-gray-300 hover:border-accent/30 hover:bg-white/[0.04]'
-            }`}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-white/[0.08] bg-surface-1 text-gray-300 hover:border-accent/30 hover:bg-white/[0.04] transition-all text-left"
           >
             <span className="text-xl leading-none">✨</span>
-            <div>
+            <div className="flex-1">
               <div className="text-xs font-bold">All Skills</div>
-              <div className="text-[9px] font-mono text-gray-500">Small bonus spread across everything</div>
+              <div className="text-[9px] font-mono text-gray-500">+1% spread across everything</div>
             </div>
-            {currentSkillId === 'all' && <span className="ml-auto text-micro text-accent">current</span>}
+            {(choiceBonuses['all'] ?? 0) > 0 && (
+              <span className="text-[9px] font-mono text-lime-400 shrink-0">+{choiceBonuses['all']}%</span>
+            )}
           </button>
 
           {/* Individual skills — 2 columns */}
           <div className="grid grid-cols-2 gap-1">
             {SKILLS.map((skill) => {
-              const active = currentSkillId === skill.id
+              const bonus = choiceBonuses[skill.id] ?? 0
               return (
                 <button
                   key={skill.id}
                   onClick={() => onPick(skill.id)}
-                  className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border transition-all text-left ${
-                    active
-                      ? 'border-accent/60 bg-accent/10 text-white'
-                      : 'border-white/[0.06] bg-surface-1 text-gray-400 hover:border-white/[0.15] hover:text-white'
-                  }`}
+                  className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-white/[0.06] bg-surface-1 text-gray-400 hover:border-white/[0.15] hover:text-white transition-all text-left"
                 >
                   <span className="text-base leading-none shrink-0">{skill.icon}</span>
-                  <span className="text-xs font-medium truncate">{skill.name}</span>
-                  {active && <span className="ml-auto text-micro text-accent shrink-0">✓</span>}
+                  <span className="text-xs font-medium truncate flex-1">{skill.name}</span>
+                  {bonus > 0 && (
+                    <span className="text-[9px] font-mono text-lime-400 shrink-0">+{bonus}%</span>
+                  )}
                 </button>
               )
             })}
@@ -830,6 +827,15 @@ function SkillAssignPanel({ pet }: { pet: PetInstance }) {
   const xpPct = (def?.baseBuffPct ?? 5) * hungerFactor * levelFactor + bondBonus
   const globalBuffs = getPetGlobalBuffs(pet)
   const buffActive = hunger > 0 && !pet.adventureId
+
+  // Stacked choice bonuses from level-up picks
+  const choiceBonuses = getLevelUpChoiceBonuses(pet)
+  const totalChoiceBonus = Object.values(choiceBonuses).reduce((s, v) => s + v, 0)
+  // Top choice bonus skill for display
+  const topChoiceSkillId = Object.entries(choiceBonuses)
+    .filter(([id]) => id !== 'all')
+    .sort(([, a], [, b]) => b - a)[0]?.[0]
+  const topChoiceSkill = topChoiceSkillId ? getSkillById(topChoiceSkillId) : null
 
   const nextLevel = pet.level + 1
 
@@ -862,6 +868,11 @@ function SkillAssignPanel({ pet }: { pet: PetInstance }) {
           </div>
           {bondBonus > 0 && (
             <div className="text-[9px] font-mono text-amber-500/70 mt-0.5">+{bondBonus}% bond</div>
+          )}
+          {totalChoiceBonus > 0 && (
+            <div className="text-[9px] font-mono text-lime-400/70 mt-0.5">
+              +{totalChoiceBonus}% picks{topChoiceSkill ? ` (${topChoiceSkill.icon})` : ''}
+            </div>
           )}
         </div>
 
@@ -933,7 +944,7 @@ function ActivePetCard() {
   const activePet = usePetStore((s) => s.activePet)
   const renamePet = usePetStore((s) => s.renamePet)
   const petPetAction = usePetStore((s) => s.petPet)
-  const reassignSkill = usePetStore((s) => s.reassignSkill)
+  const recordLevelUpChoice = usePetStore((s) => s.recordLevelUpChoice)
   const pendingCelebration = usePetStore((s) => s.pendingCelebration)
   const clearPendingCelebration = usePetStore((s) => s.clearPendingCelebration)
   const [showFeed, setShowFeed] = useState(false)
@@ -941,6 +952,18 @@ function ActivePetCard() {
   const heartIdRef = useRef(0)
   const [quote, setQuote] = useState<string | null>(null)
   const [pendingLevelUp, setPendingLevelUp] = useState<number | null>(null)
+  const [showPicker, setShowPicker] = useState(false)
+
+  // Delay showing the skill picker so the level-up animation can play first
+  useEffect(() => {
+    if (pendingLevelUp !== null) {
+      setShowPicker(false)
+      const t = setTimeout(() => setShowPicker(true), 2000)
+      return () => clearTimeout(t)
+    } else {
+      setShowPicker(false)
+    }
+  }, [pendingLevelUp])
 
   const def = activePet ? getPetDef(activePet.defId) : null
 
@@ -1165,13 +1188,13 @@ function ActivePetCard() {
         />
       )}
 
-      {/* Level-up skill picker overlay */}
-      {pendingLevelUp !== null && activePet && (
+      {/* Level-up skill picker overlay — appears after animation plays */}
+      {showPicker && pendingLevelUp !== null && activePet && (
         <LevelUpSkillPicker
           pet={activePet}
           newLevel={pendingLevelUp}
           onPick={(skillId) => {
-            reassignSkill(skillId)
+            recordLevelUpChoice(skillId)
             setPendingLevelUp(null)
             setQuote(`LVL ${pendingLevelUp}! 🎉`)
             setTimeout(() => setQuote(null), 2_000)

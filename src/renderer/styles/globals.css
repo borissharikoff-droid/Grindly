@@ -8,8 +8,11 @@
   --grindly-space-md: 0.75rem;
   --grindly-space-lg: 1rem;
   --grindly-radius-sm: 4px;
-  --grindly-radius-md: 4px;
-  --grindly-radius-lg: 4px;
+  --grindly-radius-md: 6px;
+  --grindly-radius-lg: 8px;
+  /* Skill ambient color — updated by useSkillAmbient hook. Space-separated for rgb(). */
+  --skill-glow: 88 101 242;
+  --skill-hex: #5865F2;
 }
 
 * {
@@ -28,6 +31,12 @@ body {
   background-color: #111214;
   color: #e0e0e0;
   -webkit-font-smoothing: antialiased;
+}
+
+/* App root background — ambient color follows active skill via --skill-glow CSS variable */
+.grindly-root-bg {
+  background: radial-gradient(ellipse 180% 70% at 50% -10%, rgb(var(--skill-glow) / 0.09) 0%, #111214 55%);
+  transition: background 1.8s ease;
 }
 
 /* Keep emoji tab icons stable even while web fonts are swapping in. */

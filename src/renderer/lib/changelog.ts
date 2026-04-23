@@ -24,6 +24,22 @@ export const CHANGE_TYPE_META: Record<ChangeType, { label: string; color: string
 
 export const CHANGELOG: PatchNote[] = [
   {
+    version: '4.10.0',
+    date: '2026-04-23',
+    title: 'Arena Ambient, Pet Skill Choices & Nav Polish',
+    items: [
+      { type: 'new', text: 'Arena battle ambient bar — live boss HP strip on Home while any dungeon/boss battle is active; click to jump to Arena' },
+      { type: 'new', text: 'Pet level-up skill choices — pick a skill at each level-up for a stacking +1% XP bonus (levels 2–10)' },
+      { type: 'new', text: 'Off-tab dungeon battles — dungeons keep ticking when you switch away from Arena tab' },
+      { type: 'new', text: 'QuickActionsArrow — fast goal/task entry from the home screen header' },
+      { type: 'ui',  text: 'BottomNav glass polish — backdrop blur, animated active underline, refined active indicator ring' },
+      { type: 'ui',  text: 'Production skills (Farmer/Warrior/Crafter/Chef) now render at full visual weight on Skills page' },
+      { type: 'fix', text: 'Dual Framer Motion layoutId conflict in BottomNav (could glitch when More menu + active pinned tab)' },
+      { type: 'fix', text: 'message_reactions RLS tightened — participant-scoped SELECT/INSERT (was open to all authenticated users)' },
+      { type: 'fix', text: 'get_email_by_username now rate-limited — prevents email enumeration via username guessing' },
+    ],
+  },
+  {
     version: '4.9.0',
     date: '2026-04-20',
     title: 'Period Share & Top Apps',

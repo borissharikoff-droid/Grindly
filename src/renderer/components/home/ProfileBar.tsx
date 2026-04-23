@@ -24,9 +24,10 @@ import { fmt } from '../../lib/format'
 interface ProfileBarProps {
   onNavigateProfile?: () => void
   onNavigateInventory?: () => void
+  sessionId?: string
 }
 
-export function ProfileBar({ onNavigateProfile, onNavigateInventory }: ProfileBarProps) {
+export function ProfileBar({ onNavigateProfile, onNavigateInventory, sessionId }: ProfileBarProps) {
   const { user } = useAuthStore()
   const party = usePartyStore((s) => s.party)
   const partyMembers = usePartyStore((s) => s.members)
@@ -37,6 +38,7 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory }: ProfileBa
   const [avatar, setAvatar] = useState('🤖')
   const [frameId, setFrameId] = useState<string | null>(null)
   const [streak, setStreak] = useState(0)
+  const [sessionToday, setSessionToday] = useState(false)
   const [totalLevel, setTotalLevel] = useState(0)
   const activeFrame = FRAMES.find(f => f.id === frameId)
   const streakMult = getStreakMultiplier(streak)
@@ -99,6 +101,13 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory }: ProfileBa
     if (api?.db?.getStreak) {
       api.db.getStreak().then((s: number) => setStreak(s || 0))
     }
+    if (api?.db?.getSessionCount) {
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+      api.db.getSessionCount(todayStart.getTime())
+        .then((n: number) => setSessionToday((n ?? 0) > 0))
+        .catch(() => {})
+    }
     if (api?.db?.getAllSkillXP) {
       api.db.getAllSkillXP().then((rows: { skill_id: string; total_xp: number }[]) => {
         setTotalLevel(computeTotalSkillLevel(rows || []))
@@ -119,7 +128,7 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory }: ProfileBa
         }
       }).catch(() => {})
     }
-  }, [user])
+  }, [user, sessionId])
 
   // AFK badge: track idle duration and "Resumed" flash
   useEffect(() => {
@@ -149,6 +158,8 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory }: ProfileBa
     const s = afkElapsedSec % 60
     return `💤 AFK — ${m}m ${s}s`
   }, [afkElapsedSec])
+
+  const streakAtRisk = streak > 0 && !sessionToday && new Date().getHours() >= 20
 
   const myMember = party?.status === 'active' ? partyMembers.find((m) => m.user_id === user?.id) : null
   const otherMembers = party?.status === 'active' ? partyMembers.filter((m) => m.user_id !== user?.id) : []
@@ -207,8 +218,8 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory }: ProfileBa
             </span>
             {streak > 0 && (
               <span
-                className="text-orange-400 flex items-center gap-0.5"
-                title={`${streak}-day streak · ×${streakMult.toFixed(1)} XP`}
+                className={`flex items-center gap-0.5 ${streakAtRisk ? 'text-orange-400 animate-pulse' : 'text-orange-400/70'}`}
+                title={streakAtRisk ? `⚠ Streak at risk — complete a session before midnight!` : `${streak}-day streak · ×${streakMult.toFixed(1)} XP`}
               >
                 <span aria-hidden>🔥</span>
                 <span className="font-mono tabular-nums">{streak}</span>

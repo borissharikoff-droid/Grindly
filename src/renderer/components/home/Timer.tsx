@@ -43,13 +43,14 @@ export function Timer() {
     >
       <motion.div
         layout
-        className={`font-mono text-6xl font-bold tabular-nums tracking-wider transition-colors duration-300 select-none ${
-          status === 'running'
-            ? 'text-accent animate-timer-glow'
-            : status === 'paused'
-              ? 'text-yellow-400'
-              : 'text-white/40'
+        className={`font-mono text-6xl font-bold tabular-nums tracking-wider select-none ${
+          status === 'paused'
+            ? 'text-yellow-400'
+            : status !== 'running'
+              ? 'text-white/40'
+              : ''
         }`}
+        style={status === 'running' ? { color: 'var(--skill-hex)', transition: 'color 1.8s ease' } : undefined}
       >
         {formatTime(elapsed)}
       </motion.div>
@@ -60,7 +61,7 @@ export function Timer() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: MOTION.duration.slow, ease: MOTION.easingSoft }}
-            className="mt-2 text-micro font-mono text-gray-600 tracking-widest select-none"
+            className="mt-2 text-xs font-display font-semibold text-gray-600 tracking-widest select-none"
           >
             PRESS GRIND TO START
           </motion.p>
@@ -75,7 +76,7 @@ export function Timer() {
             transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
             className="mt-3 flex justify-center"
           >
-            <span className="text-xs font-bold tracking-wider px-3 py-1 rounded-full bg-accent/15 text-accent border border-accent/30">
+            <span className="text-xs font-mono font-bold tracking-wider px-3 py-1 rounded-full bg-accent/15 text-accent border border-accent/30">
               FOCUS {formatTime(focusRemainingSeconds)}
             </span>
           </motion.div>
@@ -90,7 +91,7 @@ export function Timer() {
             transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
             className="mt-2 flex justify-center"
           >
-            <span className="text-xs font-bold tracking-wider px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            <span className="text-xs font-mono font-bold tracking-wider px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
               {nowPlayingText}
             </span>
           </motion.div>
@@ -105,7 +106,7 @@ export function Timer() {
             transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
             className="mt-2 flex justify-center"
           >
-            <span className="text-xs font-bold tracking-wider px-3 py-1 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30">
+            <span className="text-xs font-mono font-bold tracking-wider px-3 py-1 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30">
               📚 Tutorial
             </span>
           </motion.div>
@@ -120,7 +121,7 @@ export function Timer() {
             transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
             className="mt-2 flex justify-center"
           >
-            <span className="text-xs font-bold tracking-wider px-3 py-1 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">
+            <span className="text-xs font-mono font-bold tracking-wider px-3 py-1 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30">
               🔥 ×{streakMultiplier.toFixed(1)} XP
             </span>
           </motion.div>

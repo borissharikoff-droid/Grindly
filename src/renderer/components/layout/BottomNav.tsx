@@ -187,7 +187,7 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
           <>
             <motion.div
               ref={popupRef}
-              className="fixed bottom-[58px] left-[calc(50%-140px)] z-50 w-[280px] rounded-card border border-white/[0.08] bg-surface-2 shadow-popup overflow-hidden"
+              className="fixed bottom-[64px] left-[calc(50%-140px)] z-50 w-[280px] rounded-card border border-white/10 bg-surface-2/95 backdrop-blur-md shadow-[0_4px_24px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.04)] overflow-hidden"
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
@@ -271,11 +271,12 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
 
       {/* ── Bottom nav bar ───────────────────────────────────────────── */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pb-1.5 pt-1 px-2"
+        className="fixed bottom-0 left-0 right-0 z-40"
         onDragOver={(e) => e.preventDefault()}
         onDrop={onDropNavArea}
       >
-        <nav className="flex items-stretch gap-1.5 rounded bg-surface-1 border border-white/[0.07] px-1.5 py-1.5 shadow-nav w-full max-w-xs">
+        <div className="flex justify-center pb-1.5 pt-1 px-2">
+        <nav className="flex items-stretch gap-1.5 rounded-lg bg-surface-1/90 backdrop-blur-md border border-white/10 px-1.5 py-1.5 shadow-[0_-1px_0_rgba(255,255,255,0.06),0_-8px_28px_rgba(0,0,0,0.45)] w-full max-w-xs">
 
           {/* Pinned tabs (1–4, variable) */}
           {pinnedTabs.map((tabId, slotIndex) => {
@@ -307,8 +308,8 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
                     : isDropTarget
                     ? 'ring-1 ring-accent/60 bg-accent/15 text-accent'
                     : active
-                    ? 'bg-accent/15 text-accent'
-                    : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                    ? 'bg-accent/12 text-accent ring-1 ring-inset ring-accent/20'
+                    : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.06]'
                 }`}
               >
                 <span className="grindly-tab-icon leading-none" aria-hidden>
@@ -326,6 +327,13 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
                 {pulse && !badge && (
                   <span className="absolute top-1 right-1 w-2 h-2 rounded-full border border-surface-1 bg-accent animate-pulse" />
                 )}
+                {active && (
+                  <motion.span
+                    layoutId="nav-active-line"
+                    className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-accent"
+                    transition={{ duration: MOTION.duration.fast, ease: MOTION.easingSoft }}
+                  />
+                )}
               </button>
               </div>
             )
@@ -339,8 +347,8 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
             onClick={() => { playClickSound(); setMoreOpen((o) => !o) }}
             className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded transition-all duration-200 ${
               moreOpen || moreIsActiveTab
-                ? 'bg-accent/15 text-accent'
-                : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                ? 'bg-accent/12 text-accent ring-1 ring-inset ring-accent/20'
+                : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.06]'
             }`}
             aria-label="More"
             aria-expanded={moreOpen}
@@ -350,8 +358,16 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
             {moreBadge && !moreOpen && (
               <span className="absolute top-1 right-1 w-2 h-2 rounded-full border border-surface-1 bg-accent" />
             )}
+            {moreIsActiveTab && (
+              <motion.span
+                layoutId="nav-active-line"
+                className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-accent"
+                transition={{ duration: MOTION.duration.fast, ease: MOTION.easingSoft }}
+              />
+            )}
           </motion.button>
         </nav>
+        </div>
       </div>
     </>
   )

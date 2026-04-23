@@ -84,7 +84,7 @@ export function SessionControls() {
               exit={{ opacity: 0, scale: 0.985 }}
               transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
               className="fixed inset-0 z-[400] flex items-center justify-center"
-              style={{ background: 'rgba(0,0,0,0.55)' }}
+              style={{ background: 'rgba(0,0,0,0.72)' }}
             >
             <div className="w-full max-w-[320px] rounded-card p-3.5 border border-white/10 bg-surface-2/90 shadow-lg mx-4">
               <div className="text-center mb-2">
@@ -101,13 +101,13 @@ export function SessionControls() {
               <div className="flex gap-2">
                 <button
                   onClick={handleCancel}
-                  className="flex-1 py-2.5 rounded border border-white/15 bg-white/5 text-sm text-white font-medium hover:bg-white/10 transition-colors"
+                  className="flex-1 py-2.5 rounded border border-white/10 text-sm text-gray-400 font-medium hover:text-gray-200 hover:border-white/20 transition-colors"
                 >
                   Continue
                 </button>
                 <button
                   onClick={handleConfirmStop}
-                  className="flex-1 py-2.5 rounded bg-red-500 text-white text-sm font-semibold hover:bg-red-500 transition-colors"
+                  className="flex-1 py-2.5 rounded bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-colors"
                 >
                   {confirmState === 'discard' ? 'Discard' : 'Stop'}
                 </button>
@@ -153,7 +153,7 @@ export function SessionControls() {
                     whileHover={MOTION.interactive.hover}
                     whileTap={MOTION.interactive.tap}
                     transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
-                    className="relative min-w-[200px] px-12 py-4 rounded font-bold text-base tracking-widest transition-colors duration-200 bg-accent text-white hover:shadow-[0_0_30px_rgba(88,101,242,0.5)]"
+                    className="relative min-w-[200px] px-12 py-4 rounded font-display font-bold text-lg tracking-widest transition-colors duration-200 bg-accent text-white hover:shadow-[0_0_30px_rgba(88,101,242,0.5)]"
                   >
                     GRIND
                   </motion.button>
@@ -174,7 +174,7 @@ export function SessionControls() {
                     onClick={handlePauseResume}
                     whileHover={MOTION.interactive.hover}
                     whileTap={MOTION.interactive.tap}
-                    className={`px-8 py-3.5 rounded font-semibold text-sm tracking-wide transition-all duration-150 ${
+                    className={`px-8 py-3.5 rounded font-display font-semibold text-base tracking-wide transition-all duration-150 ${
                       isPaused
                         ? 'bg-accent/15 border border-accent/40 text-accent hover:bg-accent/25'
                         : 'bg-white/6 border border-white/12 text-gray-300 hover:bg-white/10 hover:border-white/20'
@@ -188,7 +188,7 @@ export function SessionControls() {
                     onClick={handleStartStop}
                     whileHover={MOTION.interactive.hover}
                     whileTap={MOTION.interactive.tap}
-                    className="px-8 py-3.5 rounded font-semibold text-sm tracking-wide bg-red-500/12 border border-red-500/30 text-red-400 hover:bg-red-500/22 hover:border-red-500/50 transition-all duration-150"
+                    className="px-8 py-3.5 rounded font-display font-semibold text-base tracking-wide bg-red-500/12 border border-red-500/30 text-red-400 hover:bg-red-500/22 hover:border-red-500/50 transition-all duration-150"
                   >
                     STOP
                   </motion.button>

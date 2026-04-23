@@ -45,6 +45,8 @@ interface PetStore {
   petPet: () => { success: boolean; xp?: number; leveledUp?: boolean; error?: string }
   /** Reassign which skill the pet buffs. Pass 'all' to buff every skill. */
   reassignSkill: (skillId: string) => void
+  /** Record a level-up skill pick — appends to levelUpChoices, adding +1% XP to that skill permanently. */
+  recordLevelUpChoice: (skillId: string) => void
   /** Check and grant any newly-reached bond milestones. Returns unlocked ids. */
   checkBondMilestones: () => string[]
   /** If set, a celebration overlay should be shown for this milestone. */
@@ -306,6 +308,19 @@ export const usePetStore = create<PetStore>()(
           activePet: {
             ...activePet,
             assignedSkillId: skillId === 'all' ? undefined : skillId,
+          },
+        })
+      },
+
+      recordLevelUpChoice(skillId: string) {
+        const { activePet } = get()
+        if (!activePet) return
+        const validSkill = skillId === 'all' || SKILLS.some((s) => s.id === skillId)
+        if (!validSkill) return
+        set({
+          activePet: {
+            ...activePet,
+            levelUpChoices: [...(activePet.levelUpChoices ?? []), skillId],
           },
         })
       },

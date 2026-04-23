@@ -668,6 +668,8 @@ function ZoneCard({
 export function ArenaPage() {
   useAdminConfigStore((s) => s.rev)
   const navigateTo = useNavigationStore((s) => s.navigateTo)
+  const pendingArenaZoneId = useNavigationStore((s) => s.pendingArenaZoneId)
+  const setPendingArenaZoneId = useNavigationStore((s) => s.setPendingArenaZoneId)
   const [showBackpack, setShowBackpack] = useState(false)
   const [arenaTab, setArenaTab] = useState<'dungeons' | 'raids' | 'hall'>('dungeons')
 
@@ -717,6 +719,17 @@ export function ArenaPage() {
   const hotZoneId = useMemo(() => getHotZoneId(), [])
   const hotZoneDaysLeft = useMemo(() => hotZoneResetsInDays(), [])
   const hotZone = ZONES.find((z) => z.id === hotZoneId)
+  // Scroll to zone when navigated from home combat widget
+  useEffect(() => {
+    if (!pendingArenaZoneId) return
+    setPendingArenaZoneId(null)
+    setArenaTab('dungeons')
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-zone-id="${pendingArenaZoneId}"]`)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [pendingArenaZoneId, setPendingArenaZoneId])
+
   // Restore auto-mode state on mount (survives tab switches)
   useEffect(() => {
     if (isAutoRunning && !autoAccRef.current) {
@@ -1301,8 +1314,8 @@ export function ArenaPage() {
       <div className="space-y-2.5">
         <p className="text-micro uppercase tracking-wider text-gray-400 font-mono px-0.5">Zones</p>
         {ZONES.map((zone) => (
+          <div key={zone.id} data-zone-id={zone.id}>
           <ZoneCard
-            key={zone.id}
             zone={zone}
             skillLevels={skillLevels}
             clearedZones={clearedZones}
@@ -1332,6 +1345,7 @@ export function ArenaPage() {
             isHotZone={zone.id === hotZoneId}
             playerAtk={playerAtk}
           />
+          </div>
         ))}
       </div>
 

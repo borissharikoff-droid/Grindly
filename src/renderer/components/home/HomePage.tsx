@@ -1,20 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronRight } from '../../lib/icons'
 import { ProfileBar } from './ProfileBar'
-import { StreakBar } from './StreakBar'
 import { Timer } from './Timer'
 import { SessionControls } from './SessionControls'
 import { CurrentActivity } from './CurrentActivity'
 import { SessionComplete } from './SessionComplete'
 import { WelcomeBanner } from './WelcomeBanner'
-import { GoalWidget } from './GoalWidget'
-import { FocusModeDock } from './FocusModeDock'
+import { GoalWidget, type GoalWidgetHandle } from './GoalWidget'
+import { QuickActionsArrow } from './QuickActionsArrow'
 import { TodayWidget } from './TodayWidget'
 import { OrbBlast } from './OrbBlast'
 import { useSessionStore } from '../../stores/sessionStore'
 import { MOTION } from '../../lib/motion'
 import { useNotificationStore } from '../../stores/notificationStore'
+import { useSkillAmbient } from '../../hooks/useSkillAmbient'
 
 import { useBountyStore } from '../../stores/bountyStore'
 import { useWeeklyStore } from '../../stores/weeklyStore'
@@ -25,6 +25,8 @@ import { useNavigationStore } from '../../stores/navigationStore'
 import { useRaidStore } from '../../stores/raidStore'
 import { RAID_TIER_CONFIGS, getRaidPhase } from '../../services/raidService'
 import { usePetStore } from '../../stores/petStore'
+import { useArenaStore } from '../../stores/arenaStore'
+import { useInventoryStore } from '../../stores/inventoryStore'
 import { ADVENTURES, computeCurrentHunger, computePetMood, getPetDef, getPetLevelImage, getPetBuffDisplay, MOOD_EMOJI } from '../../lib/pets'
 
 interface HomePageProps {
@@ -60,6 +62,7 @@ function raidCountdown(dateStr: string | null): string {
 }
 
 export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFriends, hasFriends }: HomePageProps) {
+  useSkillAmbient()
   const showComplete = useSessionStore((s) => s.showComplete)
   const status = useSessionStore((s) => s.status)
   const sessionId = useSessionStore((s) => s.sessionId) // changes each new session
@@ -105,7 +108,29 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
   const petAdventureRemaining = petAdventure ? Math.max(0, petAdventure.durationMs - petAdventureElapsed) : 0
   const petAdventureProgress = petAdventure ? Math.min(1, petAdventureElapsed / petAdventure.durationMs) : 0
 
-  const showAmbientBar = farmReady > 0 || farmGrowing > 0 || !!craftJob || !!cookJob || !!petAdventure
+  const activeBattle = useArenaStore((s) => s.activeBattle)
+  const activeDungeon = useArenaStore((s) => s.activeDungeon)
+  const getBattleState = useArenaStore((s) => s.getBattleState)
+  const setPendingArenaZoneId = useNavigationStore((s) => s.setPendingArenaZoneId)
+  const dungeonPassCount = useInventoryStore((s) => s.items['dungeon_pass'] ?? 0)
+  const [battleTick, setBattleTick] = useState(0)
+  useEffect(() => {
+    if (!activeBattle) return
+    const id = setInterval(() => setBattleTick((t) => t + 1), 250)
+    return () => clearInterval(id)
+  }, [activeBattle])
+  void battleTick
+  const battleState = useMemo(
+    () => activeBattle ? getBattleState() : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeBattle, battleTick],
+  )
+  const battleBossMax = activeBattle?.bossSnapshot.hp ?? 1
+  const battleBossPct = battleState ? Math.max(0, Math.min(100, (battleState.bossHp / battleBossMax) * 100)) : 0
+  // mobIndex: 0-2 = mobs, 3 = boss
+  const dungeonStep = activeDungeon?.mobIndex ?? 3
+
+  const showAmbientBar = farmReady > 0 || farmGrowing > 0 || !!craftJob || !!cookJob || !!petAdventure || (!!activeBattle && !!battleState)
 
   const raidCfg = activeRaid ? RAID_TIER_CONFIGS[activeRaid.tier] : null
   const raidPhase = activeRaid ? getRaidPhase(activeRaid.boss_hp_remaining, activeRaid.boss_hp_max) : 1
@@ -118,10 +143,15 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
   const dailyTotal = bounties.length
   const weeklyDone = weeklyBounties.filter((b) => b.progress >= b.targetCount).length
   const weeklyTotal = weeklyBounties.length
+  const goalRef = useRef<GoalWidgetHandle>(null)
+
   const handleOpenQuests = () => {
     setProfileInitialTab('quests')
     onNavigateProfile()
   }
+
+  const handleOpenGoal = useCallback(() => goalRef.current?.openGoal(), [])
+  const handleOpenTask = useCallback(() => goalRef.current?.openTask(), [])
 
   // Checkpoint-based "Session restored" notification. Fires both on first
   // mount (fresh app launch after crash) AND on tray → show reopen (window
@@ -216,8 +246,7 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
     >
       <OrbBlast />
 
-      <ProfileBar onNavigateProfile={onNavigateProfile} onNavigateInventory={onNavigateInventory} />
-      <StreakBar sessionVersion={sessionId ?? undefined} />
+      <ProfileBar onNavigateProfile={onNavigateProfile} onNavigateInventory={onNavigateInventory} sessionId={sessionId ?? undefined} />
 
       {/* Active raid ambient bar */}
       {activeRaid && raidCfg && activeRaid.status === 'active' && (
@@ -415,13 +444,52 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
                   )}
                 </button>
               )}
+              {activeBattle && battleState && (
+                <button
+                  type="button"
+                  onClick={() => { setPendingArenaZoneId(activeBattle.dungeonZoneId ?? null); navigateTo?.('arena') }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-micro font-mono border border-red-500/35 bg-red-500/[0.07] text-red-400 hover:bg-red-500/12 transition-colors"
+                >
+                  ⚔
+                  {/* Stage dots: 3 mobs + boss */}
+                  <span className="flex items-center gap-0.5">
+                    {[0, 1, 2, 3].map((i) => (
+                      <span
+                        key={i}
+                        className="inline-block rounded-full"
+                        style={{
+                          width: i === 3 ? 5 : 4,
+                          height: i === 3 ? 5 : 4,
+                          background: i < dungeonStep
+                            ? 'rgba(255,255,255,0.25)'
+                            : i === dungeonStep
+                              ? i === 3 ? '#facc15' : '#f87171'
+                              : 'rgba(255,255,255,0.1)',
+                        }}
+                      />
+                    ))}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-10 h-1 rounded-full bg-white/[0.08] overflow-hidden inline-block relative">
+                      <span
+                        className="absolute inset-y-0 left-0 rounded-full bg-red-500/60"
+                        style={{ width: `${battleBossPct}%` }}
+                      />
+                    </span>
+                    {activeBattle.bossSnapshot.name.split(' ')[0]}
+                  </span>
+                  {dungeonPassCount > 0 && (
+                    <span className="text-gray-500">×{dungeonPassCount}</span>
+                  )}
+                </button>
+              )}
             </div>
           )}
 
 
-          {(dailyTotal > 0 || weeklyTotal > 0) && (
-            <button type="button" onClick={handleOpenQuests} className="w-full group rounded border border-white/[0.06] hover:border-white/[0.12] px-3 py-2 hover:bg-white/[0.03] transition-colors">
-              <div className="flex items-center justify-between mb-2">
+          <div className="flex items-stretch gap-1.5">
+            <button type="button" onClick={handleOpenQuests} className="flex-1 group rounded border border-white/[0.06] hover:border-white/[0.12] px-3 py-2 hover:bg-white/[0.03] transition-colors min-w-0">
+              <div className={`flex items-center justify-between ${dailyTotal > 0 || weeklyTotal > 0 ? 'mb-2' : ''}`}>
                 <span className="text-micro font-mono text-gray-400 uppercase tracking-widest">Quests</span>
                 <ChevronRight className="w-3 h-3 text-gray-500 group-hover:text-gray-300 transition-colors shrink-0" />
               </div>
@@ -448,8 +516,9 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
                 </div>
               )}
             </button>
-          )}
-          <GoalWidget trailingAction={<FocusModeDock />} />
+            <QuickActionsArrow onOpenGoal={handleOpenGoal} onOpenTask={handleOpenTask} />
+          </div>
+          <GoalWidget ref={goalRef} />
           {status === 'idle' && (
             <TodayWidget onOpenStats={() => {
               useNavigationStore.getState().setPendingStatsFilter('today')

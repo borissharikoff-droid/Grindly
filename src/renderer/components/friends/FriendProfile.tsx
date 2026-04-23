@@ -74,13 +74,14 @@ export function FriendProfile({ profile, onBack, onMessage, onAddFriend, onTrade
   const [addFriendSent, setAddFriendSent] = useState(false)
   const [addFriendBusy, setAddFriendBusy] = useState(false)
 
-  const canInvite = !!myGuild && !!guildMembership && profile.id !== currentUser?.id && profile.guild_tag !== myGuild.tag
+  const canInvite = !!myGuild && !!guildMembership && ['owner', 'officer'].includes(guildMembership.role) && profile.id !== currentUser?.id && profile.guild_tag !== myGuild.tag
 
   const handleInvite = useCallback(async () => {
     const result = await sendInvite(profile.id)
     if (result.ok) {
       setInviteSent(true)
       pushToast({ kind: 'generic', message: `Invited ${profile.username} to [${myGuild!.tag}]`, type: 'success' })
+      setTimeout(() => setInviteSent(false), 4000)
     } else {
       pushToast({ kind: 'generic', message: result.error ?? 'Failed to invite', type: 'error' })
     }

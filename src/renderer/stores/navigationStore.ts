@@ -24,6 +24,9 @@ interface NavigationStore {
   /** Initial filter for the Stats page ('today'|'week'|'month'|'all'). Consumed once on mount. */
   pendingStatsFilter: 'today' | 'week' | 'month' | 'all' | null
   setPendingStatsFilter: (v: 'today' | 'week' | 'month' | 'all' | null) => void
+  /** Navigate to Arena and scroll to this specific zone ID. Consumed once. */
+  pendingArenaZoneId: string | null
+  setPendingArenaZoneId: (id: string | null) => void
 }
 
 export const useNavigationStore = create<NavigationStore>((set) => ({
@@ -43,4 +46,6 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
   setPendingMarketplaceTab: (tab) => set({ pendingMarketplaceTab: tab }),
   pendingStatsFilter: null,
   setPendingStatsFilter: (v) => set({ pendingStatsFilter: v }),
+  pendingArenaZoneId: null,
+  setPendingArenaZoneId: (id) => set({ pendingArenaZoneId: id }),
 }))

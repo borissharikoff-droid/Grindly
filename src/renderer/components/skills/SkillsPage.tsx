@@ -7,12 +7,14 @@ import { computeWarriorBonuses } from '../../lib/combat'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useCraftingStore } from '../../stores/craftingStore'
 import { useCookingStore } from '../../stores/cookingStore'
+import { useNavigationStore } from '../../stores/navigationStore'
 import { MOTION } from '../../lib/motion'
 import { SkeletonBlock } from '../shared/PageLoading'
 import { EmptyState } from '../shared/EmptyState'
 import { PageHeader } from '../shared/PageHeader'
 import { Zap } from '../../lib/icons'
 import { fmt } from '../../lib/format'
+import type { TabId } from '../../App'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,6 +65,19 @@ function skillVerb(category: string): string {
 const PRODUCTION_SKILL_IDS = new Set(['farmer', 'warrior', 'crafter', 'chef', 'grindly'])
 const ACTIVITY_SKILLS = SKILLS.filter(s => !PRODUCTION_SKILL_IDS.has(s.id))
 const PRODUCTION_SKILLS = SKILLS.filter(s => PRODUCTION_SKILL_IDS.has(s.id))
+
+const PRODUCTION_SKILL_NAV: Partial<Record<string, TabId>> = {
+  farmer: 'farm',
+  warrior: 'arena',
+  crafter: 'craft',
+  chef: 'cooking',
+}
+const PRODUCTION_SKILL_NAV_LABEL: Partial<Record<string, string>> = {
+  farmer: 'Go Farm',
+  warrior: 'Go Fight',
+  crafter: 'Go Craft',
+  chef: 'Go Cook',
+}
 
 // ── Perk milestones per production skill ────────────────────────────────────
 
@@ -298,6 +313,7 @@ export function SkillsPage({ initialTab }: { initialTab?: 'overview' | 'history'
   const hydrateCrafting = useCraftingStore((s) => s.hydrate)
   const cookXp = useCookingStore((s) => s.cookXp)
   const hydrateCooking = useCookingStore((s) => s.hydrate)
+  const navigateTo = useNavigationStore((s) => s.navigateTo)
   const levelingSkillId = status === 'running' && currentActivity ? categoryToSkillId(currentActivity.category) : null
   const hasMountedRef = useRef(false)
   useEffect(() => { hasMountedRef.current = true }, [])
@@ -516,6 +532,16 @@ export function SkillsPage({ initialTab }: { initialTab?: 'overview' | 'history'
         {milestones && <PerkRoadmap level={level} milestones={milestones} color={skill.color} />}
 
         <PrestigeSection skillId={skill.id} xp={xp} color={skill.color} onPrestige={() => setPrestigeConfirm(skill.id)} />
+
+        {isProduction && PRODUCTION_SKILL_NAV[skill.id] && (
+          <button
+            type="button"
+            onClick={() => navigateTo?.(PRODUCTION_SKILL_NAV[skill.id] as TabId)}
+            className="w-full py-1.5 rounded text-micro font-mono font-semibold uppercase tracking-wider border border-white/10 bg-white/[0.04] text-gray-400 hover:text-white hover:bg-white/[0.08] transition-colors"
+          >
+            {PRODUCTION_SKILL_NAV_LABEL[skill.id]} →
+          </button>
+        )}
       </div>
     )
   }
@@ -529,6 +555,7 @@ export function SkillsPage({ initialTab }: { initialTab?: 'overview' | 'history'
     const isExpanded = expandedId === skill.id
     const milestones = SKILL_MILESTONES[skill.id]
     const showTicker = isLeveling && xpTick && xpTick.skillId === skill.id
+    const isProduction = PRODUCTION_SKILL_IDS.has(skill.id)
 
     // Check if next level is a perk milestone
     const nextIsMilestone = milestones?.some(m => m.level === level + 1)
@@ -551,6 +578,7 @@ export function SkillsPage({ initialTab }: { initialTab?: 'overview' | 'history'
           style={{
             overflow: 'clip',
             backgroundColor: isLeveling ? `${skill.color}0d` : undefined,
+            borderColor: !isLeveling && isProduction ? `${skill.color}28` : undefined,
             boxShadow: isLeveling ? `0 0 18px ${skill.color}20, inset 0 0 0 1px ${skill.color}25` : undefined,
           }}
         >

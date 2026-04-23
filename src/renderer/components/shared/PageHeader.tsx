@@ -21,7 +21,7 @@ export function PageHeader({ title, icon, onBack, backLabel, rightSlot, titleSlo
             {icon}
           </span>
         )}
-        <h2 className="text-sm font-semibold text-white/90 tracking-wide truncate">{title}</h2>
+        <h2 className="font-display text-base font-semibold text-white/90 tracking-wide truncate">{title}</h2>
         {titleSlot}
       </div>
       {rightSlot && <div className="shrink-0 ml-2">{rightSlot}</div>}

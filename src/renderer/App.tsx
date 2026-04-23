@@ -13,7 +13,6 @@ import { LootDrop } from './components/alerts/LootDrop'
 import { ChestDrop } from './components/alerts/ChestDrop'
 import { ToastStack } from './components/alerts/ToastStack'
 import { ChestOpenModal } from './components/animations/ChestOpenModal'
-import { BattleDock } from './components/arena/BattleDock'
 import { useArenaBattleTick } from './hooks/useArenaBattleTick'
 import { useArenaStore } from './stores/arenaStore'
 import { LOOT_ITEMS } from './lib/loot'
@@ -547,7 +546,7 @@ export default function App() {
   return (
     <AuthGate>
       <MotionConfig reducedMotion="user" transition={{ duration: MOTION.duration.base, ease: MOTION.easing }}>
-        <div className="flex flex-col h-full bg-surface-0 overflow-x-hidden">
+        <div className="flex flex-col h-full grindly-root-bg overflow-x-hidden">
           <UpdateBanner />
           {healthIssues.length > 0 && !healthDismissed && (
             <div className="px-3 py-2 bg-amber-500/8 border-b border-amber-500/20 text-caption text-amber-200/80 flex items-center justify-between gap-3">
@@ -690,7 +689,6 @@ export default function App() {
           </AnimatePresence>
           <LootDrop />
           <ChestDrop />
-          <BattleDock activeTab={activeTab} />
           <ToastStack onNavigate={navigateTo} />
           <ChestOpenModal
             open={Boolean(arenaResultModal)}

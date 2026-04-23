@@ -30,7 +30,7 @@ export function ShareStatsButton({ sinceMs, periodLabel, heroCaption }: Props) {
         pushToast({ kind: 'generic', type: 'error', message: 'Share is unavailable in this build' })
         return
       }
-      const recap = await api.getPeriodRecap(sinceMs || undefined)
+      const recap = await api.getPeriodRecap(sinceMs)
       if (!recap || recap.totalSeconds <= 0) {
         pushToast({ kind: 'generic', type: 'error', message: 'Nothing to share yet for this period' })
         return

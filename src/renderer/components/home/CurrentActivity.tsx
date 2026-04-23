@@ -126,7 +126,8 @@ export function CurrentActivity() {
       initial={{ opacity: 0, y: 12, scale: 0.99, filter: 'blur(5px)' }}
       animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
       transition={{ duration: MOTION.duration.verySlow, ease: MOTION.easingSoft }}
-      className="w-full max-w-sm rounded-card bg-surface-2/90 border border-accent/20 px-4 py-3 shadow-[0_0_16px_rgba(88,101,242,0.06)]"
+      className="w-full max-w-sm rounded-card bg-surface-2/90 border px-4 py-3"
+      style={{ borderColor: 'rgb(var(--skill-glow) / 0.22)', boxShadow: '0 0 16px rgb(var(--skill-glow) / 0.07)' }}
     >
       <div className="flex items-center gap-2.5">
         <motion.span
@@ -141,7 +142,8 @@ export function CurrentActivity() {
             <motion.p
               layout="position"
               transition={{ duration: MOTION.duration.base, ease: MOTION.easingSoft }}
-              className="text-accent text-sm font-medium truncate"
+              className="text-sm font-medium truncate"
+              style={{ color: 'var(--skill-hex)' }}
             >
               {activityTitle}
             </motion.p>

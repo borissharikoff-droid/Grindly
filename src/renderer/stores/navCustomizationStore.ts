@@ -15,7 +15,7 @@ interface NavCustomizationState {
   unlockAllAdvanced: () => void
 }
 
-export const DEFAULT_PINNED: TabId[] = ['home', 'skills', 'friends', 'arena']
+export const DEFAULT_PINNED: TabId[] = ['home', 'skills', 'stats', 'friends']
 
 export const useNavCustomizationStore = create<NavCustomizationState>()(
   persist(

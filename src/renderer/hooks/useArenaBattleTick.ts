@@ -64,12 +64,12 @@ export function useArenaBattleTick(activeTab: TabId) {
       if (!state?.isComplete || completedRef.current) return
 
       const isAuto = useArenaStore.getState().isAutoRunning
-      // Dungeon battles always defer to ArenaPage regardless of active tab —
-      // switching tabs mid-dungeon (e.g. chat banner Enter) must not bypass the chest modal.
-      // Non-dungeon battles on the arena tab also defer to ArenaPage.
-      if (!isAuto && (activeTabRef.current === 'arena' || activeBattle.dungeonZoneId)) return
+      // Defer to ArenaPage only when actually on the Arena tab (handles chest modals etc.).
+      // Off-tab dungeon battles are handled here so fights continue across tab switches.
+      if (!isAuto && activeTabRef.current === 'arena') return
 
       const bossName = activeBattle.bossSnapshot.name
+      const isOffTabDungeon = !isAuto && !!activeBattle.dungeonZoneId && activeTabRef.current !== 'arena'
 
       if (activeBattle.isMob) {
         completedRef.current = true
@@ -78,7 +78,6 @@ export function useArenaBattleTick(activeTab: TabId) {
           const { goldLost, lostItem, materialDrop: matDrop, warriorXP } = useArenaStore.getState().endBattle()
           if (!victory) {
             if (isAuto && autoAcc) {
-              // Auto-farm: stop on mob death
               autoAcc.failed = true
               autoAcc.failedAt = bossName
               autoAcc.lostItem = lostItem
@@ -100,12 +99,8 @@ export function useArenaBattleTick(activeTab: TabId) {
               pushToast({ kind: 'arena_boss', victory: false, bossName, gold: 0, notificationId: notifId })
             }
           } else {
-            // Mob victory — advance dungeon
-            // endBattle already granted gold/materials/XP and cleared activeBattle
-            // but kept activeDungeon alive so advanceDungeon can proceed.
             if (isAuto && autoAcc) {
               autoAcc.totalWarriorXP += warriorXP
-              // materialDrop already added to inventory by endBattle; track for summary
               if (matDrop) {
                 if (autoAcc.materials[matDrop.id]) {
                   autoAcc.materials[matDrop.id].qty += matDrop.qty
@@ -114,12 +109,11 @@ export function useArenaBattleTick(activeTab: TabId) {
                 }
               }
             }
-            // Use actual elapsed time (dynamic damage means formula-based duration is inaccurate)
             const fightEndTime = Date.now()
             completedRef.current = false
             useArenaStore.getState().advanceDungeon(fightEndTime)
           }
-        }, isAuto ? 100 : 300)
+        }, isAuto || isOffTabDungeon ? 100 : 300)
         return
       }
 
@@ -153,7 +147,6 @@ export function useArenaBattleTick(activeTab: TabId) {
                 autoAcc.chestResults.push({ chestType: chest.type as ChestType, itemId: opened.itemId, goldDropped: opened.goldDropped, bonusMaterials: opened.bonusMaterials })
               }
             }
-            // Chain next run
             if (autoAcc.remaining > 0) {
               const inv = useInventoryStore.getState()
               const passes = inv.items['dungeon_pass'] ?? 0
@@ -172,14 +165,60 @@ export function useArenaBattleTick(activeTab: TabId) {
               finishAutoRun()
             }
           } else {
-            // Boss defeat
             autoAcc.failed = true
             autoAcc.failedAt = bossName
             autoAcc.lostItem = lostItem
             finishAutoRun()
           }
+        } else if (isOffTabDungeon) {
+          // Off-tab dungeon (non-auto): resolve with full gold, chain passes
+          const { goldLost, chest, lostItem: bossLostItem, materialDrop, dungeonGold, warriorXP } = useArenaStore.getState().endBattle()
+          const lossChancePct = Math.round(ITEM_LOSS_CHANCE * 100)
+          if (victory) {
+            // Chain another run if passes are available
+            const inv = useInventoryStore.getState()
+            const passes = inv.items['dungeon_pass'] ?? 0
+            const zone = ZONES.find((z) => z.id === activeBattle.dungeonZoneId)
+            if (passes > 0 && zone && canAffordEntry(zone, inv.items)) {
+              inv.deleteItem('dungeon_pass', 1)
+              completedRef.current = false
+              setTimeout(() => useArenaStore.getState().startDungeon(activeBattle.dungeonZoneId!, null, activeBattle.foodLoadout), 400)
+              return
+            }
+            // No passes left — notify with loot summary
+            const parts: string[] = []
+            if (dungeonGold > 0) parts.push(`+${formatShort(dungeonGold)} 🪙`)
+            if (chest) parts.push(`${chest.icon} ${chest.name}`)
+            if (materialDrop) parts.push(`${materialDrop.icon} ×${materialDrop.qty}`)
+            if (warriorXP > 0) parts.push(`+${warriorXP} Warrior XP`)
+            const notifId = pushNotification({
+              type: 'arena_result',
+              icon: '🏆',
+              title: `Dungeon complete — ${bossName} slain!`,
+              body: parts.join(' · ') || 'Victory!',
+              arenaResult: { victory: true, gold: dungeonGold, bossName, chest, materialDrop, warriorXP },
+            })
+            if (notifId) {
+              pushToast({ kind: 'arena_boss', victory: true, bossName, gold: dungeonGold, notificationId: notifId, chest, materialDrop, warriorXP })
+            }
+          } else {
+            const parts: string[] = []
+            if (goldLost > 0) parts.push(`-${formatShort(goldLost)} 🪙`)
+            if (bossLostItem) parts.push(`Lost ${bossLostItem.icon} ${bossLostItem.name} (${lossChancePct}%)`)
+            else parts.push(`Gear survived (${100 - lossChancePct}% safe)`)
+            const notifId = pushNotification({
+              type: 'arena_result',
+              icon: '💀',
+              title: `Died in dungeon vs ${bossName}`,
+              body: parts.join(' · ') || 'Dungeon failed',
+              arenaResult: { victory: false, gold: 0, bossName },
+            })
+            if (notifId) {
+              pushToast({ kind: 'arena_boss', victory: false, bossName, gold: 0, notificationId: notifId })
+            }
+          }
         } else {
-          // Non-auto boss resolution (off-tab notification)
+          // Non-auto boss resolution (off-tab, non-dungeon)
           const { goldLost, chest, lostItem: bossLostItem } = endBattleWithoutGold()
           const bossDef = activeBattle.bossSnapshot as { materialDropId?: string; materialDropQty?: number; id: string }
           let materialDrop: { id: string; name: string; icon: string; qty: number } | null = null
@@ -208,7 +247,7 @@ export function useArenaBattleTick(activeTab: TabId) {
             pushToast({ kind: 'arena_boss', victory, bossName, gold: 0, notificationId: notifId, chest, materialDrop, warriorXP })
           }
         }
-      }, isAuto ? 200 : 1200)
+      }, isAuto || isOffTabDungeon ? 200 : 1200)
     }
 
     tick()

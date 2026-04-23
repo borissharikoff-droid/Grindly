@@ -56,7 +56,7 @@ Zustand stores in `src/renderer/stores/`. The central store is `sessionStore.ts`
 
 ### Gamification
 
-8 skills (Developer, Designer, Gamer, Communicator, Researcher, Creator, Learner, Listener) defined in `src/renderer/lib/skills.ts`. XP formulas in `src/renderer/lib/xp.ts` — 99 levels per skill with formula `xpForLevel(L) = floor(pow(L/99, 2.2) * 3_600_000)`. Activity categories map to skills via `skillXPService.ts`. Achievements checked in `achievementService.ts`.
+14 skills (Developer, Designer, Gamer, Communicator, Researcher, Creator, Learner, Listener, Farmer, Warrior, Crafter, Chef, AI, Grindly) defined in `src/renderer/lib/skills.ts`. The first 8 (+ AI) are earned passively from app activity; Farmer/Warrior/Crafter/Chef/Grindly are earned through in-game actions (harvesting, arena kills, crafting, cooking, general play). XP formulas in `src/renderer/lib/xp.ts` — 99 levels per skill with formula `xpForLevel(L) = floor(pow(L/99, 2.2) * 3_600_000)`. Activity categories map to skills via `skillXPService.ts`. Achievements checked in `achievementService.ts`.
 
 ### Loot, Inventory & Economy
 

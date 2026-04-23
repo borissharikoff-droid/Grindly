@@ -147,7 +147,7 @@ export function TodayWidget({ onOpenStats }: Props) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
         onClick={handleClick}
-        className={`rounded-xl border border-discord-border bg-discord-darker/60 px-4 py-3 ${onOpenStats ? 'cursor-pointer hover:bg-discord-darker hover:border-discord-primary/40 transition-colors' : ''}`}
+        className={`rounded-card border border-white/[0.06] bg-surface-2/60 px-4 py-3 ${onOpenStats ? 'cursor-pointer hover:bg-surface-2 hover:border-accent/30 transition-colors' : ''}`}
         role={onOpenStats ? 'button' : undefined}
         tabIndex={onOpenStats ? 0 : undefined}
         onKeyDown={(e) => {
@@ -159,12 +159,12 @@ export function TodayWidget({ onOpenStats }: Props) {
       >
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="text-[11px] uppercase tracking-wider text-discord-muted font-semibold">
+            <div className="text-micro font-mono uppercase tracking-widest text-gray-500 font-semibold">
               Today
             </div>
             {(refreshing || saving) && (
-              <span className="text-[10px] text-accent/80 font-mono animate-pulse">
-                {saving ? 'Saving session…' : 'Updating…'}
+              <span className="text-micro text-accent/80 font-mono animate-pulse">
+                {saving ? 'Saving…' : 'Updating…'}
               </span>
             )}
           </div>
@@ -174,7 +174,7 @@ export function TodayWidget({ onOpenStats }: Props) {
                 type="button"
                 onClick={handleShare}
                 onKeyDown={(e) => e.stopPropagation()}
-                className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-accent hover:text-white bg-accent/15 hover:bg-accent/30 border border-accent/40 hover:border-accent/70 transition-colors px-2 py-1 rounded-md"
+                className="flex items-center gap-1 text-micro font-mono uppercase tracking-wider font-semibold text-accent hover:text-white bg-accent/15 hover:bg-accent/30 border border-accent/40 hover:border-accent/70 transition-colors px-2 py-1 rounded"
                 title="Share today's summary"
               >
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
@@ -182,32 +182,32 @@ export function TodayWidget({ onOpenStats }: Props) {
               </button>
             )}
             {onOpenStats && (
-              <div className="text-[10px] text-discord-muted px-1">Stats →</div>
+              <div className="text-micro font-mono text-gray-600 px-1">Stats →</div>
             )}
           </div>
         </div>
 
         {!hasActivity ? (
-          <div className="text-sm text-discord-muted">
-            No sessions yet today. Start a grind to light it up.
+          <div className="text-xs text-gray-500">
+            No sessions yet today. Hit GRIND to start.
           </div>
         ) : (
           <div className={`space-y-2.5 transition-opacity ${saving ? 'opacity-50' : ''}`}>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <div className="text-lg font-bold text-discord-text leading-none">
+                <div className="text-lg font-mono font-bold text-white leading-none tabular-nums">
                   {formatDuration(recap.totalSeconds)}
                 </div>
-                <div className="text-[10px] text-discord-muted mt-1 uppercase tracking-wider">
+                <div className="text-micro font-mono text-gray-500 mt-1 uppercase tracking-widest">
                   Time
                 </div>
               </div>
 
               <div>
-                <div className="text-lg font-bold text-discord-text leading-none">
+                <div className="text-lg font-mono font-bold text-white leading-none tabular-nums">
                   {recap.sessionCount}
                 </div>
-                <div className="text-[10px] text-discord-muted mt-1 uppercase tracking-wider">
+                <div className="text-micro font-mono text-gray-500 mt-1 uppercase tracking-widest">
                   Session{recap.sessionCount === 1 ? '' : 's'}
                 </div>
               </div>
@@ -215,19 +215,19 @@ export function TodayWidget({ onOpenStats }: Props) {
               <div className="min-w-0">
                 {recap.topApp && recap.topApp.seconds >= 60 ? (
                   <>
-                    <div className="text-sm font-bold text-discord-text leading-none truncate" title={recap.topApp.app_name}>
+                    <div className="text-sm font-bold text-white leading-none truncate" title={recap.topApp.app_name}>
                       {recap.topApp.app_name.replace(/\.exe$/i, '')}
                     </div>
-                    <div className="text-[10px] text-discord-muted mt-1 uppercase tracking-wider">
+                    <div className="text-micro font-mono text-gray-500 mt-1 uppercase tracking-widest">
                       Top app · {formatDuration(recap.topApp.seconds)}
                     </div>
                   </>
                 ) : (
                   <>
-                    <div className="text-lg font-bold text-discord-text leading-none">
+                    <div className="text-lg font-mono font-bold text-white leading-none tabular-nums">
                       {formatXP(recap.totalXP)}
                     </div>
-                    <div className="text-[10px] text-discord-muted mt-1 uppercase tracking-wider">
+                    <div className="text-micro font-mono text-gray-500 mt-1 uppercase tracking-widest">
                       Total XP
                     </div>
                   </>
@@ -237,14 +237,14 @@ export function TodayWidget({ onOpenStats }: Props) {
 
             {/* Top skills strip */}
             {recap.skills && recap.skills.length > 0 && (
-              <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-white/5">
+              <div className="flex items-center gap-1.5 flex-wrap pt-1.5 border-t border-white/[0.06]">
                 {recap.skills.slice(0, 3).map((s) => {
                   const def = getSkillById(s.skill_id)
                   if (!def) return null
                   return (
                     <div
                       key={s.skill_id}
-                      className="flex items-center gap-1 px-1.5 py-0.5 rounded-md border"
+                      className="flex items-center gap-1 px-1.5 py-0.5 rounded border"
                       style={{
                         borderColor: `${def.color}40`,
                         backgroundColor: `${def.color}14`,
@@ -252,7 +252,7 @@ export function TodayWidget({ onOpenStats }: Props) {
                       title={`${def.name} +${Math.round(s.xp).toLocaleString()} XP today`}
                     >
                       <span className="text-xs leading-none">{def.icon}</span>
-                      <span className="text-[11px] font-bold leading-none" style={{ color: def.color }}>
+                      <span className="text-micro font-mono font-bold leading-none" style={{ color: def.color }}>
                         +{formatXP(s.xp)}
                       </span>
                     </div>
