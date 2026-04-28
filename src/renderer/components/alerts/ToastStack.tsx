@@ -121,7 +121,9 @@ function ToastItem({ toast, onDismiss, onNavigate }: { toast: Toast; onDismiss: 
     playClickSound()
     if (d.kind === 'arena_boss') {
       dismissNotif(d.notificationId)
-      const matBonuses: BonusMaterial[] = d.materialDrop ? [{ itemId: d.materialDrop.id, qty: d.materialDrop.qty }] : []
+      const matBonuses: BonusMaterial[] = []
+      if (d.materialDrop) matBonuses.push({ itemId: d.materialDrop.id, qty: d.materialDrop.qty })
+      if (d.bonusMaterialDrop) matBonuses.push({ itemId: d.bonusMaterialDrop.id, qty: d.bonusMaterialDrop.qty })
       if (d.chest) {
         const result = openChestAndGrantItem(d.chest.type as ChestType, { source: 'session_complete', focusCategory: null })
         // Always open the modal — even if openChestAndGrantItem returned null (empty pool edge case)

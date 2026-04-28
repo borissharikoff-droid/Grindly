@@ -21,6 +21,7 @@ export interface Notification {
     bossName: string
     chest?: { type: string; name: string; icon: string; image?: string } | null
     materialDrop?: { id: string; name: string; icon: string; qty: number } | null
+    bonusMaterialDrop?: { id: string; name: string; icon: string; qty: number } | null
     warriorXP?: number
     dungeonGold?: number
   }

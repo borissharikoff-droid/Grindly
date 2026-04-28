@@ -29,6 +29,13 @@ export default {
           neon: '#00ff88',
           glow: '#00ff8840',
         },
+        // ── Delve / Abyss (fragments, Cache, Rubicon) ─────────────────
+        delve: {
+          DEFAULT: '#a78bfa',
+          dim:     'rgba(167, 139, 250, 0.55)',
+          muted:   'rgba(167, 139, 250, 0.15)',
+          glow:    'rgba(167, 139, 250, 0.30)',
+        },
         // ── Skill colors — loaded from skillColors.json (single source of truth)
         skill: SKILL_COLORS,
       },

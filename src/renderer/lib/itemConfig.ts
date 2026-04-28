@@ -185,16 +185,18 @@ export function applyAdminConfig(items: LootItemDef[], bosses: BossDef[], zones?
     }
   }
 
-  // Patch existing bosses
+  // Patch existing bosses — validate numerics to reject malformed/malicious admin config
+  const isPositiveFinite = (v: unknown): v is number =>
+    typeof v === 'number' && Number.isFinite(v) && v > 0
   for (const [id, overrides] of Object.entries(cfg.bossOverrides ?? {})) {
     const boss = bosses.find((x) => x.id === id)
     if (boss) {
-      if (overrides.name !== undefined) boss.name = overrides.name
-      if (overrides.icon !== undefined) boss.icon = overrides.icon
-      if (overrides.image !== undefined) boss.image = overrides.image
-      if (overrides.hp !== undefined) boss.hp = overrides.hp
-      if (overrides.atk !== undefined) boss.atk = overrides.atk
-      if (overrides.rewards) Object.assign(boss.rewards, overrides.rewards)
+      if (typeof overrides.name === 'string' && overrides.name.length <= 80) boss.name = overrides.name
+      if (typeof overrides.icon === 'string') boss.icon = overrides.icon
+      if (typeof overrides.image === 'string') boss.image = overrides.image
+      if (isPositiveFinite(overrides.hp) && overrides.hp <= 10_000_000) boss.hp = overrides.hp
+      if (isPositiveFinite(overrides.atk) && overrides.atk <= 100_000) boss.atk = overrides.atk
+      if (overrides.rewards && typeof overrides.rewards === 'object') Object.assign(boss.rewards, overrides.rewards)
     }
   }
 

@@ -2,7 +2,7 @@
  * SkillXPService — computes skill XP from activity segments and persists to DB / localStorage.
  */
 
-import { computeSessionSkillXP, skillLevelFromXP, getGrindlyLevel, computeGrindlyBonuses, getPrestigeXpMultiplier } from '../lib/skills'
+import { computeSessionSkillXP, skillLevelFromXP, getGrindlyLevel, computeGrindlyBonuses, getPrestigeXpMultiplier, getStoredSkillXP } from '../lib/skills'
 import type { SkillXPGain } from '../stores/sessionStore'
 import { getEquippedPerkRuntime } from '../lib/loot'
 import { ensureInventoryHydrated, useInventoryStore } from '../stores/inventoryStore'
@@ -57,7 +57,7 @@ export function computeAndSaveSkillXPBrowser(
   ensureInventoryHydrated()
   const equipped = useInventoryStore.getState().equippedBySlot
   const perk = getEquippedPerkRuntime(equipped)
-  const stored = JSON.parse(localStorage.getItem('grindly_skill_xp') || '{}') as Record<string, number>
+  const stored = getStoredSkillXP()
   const gains: SkillXPGain[] = []
 
   const grindlyXpMult = computeGrindlyBonuses(getGrindlyLevel()).xpMultiplier

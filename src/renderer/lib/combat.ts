@@ -113,12 +113,12 @@ export const ZONES: ZoneDef[] = [
     themeColor: '#22d3ee',
     entryCost: [{ itemId: 'wheat', quantity: 3 }],
     mobs: [
-      { id: 'slime_scout',  name: 'Slime Scout',  icon: '🫧', hp: 80,    atk: 1.5, xpReward: 1,     goldMin: 10,  goldMax: 22,   materialDropId: 'slime_gel', materialDropChance: 0.3 },
+      { id: 'slime_scout',  name: 'Slime Scout',  icon: '🫧', image: 'mobs/mob_slime_scout.png', hp: 80,    atk: 1.5, xpReward: 1,     goldMin: 10,  goldMax: 22,   materialDropId: 'slime_gel', materialDropChance: 0.3 },
       { id: 'slime_guard',  name: 'Slime Guard',  icon: '🫧', hp: 150,   atk: 2,   xpReward: 2,     goldMin: 15,  goldMax: 30,   materialDropId: 'slime_gel', materialDropChance: 0.4 },
       { id: 'slime_brute',  name: 'Slime Brute',  icon: '🫧', hp: 250,   atk: 3,   xpReward: 3,     goldMin: 22,  goldMax: 40,   materialDropId: 'slime_gel', materialDropChance: 0.5 },
     ],
     boss: {
-      id: 'slime', name: 'Slime King', icon: '💧', hp: 350, atk: 3,
+      id: 'slime', name: 'Slime King', icon: '💧', image: 'mobs/mob_slime_king.png', hp: 350, atk: 3,
       rewards: { chestTier: 'common_chest' },
       materialDropId: 'slime_gel', materialDropQty: 3,
     },
@@ -133,12 +133,12 @@ export const ZONES: ZoneDef[] = [
     warriorLevelRequired: 3,
     entryCost: [{ itemId: 'herbs', quantity: 3 }],
     mobs: [
-      { id: 'goblin_scout',   name: 'Goblin Scout',   icon: '👺', hp: 220,   atk: 2.5, xpReward: 3,    goldMin: 10,  goldMax: 20,   materialDropId: 'goblin_tooth', materialDropChance: 0.3, bonusMaterialDropId: 'ore_iron',      bonusMaterialDropChance: 0.25 },
+      { id: 'goblin_scout',   name: 'Goblin Scout',   icon: '👺', image: 'mobs/mob_goblin_scout.png', hp: 220,   atk: 2.5, xpReward: 3,    goldMin: 10,  goldMax: 20,   materialDropId: 'goblin_tooth', materialDropChance: 0.3, bonusMaterialDropId: 'ore_iron',      bonusMaterialDropChance: 0.25 },
       { id: 'goblin_warrior', name: 'Goblin Warrior',  icon: '👺', hp: 350,   atk: 3.5, xpReward: 5,    goldMin: 15,  goldMax: 30,   materialDropId: 'goblin_tooth', materialDropChance: 0.4, bonusMaterialDropId: 'monster_fang',  bonusMaterialDropChance: 0.3 },
       { id: 'goblin_shaman',  name: 'Goblin Shaman',  icon: '👺', hp: 480,   atk: 4,   xpReward: 8,    goldMin: 20,  goldMax: 40,   materialDropId: 'goblin_tooth', materialDropChance: 0.5 },
     ],
     boss: {
-      id: 'goblin', name: 'Goblin Chief', icon: '👺', hp: 600, atk: 4.5,
+      id: 'goblin', name: 'Goblin Chief', icon: '👺', image: 'mobs/mob_goblin_chief.png', hp: 600, atk: 4.5,
       rewards: { chestTier: 'rare_chest' },
       requirements: { minAtk: 10 },
       materialDropId: 'goblin_tooth', materialDropQty: 3,
@@ -155,12 +155,12 @@ export const ZONES: ZoneDef[] = [
     gateItems: ['craft_slime_shield'],
     entryCost: [{ itemId: 'slime_gel', quantity: 2 }, { itemId: 'apples', quantity: 1 }],
     mobs: [
-      { id: 'wolf_young', name: 'Young Wolf',  icon: '🐺', hp: 320,   atk: 3.5, def: 1, xpReward: 10,    goldMin: 20,  goldMax: 40,   materialDropId: 'wolf_fang', materialDropChance: 0.3 },
+      { id: 'wolf_young', name: 'Young Wolf',  icon: '🐺', image: 'mobs/mob_wolf_young.png', hp: 320,   atk: 3.5, def: 1, xpReward: 10,    goldMin: 20,  goldMax: 40,   materialDropId: 'wolf_fang', materialDropChance: 0.3 },
       { id: 'wolf_pack',  name: 'Pack Wolf',   icon: '🐺', hp: 450,   atk: 4.5, def: 2, xpReward: 16,    goldMin: 30,  goldMax: 55,   materialDropId: 'wolf_fang', materialDropChance: 0.4, bonusMaterialDropId: 'ore_iron',     bonusMaterialDropChance: 0.3 },
       { id: 'wolf_alpha', name: 'Alpha Wolf',  icon: '🐺', hp: 580,   atk: 5,   def: 2, xpReward: 25,    goldMin: 45,  goldMax: 80,   materialDropId: 'wolf_fang', materialDropChance: 0.5, bonusMaterialDropId: 'monster_fang', bonusMaterialDropChance: 0.35 },
     ],
     boss: {
-      id: 'wolf', name: 'Forest Wolf', icon: '🐺', hp: 650, atk: 5, def: 2,
+      id: 'wolf', name: 'Forest Wolf', icon: '🐺', image: 'mobs/mob_forest_wolf.png', hp: 650, atk: 5, def: 2,
       rewards: { chestTier: 'epic_chest' },
       requirements: { minAtk: 12, minHp: 130 },
       materialDropId: 'wolf_fang', materialDropQty: 2,
@@ -530,7 +530,7 @@ export function simulateBattleWithFood(
 ): BattleOutcomeWithFood {
   const rng = mulberry32(seed ?? (Date.now() ^ 0x9E3779B9))
   const spread = boss.atkSpread ?? DEFAULT_ATK_SPREAD
-  const maxHp = player.hp
+  let maxHp = player.hp
   let playerHp = maxHp
   let bossHp = boss.hp
   const slots = foodLoadout.map(s => s ? { ...s } : null)
@@ -544,13 +544,13 @@ export function simulateBattleWithFood(
   const MAX_FOOD_BUFF_DEF_SIM = 15
   const MAX_FOOD_BUFF_REGEN_SIM = 8
 
-  // Consume all food at battle start — buffs apply from t=0
+  // Pre-battle: food heal expands effective maxHp (eating before the fight, not during)
   for (const slot of slots) {
     if (!slot || slot.qty <= 0) continue
     const eff = slot.effect
     slot.qty--
     consumed[slot.foodId] = (consumed[slot.foodId] ?? 0) + 1
-    if (eff.heal) playerHp = Math.min(maxHp, playerHp + eff.heal)
+    if (eff.heal) { maxHp += eff.heal; playerHp += eff.heal }
     if (eff.buffAtk || eff.buffDef || eff.buffRegen) {
       buffs.push({ atk: eff.buffAtk ?? 0, def: eff.buffDef ?? 0, regen: eff.buffRegen ?? 0, expiresAt: t + (eff.buffDurationSec ?? 60) })
     }
@@ -601,7 +601,7 @@ export function computeBattleStateAtTimeWithFood(
 ): BattleStateWithFood {
   const rng = mulberry32(seed ?? (Date.now() ^ 0x9E3779B9))
   const spread = boss.atkSpread ?? DEFAULT_ATK_SPREAD
-  const maxHp = player.hp
+  let maxHp = player.hp
   let playerHp = maxHp
   let bossHp = boss.hp
   const slots = foodLoadout.map(s => s ? { ...s } : null)
@@ -616,13 +616,13 @@ export function computeBattleStateAtTimeWithFood(
   const MAX_FOOD_BUFF_DEF = 15
   const MAX_FOOD_BUFF_REGEN = 8
 
-  // Consume all food at battle start — buffs apply from t=0
+  // Pre-battle: food heal expands effective maxHp (eating before the fight, not during)
   for (const slot of slots) {
     if (!slot || slot.qty <= 0) continue
     const eff = slot.effect
     slot.qty--
     foodEvents.push({ atSeconds: 0, foodId: slot.foodId, healAmount: eff.heal ?? 0 })
-    if (eff.heal) playerHp = Math.min(maxHp, playerHp + eff.heal)
+    if (eff.heal) { maxHp += eff.heal; playerHp += eff.heal }
     if (eff.buffAtk || eff.buffDef || eff.buffRegen) {
       buffs.push({ atk: eff.buffAtk ?? 0, def: eff.buffDef ?? 0, regen: eff.buffRegen ?? 0, expiresAt: t + (eff.buffDurationSec ?? 60) })
     }

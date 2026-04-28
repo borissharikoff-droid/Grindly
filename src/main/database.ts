@@ -153,6 +153,22 @@ export function getDatabaseApi() {
       const row = database.prepare('SELECT COUNT(*) as c, COALESCE(SUM(duration_seconds), 0) as s FROM sessions').get() as { c: number; s: number }
       return { totalSessions: row.c, totalSeconds: row.s }
     },
+    /** Wipe all user-scoped data from the local DB. Called on logout / account switch
+     *  so the next user's session does not inherit the previous user's progress. */
+    wipeUserData() {
+      database.exec(`
+        DELETE FROM session_analysis;
+        DELETE FROM activities;
+        DELETE FROM sessions;
+        DELETE FROM skill_xp_log;
+        DELETE FROM skill_xp;
+        DELETE FROM achievements_unlocked;
+        DELETE FROM goals;
+        DELETE FROM grind_tasks;
+        DELETE FROM session_checkpoint;
+        DELETE FROM local_stats;
+      `)
+    },
     getSessionAnalysis(sessionId: string): string | null {
       const row = database.prepare('SELECT analysis_text FROM session_analysis WHERE session_id = ?').get(sessionId) as { analysis_text: string } | undefined
       return row?.analysis_text ?? null

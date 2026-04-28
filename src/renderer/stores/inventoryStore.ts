@@ -22,6 +22,54 @@ import { track } from '../lib/analytics'
 import { getGuildChestDropBonus } from '../lib/guildBuffs'
 import { useGuildStore } from './guildStore'
 
+/**
+ * Mutex guard: blocks inventory mutations during an active Delve run.
+ * Used by `consumePotion` and `salvageItem` (always blocked — abuse vectors
+ * even on transition floors).
+ *
+ * Lazy-required to avoid circular dep with delveStore.
+ */
+function isDelveActive(): boolean {
+  try {
+    /* eslint-disable @typescript-eslint/no-require-imports */
+    const ds = require('./delveStore') as typeof import('./delveStore')
+    /* eslint-enable @typescript-eslint/no-require-imports */
+    return ds.useDelveStore.getState().activeRun !== null
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Tighter guard for gear swaps: blocked only during combat phases (wave/boss).
+ * On transition phases (rest/rubicon), gear can be changed — and the run's
+ * cached playerSnapshot is recomputed via {@link notifyDelveGearChanged}.
+ */
+function isDelveCombatPhase(): boolean {
+  try {
+    /* eslint-disable @typescript-eslint/no-require-imports */
+    const ds = require('./delveStore') as typeof import('./delveStore')
+    /* eslint-enable @typescript-eslint/no-require-imports */
+    const run = ds.useDelveStore.getState().activeRun
+    if (!run) return false
+    const kind = run.currentFloorSpec?.kind
+    return kind === 'wave' || kind === 'boss'
+  } catch {
+    return false
+  }
+}
+
+function notifyDelveGearChanged(): void {
+  try {
+    /* eslint-disable @typescript-eslint/no-require-imports */
+    const ds = require('./delveStore') as typeof import('./delveStore')
+    /* eslint-enable @typescript-eslint/no-require-imports */
+    ds.useDelveStore.getState().recomputeRunStatsFromGear?.()
+  } catch {
+    /* noop — delve store not available */
+  }
+}
+
 export interface PendingReward {
   id: string
   createdAt: number
@@ -62,6 +110,16 @@ interface InventoryState {
   salvageItem: (itemId: string, yields: Array<{ id: string; qty: number }>) => Array<{ id: string; qty: number }> | null
   unequipSlot: (slot: LootSlot) => void
   addItem: (itemId: string, qty?: number) => void
+  /** Add multiple items in a single set() + saveSnapshot() call. Use for bulk operations
+   *  (e.g. delve extract) to avoid N localStorage writes. */
+  batchAddItems: (items: Array<{ id: string; qty: number }>) => void
+  /** Atomic transfer of items OUT of the main inventory (used by delveStore HC stake).
+   *  One set() + one saveSnapshot() = crash-safe atomicity. Returns the deducted
+   *  items map for delveStore to store in stakedPool.
+   *  Rejects if any item qty is insufficient (returns null, no mutation). */
+  transferOutForStake: (manifest: Array<{ id: string; qty: number }>) => Record<string, number> | null
+  /** Inverse of transferOutForStake — returns items back to main inventory. */
+  transferInFromStake: (items: Record<string, number>) => void
   /** Permanently consume a potion, boosting the corresponding stat by 1. Returns false if maxed or not owned. */
   consumePotion: (itemId: string) => boolean
   /** Merge cloud data into local (takes max). Used after sync. */
@@ -79,7 +137,7 @@ const SKILL_DROP_COOLDOWN_MS = 3_600_000
 const BASE_DROP_PER_MINUTE = 0.0005
 
 
-const initialState: Omit<InventoryState, 'hydrate' | 'addItem' | 'addChest' | 'claimPendingReward' | 'claimAllPendingRewards' | 'rollSkillGrindDrop' | 'rollSessionChestDrop' | 'openChestAndGrantItem' | 'grantAndOpenChest' | 'equipItem' | 'unequipSlot' | 'mergeFromCloud' | 'syncItemsFromCloud' | 'consumePotion' | 'deletePendingReward' | 'deleteChest' | 'deleteItem' | 'salvageItem'> = {
+const initialState: Omit<InventoryState, 'hydrate' | 'addItem' | 'batchAddItems' | 'transferOutForStake' | 'transferInFromStake' | 'addChest' | 'claimPendingReward' | 'claimAllPendingRewards' | 'rollSkillGrindDrop' | 'rollSessionChestDrop' | 'openChestAndGrantItem' | 'grantAndOpenChest' | 'equipItem' | 'unequipSlot' | 'mergeFromCloud' | 'syncItemsFromCloud' | 'consumePotion' | 'deletePendingReward' | 'deleteChest' | 'deleteItem' | 'salvageItem'> = {
   items: {},
   chests: {
     common_chest: 0,
@@ -356,6 +414,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   },
 
   consumePotion(itemId) {
+    if (isDelveActive()) return false
     const state = get()
     const qty = state.items[itemId] ?? 0
     if (qty <= 0) return false
@@ -390,6 +449,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   },
 
   equipItem(itemId) {
+    if (isDelveCombatPhase()) return
     const state = get()
     const qty = state.items[itemId] ?? 0
     if (qty <= 0) return
@@ -404,6 +464,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       saveSnapshot(next)
       return next
     })
+    notifyDelveGearChanged()
   },
 
   deleteItem(itemId, amount = 1) {
@@ -431,6 +492,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   },
 
   unequipSlot(slot) {
+    if (isDelveCombatPhase()) return
     set((state) => {
       const nextEquipped = { ...state.equippedBySlot }
       delete nextEquipped[slot]
@@ -441,6 +503,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       saveSnapshot(next)
       return next
     })
+    notifyDelveGearChanged()
   },
 
   addItem(itemId, qty = 1) {
@@ -452,7 +515,60 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     })
   },
 
+  batchAddItems(items) {
+    if (!items.length) return
+    set((state) => {
+      const newItems = { ...state.items }
+      for (const { id, qty } of items) {
+        const safeQty = Math.max(1, Math.floor(qty))
+        newItems[id] = (newItems[id] ?? 0) + safeQty
+      }
+      const next = { ...state, items: newItems }
+      saveSnapshot(next)
+      return next
+    })
+  },
+
+  transferOutForStake(manifest) {
+    if (!manifest.length) return {}
+    // Validation pass — reject atomically if anything is short
+    const state = get()
+    for (const { id, qty } of manifest) {
+      const owned = state.items[id] ?? 0
+      if (owned < qty) return null
+    }
+    // Apply
+    const deducted: Record<string, number> = {}
+    set((s) => {
+      const newItems = { ...s.items }
+      for (const { id, qty } of manifest) {
+        const safeQty = Math.max(1, Math.floor(qty))
+        newItems[id] = Math.max(0, (newItems[id] ?? 0) - safeQty)
+        deducted[id] = (deducted[id] ?? 0) + safeQty
+      }
+      const next: InventoryState = { ...s, items: newItems }
+      saveSnapshot(next)
+      return next
+    })
+    return deducted
+  },
+
+  transferInFromStake(items) {
+    const entries = Object.entries(items).filter(([, qty]) => qty > 0)
+    if (!entries.length) return
+    set((s) => {
+      const newItems = { ...s.items }
+      for (const [id, qty] of entries) {
+        newItems[id] = (newItems[id] ?? 0) + Math.max(0, Math.floor(qty))
+      }
+      const next: InventoryState = { ...s, items: newItems }
+      saveSnapshot(next)
+      return next
+    })
+  },
+
   salvageItem(itemId, yields) {
+    if (isDelveActive()) return null
     const state = get()
     if ((state.items[itemId] ?? 0) < 1) return null
     // Cannot salvage the currently equipped copy
@@ -477,10 +593,14 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     set((state) => {
       const nextItems = { ...state.items }
       for (const { item_id, quantity } of rows) {
-        if (quantity <= 0) {
+        // Defensive: reject non-finite, non-integer, or malformed values from cloud
+        if (typeof item_id !== 'string' || !item_id) continue
+        if (typeof quantity !== 'number' || !Number.isFinite(quantity)) continue
+        const qty = Math.max(0, Math.floor(quantity))
+        if (qty <= 0) {
           delete nextItems[item_id]
         } else {
-          nextItems[item_id] = quantity
+          nextItems[item_id] = qty
         }
       }
       const next: InventoryState = { ...state, items: nextItems }

@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import {
   fetchMyGuild, fetchGuildMembers, fetchGuildActivityLog,
   fetchPendingInvites, sendGuildInvite, respondToInvite as apiRespondToInvite,
-  setGuildTaxRate,
+  setGuildTaxRate, renameGuild as apiRenameGuild,
   createGuild as apiCreateGuild, joinGuild as apiJoinGuild,
   leaveGuild as apiLeaveGuild, depositGold as apiDepositGold,
   kickMember as apiKickMember, promoteMember as apiPromoteMember, demoteMember as apiDemoteMember,
@@ -46,6 +46,7 @@ interface GuildState {
   sendInvite: (inviteeId: string) => Promise<{ ok: boolean; error?: string }>
   respondToInvite: (inviteId: string, response: 'accepted' | 'declined') => Promise<{ ok: boolean; error?: string }>
   updateTaxRate: (rate: number) => Promise<{ ok: boolean; error?: string }>
+  renameGuild: (newName: string, newTag: string) => Promise<{ ok: boolean; error?: string }>
   kickMember: (memberId: string) => Promise<{ ok: boolean; error?: string }>
   promoteMember: (memberId: string) => Promise<{ ok: boolean; error?: string }>
   demoteMember: (memberId: string) => Promise<{ ok: boolean; error?: string }>
@@ -216,6 +217,29 @@ export const useGuildStore = create<GuildState>()((set, get) => ({
     if (!myGuild) return { ok: false, error: 'Not in a guild' }
     const result = await setGuildTaxRate(myGuild.id, rate)
     if (result.ok) set((s) => s.myGuild ? { myGuild: { ...s.myGuild!, tax_rate_pct: Math.max(0, Math.min(15, rate)) } } : s)
+    return result
+  },
+
+  async renameGuild(newName, newTag) {
+    const user = useAuthStore.getState().user
+    const { myGuild, membership } = get()
+    if (!user || !myGuild) return { ok: false, error: 'Not in a guild' }
+    if (membership?.role !== 'owner') return { ok: false, error: 'Only the owner can rename the guild' }
+    const trimmedName = newName.trim()
+    const trimmedTag = newTag.trim().toUpperCase()
+    const result = await apiRenameGuild(myGuild.id, user.id, trimmedName, myGuild.name, trimmedTag, myGuild.tag)
+    if (result.ok) {
+      const nameChanged = trimmedName !== myGuild.name
+      const tagChanged = trimmedTag !== myGuild.tag
+      if (nameChanged || tagChanged) {
+        set((s) => s.myGuild ? { myGuild: { ...s.myGuild, name: trimmedName, tag: trimmedTag } } : s)
+        track('guild_rename', {})
+        // Notify other panels (friends list, leaderboard) that cache stale guild tags
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('grindly:guild-renamed'))
+        }
+      }
+    }
     return result
   },
 

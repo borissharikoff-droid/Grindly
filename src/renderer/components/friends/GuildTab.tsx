@@ -209,6 +209,7 @@ export function GuildTab({ onSelectMember }: GuildTabProps) {
   const leaveGuild = useGuildStore((s) => s.leaveGuild)
   const respondToInvite = useGuildStore((s) => s.respondToInvite)
   const updateTaxRate = useGuildStore((s) => s.updateTaxRate)
+  const renameGuild = useGuildStore((s) => s.renameGuild)
   const kickMember = useGuildStore((s) => s.kickMember)
   const promoteMember = useGuildStore((s) => s.promoteMember)
   const demoteMember = useGuildStore((s) => s.demoteMember)
@@ -228,6 +229,10 @@ export function GuildTab({ onSelectMember }: GuildTabProps) {
   const [showBuffInfo, setShowBuffInfo] = useState(false)
   const [showChest, setShowChest] = useState(false)
   const [showTax, setShowTax] = useState(false)
+  const [editingName, setEditingName] = useState(false)
+  const [nameInput, setNameInput] = useState('')
+  const [tagInput, setTagInput] = useState('')
+  const [savingName, setSavingName] = useState(false)
 
   useEffect(() => {
     if (user) fetchMyGuild()
@@ -283,6 +288,37 @@ export function GuildTab({ onSelectMember }: GuildTabProps) {
   const handleDemote = async (memberId: string) => {
     const result = await demoteMember(memberId)
     if (!result.ok) pushToast({ kind: 'generic', message: result.error ?? 'Failed to demote', type: 'error' })
+  }
+
+  const startEditName = () => {
+    if (!myGuild) return
+    setNameInput(myGuild.name)
+    setTagInput(myGuild.tag)
+    setEditingName(true)
+  }
+
+  const handleSaveName = async () => {
+    if (!myGuild) return
+    const trimmedName = nameInput.trim()
+    const trimmedTag = tagInput.trim().toUpperCase()
+    if (trimmedName === myGuild.name && trimmedTag === myGuild.tag) { setEditingName(false); return }
+    if (trimmedName.length < 3 || trimmedName.length > 30) {
+      pushToast({ kind: 'generic', message: 'Name must be 3–30 characters', type: 'error' })
+      return
+    }
+    if (trimmedTag.length < 2 || trimmedTag.length > 5) {
+      pushToast({ kind: 'generic', message: 'Tag must be 2–5 characters', type: 'error' })
+      return
+    }
+    setSavingName(true)
+    const result = await renameGuild(trimmedName, trimmedTag)
+    setSavingName(false)
+    if (result.ok) {
+      pushToast({ kind: 'generic', message: 'Guild updated', type: 'success' })
+      setEditingName(false)
+    } else {
+      pushToast({ kind: 'generic', message: result.error ?? 'Failed to update', type: 'error' })
+    }
   }
 
   const isOwner = membership?.role === 'owner'
@@ -378,41 +414,96 @@ export function GuildTab({ onSelectMember }: GuildTabProps) {
           <div className="rounded-card border border-amber-500/20 bg-surface-2 overflow-hidden">
             <div className="h-[2px] bg-gradient-to-r from-amber-500/70 via-amber-400/25 to-transparent" />
             <div className="p-3">
-              {/* Row 1: tag + name + actions */}
-              <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded bg-amber-500/12 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-[0_0_16px_rgba(245,158,11,0.10)]">
-                  <span className="text-caption font-bold font-mono text-amber-400 tracking-widest">{myGuild.tag}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[15px] font-bold text-white leading-tight">{myGuild.name}</p>
-                  {myGuild.description && (
-                    <p className="text-micro text-gray-500 mt-0.5 leading-snug truncate">{myGuild.description}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  {/* Buffs ? button */}
-                  <button type="button" onClick={() => { playClickSound(); setShowBuffInfo((v) => !v) }} title="Guild buffs"
-                    className={`w-5 h-5 rounded-full border text-micro font-bold transition-colors flex items-center justify-center ${showBuffInfo ? 'bg-amber-500/25 border-amber-500/50 text-amber-300' : 'border-white/20 text-gray-500 hover:border-amber-500/40 hover:text-amber-400'}`}>
-                    ?
-                  </button>
-                  {confirmLeave ? (
-                    <div className="flex items-center gap-1 ml-1">
-                      <button type="button" onClick={handleLeave} disabled={isLoading}
-                        className="px-2 py-0.5 rounded text-micro font-semibold border border-red-500/40 text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors">
-                        Confirm
-                      </button>
-                      <button type="button" onClick={() => setConfirmLeave(false)} className="text-micro text-gray-600 hover:text-gray-400 px-1">✕</button>
+              {/* Row 1: tag + name + actions (or edit form when owner is editing) */}
+              {editingName && isOwner ? (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <div className="w-20">
+                      <label className="text-micro text-gray-500 font-mono uppercase">Tag</label>
+                      <input
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveName()
+                          else if (e.key === 'Escape') setEditingName(false)
+                        }}
+                        placeholder="TAG"
+                        maxLength={5}
+                        disabled={savingName}
+                        className="w-full mt-0.5 px-2.5 py-1.5 rounded bg-surface-0 border border-amber-500/40 text-white text-caption font-mono uppercase placeholder-gray-600 outline-none focus:border-amber-400 disabled:opacity-50"
+                      />
                     </div>
-                  ) : (
-                    !isOwner && (
-                      <button type="button" onClick={() => { playClickSound(); setConfirmLeave(true) }}
-                        className="text-micro text-gray-600 hover:text-red-400 transition-colors font-mono ml-1">
-                        leave
-                      </button>
-                    )
-                  )}
+                    <div className="flex-1 min-w-0">
+                      <label className="text-micro text-gray-500 font-mono uppercase">Name</label>
+                      <input
+                        autoFocus
+                        value={nameInput}
+                        onChange={(e) => setNameInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveName()
+                          else if (e.key === 'Escape') setEditingName(false)
+                        }}
+                        placeholder="Guild name"
+                        maxLength={30}
+                        disabled={savingName}
+                        className="w-full mt-0.5 px-2.5 py-1.5 rounded bg-surface-0 border border-amber-500/40 text-white text-caption outline-none focus:border-amber-400 disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button type="button" onClick={() => setEditingName(false)} disabled={savingName}
+                      className="px-3 py-1 rounded text-micro text-gray-400 border border-white/15 hover:bg-white/5 transition-colors">Cancel</button>
+                    <button type="button" onClick={handleSaveName} disabled={savingName}
+                      className="px-3 py-1 rounded text-micro font-semibold border border-amber-500/40 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-50 transition-colors">
+                      {savingName ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 rounded bg-amber-500/12 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-[0_0_16px_rgba(245,158,11,0.10)]">
+                    <span className="text-caption font-bold font-mono text-amber-400 tracking-widest">{myGuild.tag}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-[15px] font-bold text-white leading-tight truncate">{myGuild.name}</p>
+                      {isOwner && (
+                        <button type="button" onClick={() => { playClickSound(); startEditName() }}
+                          title="Edit name & tag"
+                          className="text-micro text-gray-600 hover:text-amber-400 transition-colors shrink-0">
+                          ✏️
+                        </button>
+                      )}
+                    </div>
+                    {myGuild.description && (
+                      <p className="text-micro text-gray-500 mt-0.5 leading-snug truncate">{myGuild.description}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {/* Buffs ? button */}
+                    <button type="button" onClick={() => { playClickSound(); setShowBuffInfo((v) => !v) }} title="Guild buffs"
+                      className={`w-5 h-5 rounded-full border text-micro font-bold transition-colors flex items-center justify-center ${showBuffInfo ? 'bg-amber-500/25 border-amber-500/50 text-amber-300' : 'border-white/20 text-gray-500 hover:border-amber-500/40 hover:text-amber-400'}`}>
+                      ?
+                    </button>
+                    {confirmLeave ? (
+                      <div className="flex items-center gap-1 ml-1">
+                        <button type="button" onClick={handleLeave} disabled={isLoading}
+                          className="px-2 py-0.5 rounded text-micro font-semibold border border-red-500/40 text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors">
+                          Confirm
+                        </button>
+                        <button type="button" onClick={() => setConfirmLeave(false)} className="text-micro text-gray-600 hover:text-gray-400 px-1">✕</button>
+                      </div>
+                    ) : (
+                      !isOwner && (
+                        <button type="button" onClick={() => { playClickSound(); setConfirmLeave(true) }}
+                          className="text-micro text-gray-600 hover:text-red-400 transition-colors font-mono ml-1">
+                          leave
+                        </button>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Row 2: guild level + XP bar */}
               <div className="mt-3 space-y-1.5">

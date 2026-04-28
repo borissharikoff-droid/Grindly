@@ -10,10 +10,13 @@ import { MOTION } from '../../lib/motion'
 import { getUIIcons } from '../../lib/itemConfig'
 import { useAdminConfigStore } from '../../stores/adminConfigStore'
 import { TAB_SHORTCUTS } from '../../hooks/useKeyboardShortcuts'
+import { isFlagEnabled } from '../../lib/featureFlags'
+import { useDelveStore, selectIsHCActive } from '../../stores/delveStore'
 import {
   Home, Zap, Users, BarChart3, MoreHorizontal,
   Package, ShoppingCart, Sword, Sprout, Hammer, UtensilsCrossed,
   User, Settings, PawPrint,
+  TrendingDown,
 } from '../../lib/icons'
 
 const ALL_TABS: { id: TabId; label: string }[] = [
@@ -24,6 +27,7 @@ const ALL_TABS: { id: TabId; label: string }[] = [
   { id: 'inventory',   label: 'Inventory' },
   { id: 'marketplace', label: 'Market'    },
   { id: 'arena',       label: 'Arena'     },
+  { id: 'delve',       label: 'Delve'     },
   { id: 'farm',        label: 'Farm'      },
   { id: 'craft',       label: 'Craft'     },
   { id: 'cooking',     label: 'Cook'      },
@@ -40,6 +44,7 @@ const TAB_LUCIDE_ICONS: Partial<Record<TabId, ReactNode>> = {
   inventory:   <Package className="w-[18px] h-[18px]" />,
   marketplace: <ShoppingCart className="w-[18px] h-[18px]" />,
   arena:       <Sword className="w-[18px] h-[18px]" />,
+  delve:       <TrendingDown className="w-[18px] h-[18px]" />,
   farm:        <Sprout className="w-[18px] h-[18px]" />,
   craft:       <Hammer className="w-[18px] h-[18px]" />,
   cooking:     <UtensilsCrossed className="w-[18px] h-[18px]" />,
@@ -112,7 +117,13 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
     (tabId === 'craft' && badges.isCraftingActive) ||
     (tabId === 'cooking' && badges.isCookingActive)
 
-  const moreTabs = ALL_TABS.filter((t) => !pinnedTabs.includes(t.id) && !lockedTabs.includes(t.id))
+  // Feature-gate: hide Delve tab unless flag is enabled.
+  const delveEnabled = isFlagEnabled('delve_enabled')
+  const visibleTabs = ALL_TABS.filter((t) => t.id !== 'delve' || delveEnabled)
+  const moreTabs = visibleTabs.filter((t) => !pinnedTabs.includes(t.id) && !lockedTabs.includes(t.id))
+
+  // Mutex: when a Hardcore Delve run is active, block entry to Arena tab.
+  const isHCDelveActive = useDelveStore(selectIsHCActive)
   const moreBadge = moreTabs.some((t) => getTabBadge(t.id) !== null || getTabPulse(t.id))
   const moreIsActiveTab = !pinnedTabs.includes(activeTab)
 
@@ -124,6 +135,10 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
       }
       prevTabRef.current = id
       tabEnteredAtRef.current = Date.now()
+    }
+    // Mutex guard — arena blocked during HC delve
+    if (id === 'arena' && isHCDelveActive) {
+      return
     }
     playTabSound()
     track('tab_click', { tab: id })

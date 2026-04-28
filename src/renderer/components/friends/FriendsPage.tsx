@@ -1083,7 +1083,7 @@ export function FriendsPage({ friendsModel }: FriendsPageProps) {
                       unreadByFriendId={unreadByFriendId}
                     />
                   )}
-                  {!loading && friends.length === 0 && (
+                  {!loading && !error && friends.length === 0 && (
                     <EmptyState title="No squad yet" description="Add your first friend by username to compete and flex stats." icon="👾" />
                   )}
                   {!loading && pendingRequests.filter((r) => r.direction === 'outgoing').length > 0 && (

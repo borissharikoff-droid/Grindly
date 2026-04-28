@@ -61,7 +61,7 @@ export function Timer() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: MOTION.duration.slow, ease: MOTION.easingSoft }}
-            className="mt-2 text-xs font-display font-semibold text-gray-600 tracking-widest select-none"
+            className="mt-2 text-xs font-display font-semibold text-gray-500 tracking-widest select-none"
           >
             PRESS GRIND TO START
           </motion.p>

@@ -891,11 +891,43 @@ create table if not exists group_message_reactions (
 
 alter table group_message_reactions enable row level security;
 
-create policy "Users can view reactions" on group_message_reactions
-  for select using (true);
+-- Reactions are readable only by members of the chat that owns the message
+-- (matches group_messages itself at line 838-841).
+create policy "members can view reactions" on group_message_reactions
+  for select using (
+    public.is_group_member(
+      (select group_id from public.group_messages where id = group_message_reactions.group_message_id)
+    )
+  );
 
-create policy "Users can add their own reactions" on group_message_reactions
-  for insert with check (auth.uid() = user_id);
+create policy "members can add their own reactions" on group_message_reactions
+  for insert with check (
+    auth.uid() = user_id
+    and public.is_group_member(
+      (select group_id from public.group_messages where id = group_message_reactions.group_message_id)
+    )
+  );
 
 create policy "Users can remove their own reactions" on group_message_reactions
   for delete using (auth.uid() = user_id);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- Public signup stats — anon-callable aggregate counts for AuthGate strip
+-- ─────────────────────────────────────────────────────────────────────────
+create or replace function public.get_public_signup_stats()
+returns jsonb
+language sql
+security definer
+stable
+set search_path = public, pg_temp
+as $$
+  select jsonb_build_object(
+    'grinders',         (select count(*) from profiles),
+    'sessions_tracked', (select count(*) from session_summaries),
+    'listings_live',    (select count(*) from marketplace_listings where status = 'active'),
+    'new_today',        (select count(*) from profiles where created_at > now() - interval '24 hours')
+  );
+$$;
+
+revoke all on function public.get_public_signup_stats() from public;
+grant execute on function public.get_public_signup_stats() to anon, authenticated;

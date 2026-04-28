@@ -29,14 +29,17 @@ export function useMessageNotifier() {
       setUnreadMessagesCount(0)
       return
     }
+    let cancelled = false
     supabase
       .from('messages')
       .select('*', { count: 'exact', head: true })
       .eq('receiver_id', user.id)
       .is('read_at', null)
       .then(({ count, error }) => {
+        if (cancelled) return
         if (!error) setUnreadMessagesCount(count ?? 0)
       })
+    return () => { cancelled = true }
   }, [user?.id, setUnreadMessagesCount])
 
   // Real-time subscription for incoming messages

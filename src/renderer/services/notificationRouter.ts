@@ -58,10 +58,13 @@ export async function routeNotification(
 ): Promise<boolean> {
   const now = Date.now()
   const cooldown = COOLDOWNS_MS[event.type] ?? 30_000
-  const prev = lastSentByKey.get(event.dedupeKey) ?? 0
+  // Namespace dedup key by event type so the same raw key used by two
+  // different event types (e.g. `friend:${id}`) doesn't cross-block.
+  const cooldownKey = `${event.type}:${event.dedupeKey}`
+  const prev = lastSentByKey.get(cooldownKey) ?? 0
   if (now - prev < cooldown) return false
   evictStaleEntries(now)
-  lastSentByKey.set(event.dedupeKey, now)
+  lastSentByKey.set(cooldownKey, now)
 
   useNotificationStore.getState().push({
     type: mapTypeForPanel(event.type),

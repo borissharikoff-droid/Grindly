@@ -63,6 +63,9 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory, sessionId }
   const closeBell = useCallback(() => setBellOpen(false), [])
 
   useEffect(() => {
+    // Guard against setState on unmounted: tab switches can unmount this
+    // while async fetches are still in flight.
+    let cancelled = false
     if (user) {
       const cacheKey = `grindly_profile_cache_${user.id}`
       try {
@@ -76,14 +79,13 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory, sessionId }
 
     if (supabase && user) {
       void Promise.resolve(supabase.from('profiles').select('username, avatar_url').eq('id', user.id).single()).then(({ data }) => {
-        if (data) {
-          const nextUsername = data.username || 'Grindly'
-          const nextAvatar = data.avatar_url || '🤖'
-          setUsername(nextUsername)
-          setAvatar(nextAvatar)
-          const cacheKey = `grindly_profile_cache_${user.id}`
-          localStorage.setItem(cacheKey, JSON.stringify({ username: nextUsername, avatar: nextAvatar }))
-        }
+        if (cancelled || !data) return
+        const nextUsername = data.username || 'Grindly'
+        const nextAvatar = data.avatar_url || '🤖'
+        setUsername(nextUsername)
+        setAvatar(nextAvatar)
+        const cacheKey = `grindly_profile_cache_${user.id}`
+        localStorage.setItem(cacheKey, JSON.stringify({ username: nextUsername, avatar: nextAvatar }))
       }).catch(() => {})
     }
     const api = window.electronAPI
@@ -92,25 +94,24 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory, sessionId }
       setFrameId(localFrame)
     } else if (api?.db?.getLocalStat) {
       api.db.getLocalStat('grindly_equipped_frame').then((val: string | null) => {
-        if (val) {
-          localStorage.setItem('grindly_equipped_frame', val)
-          setFrameId(val)
-        }
+        if (cancelled || !val) return
+        localStorage.setItem('grindly_equipped_frame', val)
+        setFrameId(val)
       }).catch(() => {})
     }
     if (api?.db?.getStreak) {
-      api.db.getStreak().then((s: number) => setStreak(s || 0))
+      api.db.getStreak().then((s: number) => { if (!cancelled) setStreak(s || 0) })
     }
     if (api?.db?.getSessionCount) {
       const todayStart = new Date()
       todayStart.setHours(0, 0, 0, 0)
       api.db.getSessionCount(todayStart.getTime())
-        .then((n: number) => setSessionToday((n ?? 0) > 0))
+        .then((n: number) => { if (!cancelled) setSessionToday((n ?? 0) > 0) })
         .catch(() => {})
     }
     if (api?.db?.getAllSkillXP) {
       api.db.getAllSkillXP().then((rows: { skill_id: string; total_xp: number }[]) => {
-        setTotalLevel(computeTotalSkillLevel(rows || []))
+        if (!cancelled) setTotalLevel(computeTotalSkillLevel(rows || []))
       }).catch(() => {})
     }
     ensureInventoryHydrated()
@@ -122,12 +123,12 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory, sessionId }
         .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
         .eq('status', 'accepted')
       ).then(({ data }) => {
-        if (data) {
-          const ids = new Set(data.map((r) => r.user_id === user.id ? r.friend_id : r.user_id))
-          setFriendIds(ids)
-        }
+        if (cancelled || !data) return
+        const ids = new Set(data.map((r) => r.user_id === user.id ? r.friend_id : r.user_id))
+        setFriendIds(ids)
       }).catch(() => {})
     }
+    return () => { cancelled = true }
   }, [user, sessionId])
 
   // AFK badge: track idle duration and "Resumed" flash
@@ -211,7 +212,7 @@ export function ProfileBar({ onNavigateProfile, onNavigateInventory, sessionId }
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2 mt-0.5 text-xs">
+          <div className="flex items-center gap-2 mt-0.5 text-caption font-mono">
             <span className="text-amber-400/90 flex items-center gap-1">
               <span aria-hidden>🪙</span>
               <span className="font-mono tabular-nums">{fmt(gold)}</span>

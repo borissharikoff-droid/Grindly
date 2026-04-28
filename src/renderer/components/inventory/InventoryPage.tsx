@@ -6,6 +6,7 @@ import { CHEST_DEFS, LOOT_ITEMS, MARKETPLACE_BLOCKED_ITEMS, POTION_MAX, type Che
 import { ensureInventoryHydrated, useInventoryStore } from '../../stores/inventoryStore'
 import { useArenaStore } from '../../stores/arenaStore'
 import { useRaidStore } from '../../stores/raidStore'
+import { useDelveStore, selectActiveRun } from '../../stores/delveStore'
 import { useAdminConfigStore } from '../../stores/adminConfigStore'
 import { ChestOpenModal } from '../animations/ChestOpenModal'
 import { BulkChestOpenModal, type BulkOpenResult } from '../animations/BulkChestOpenModal'
@@ -87,7 +88,8 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
   const unequipSlot = useInventoryStore((s) => s.unequipSlot)
   const deleteItem = useInventoryStore((s) => s.deleteItem)
   const consumePotion = useInventoryStore((s) => s.consumePotion)
-  const inBattle = Boolean(useArenaStore((s) => s.activeBattle || s.activeDungeon))
+  const inDelve = Boolean(useDelveStore(selectActiveRun))
+  const inBattle = Boolean(useArenaStore((s) => s.activeBattle || s.activeDungeon)) || inDelve
   const inRaid = Boolean(useRaidStore((s) => s.activeRaid?.status === 'active'))
   const farmSeeds = useFarmStore((s) => s.seeds)
   const seedCabinetUnlocked = useFarmStore((s) => s.seedCabinetUnlocked)
@@ -479,6 +481,13 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
     >
       <PageHeader title="Inventory" icon={<Package className="w-4 h-4 text-gray-400" />} onBack={onBack} />
 
+      {inDelve && (
+        <div className="rounded border border-delve/30 bg-delve/[0.06] px-3 py-2 text-caption text-delve font-mono flex items-center gap-2">
+          <span>🔒</span>
+          <span>Delve in progress — gear, potions and salvage are locked until the run ends</span>
+        </div>
+      )}
+
       {/* Character Card — collapsible */}
       <div>
         <button
@@ -759,7 +768,7 @@ export function InventoryPage({ onBack, onNavigateFarm }: { onBack: () => void; 
               ? () => { setListForSaleTarget(inspectSlot.itemId); setInspectSlotId(null) }
               : undefined
           }
-          sellLabel={inspectSlot?.equipped ? `Sell (${inspectSlot.quantity - 1})` : 'Sell'}
+          sellLabel={inspectSlot?.equipped && inspectSlot.quantity > 1 ? `Sell (${inspectSlot.quantity - 1})` : 'Sell'}
           onClose={() => setInspectSlotId(null)}
         />
       )}

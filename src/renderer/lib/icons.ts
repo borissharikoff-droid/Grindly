@@ -17,6 +17,7 @@ export {
   Package,
   Zap,
   User,
+  TrendingDown,
   // Actions
   X,
   ChevronLeft,
@@ -57,4 +58,9 @@ export {
   Dices,
   PawPrint,
   ArrowLeftRight,
+  Rocket,
+  Coins,
+  Crown,
+  Medal,
+  Award,
 } from 'lucide-react';

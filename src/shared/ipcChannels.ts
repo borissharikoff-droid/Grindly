@@ -66,6 +66,7 @@ export const IPC_CHANNELS = {
     getTodayRecap: 'db:getTodayRecap',
     getPeriodRecap: 'db:getPeriodRecap',
     getTodaySkillXP: 'db:getTodaySkillXP',
+    wipeUserData: 'db:wipeUserData',
   },
   ai: {
     analyzeSession: 'ai:analyzeSession',

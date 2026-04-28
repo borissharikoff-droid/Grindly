@@ -55,10 +55,10 @@ export const RARITY_THEME: Record<
     panel: 'radial-gradient(circle at 50% 14%, rgba(250,204,21,0.2) 0%, rgba(31,41,55,0.92) 62%)',
   },
   mythical: {
-    color: '#A855F7',
-    border: 'rgba(168, 85, 247, 0.5)',
-    glow: 'rgba(168, 85, 247, 0.34)',
-    panel: 'radial-gradient(circle at 50% 14%, rgba(168,85,247,0.24) 0%, rgba(31,41,55,0.92) 62%)',
+    color: '#EF4444',
+    border: 'rgba(239, 68, 68, 0.5)',
+    glow: 'rgba(239, 68, 68, 0.34)',
+    panel: 'radial-gradient(circle at 50% 14%, rgba(239,68,68,0.24) 0%, rgba(31,41,55,0.92) 62%)',
   },
 }
 

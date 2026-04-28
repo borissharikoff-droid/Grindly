@@ -77,6 +77,7 @@ function HSlot({
         style={{ border: `1px solid ${theme ? theme.border : 'rgba(255,255,255,0.07)'}` }}
         role={clickable ? 'button' : undefined}
         onClick={clickable ? () => { playClickSound(); onSlotClick!(slot, item!.id) } : undefined}
+        onContextMenu={clickable ? (e) => { e.preventDefault(); playClickSound(); onSlotClick!(slot, item!.id) } : undefined}
       >
         {inner}
       </div>
@@ -145,6 +146,7 @@ function VSlot({
         style={{ border: `1px solid ${theme ? theme.border : 'rgba(255,255,255,0.08)'}` }}
         role={clickable ? 'button' : undefined}
         onClick={clickable ? () => { playClickSound(); onSlotClick!(slot, item!.id) } : undefined}
+        onContextMenu={clickable ? (e) => { e.preventDefault(); playClickSound(); onSlotClick!(slot, item!.id) } : undefined}
       >
         {inner}
       </div>

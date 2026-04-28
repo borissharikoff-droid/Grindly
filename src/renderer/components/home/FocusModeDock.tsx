@@ -135,7 +135,7 @@ export function FocusModeDock() {
       <button
         onClick={() => { playClickSound(); setOpen((v) => !v) }}
         title={focusModeActive ? 'Click to change duration' : 'Enable Focus mode — blocks notifications'}
-        className={`text-xs py-2 px-3 rounded-lg border transition-all duration-150 ${
+        className={`text-caption py-2 px-3 rounded border transition-all duration-150 ${
           focusModeActive
             ? isLow
               ? 'border-amber-500/50 text-amber-400 bg-amber-500/10 animate-pulse'
@@ -149,7 +149,7 @@ export function FocusModeDock() {
         <button
           onClick={() => { playClickSound(); disableFocusMode().catch(() => {}) }}
           title="Turn off focus mode"
-          className="text-micro py-2 px-2 rounded-lg border border-white/10 text-gray-500 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/[0.06] transition-all duration-150"
+          className="text-micro py-2 px-2 rounded border border-white/10 text-gray-500 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/[0.06] transition-all duration-150"
         >
           ×
         </button>

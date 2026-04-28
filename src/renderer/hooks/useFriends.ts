@@ -104,11 +104,6 @@ export function useFriends() {
       useNavBadgeStore.getState().setIncomingRequestsCount(0)
       return
     }
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setError('Failed to load friends. Check your internet connection.')
-      setLoading(false)
-      return
-    }
     setError(null)
     if (showLoading) setLoading(true)
     try {
@@ -332,7 +327,11 @@ export function useFriends() {
       }
 
       // Check social achievements
-      const alreadyUnlocked = JSON.parse(localStorage.getItem('grindly_unlocked_achievements') || '[]') as string[]
+      let alreadyUnlocked: string[] = []
+      try {
+        const parsed = JSON.parse(localStorage.getItem('grindly_unlocked_achievements') || '[]') as unknown
+        if (Array.isArray(parsed)) alreadyUnlocked = parsed as string[]
+      } catch { /* corrupted — treat as empty */ }
       const newSocial = checkSocialAchievements(friendList.length, alreadyUnlocked)
       if (newSocial.length > 0) {
         const updated = [...alreadyUnlocked, ...newSocial.map((s) => s.id)]
@@ -421,7 +420,7 @@ export function useFriends() {
     // Optimistic: remove from pending list immediately so UI updates without waiting
     setPendingRequests((prev) => prev.filter((r) => r.friendship_id !== friendshipId))
     await supabase.from('friendships').delete().eq('id', friendshipId)
-    fetchFriends()
+    await fetchFriends()
   }, [fetchFriends])
 
   const removeFriend = useCallback(async (friendshipId: string): Promise<boolean> => {
@@ -454,6 +453,13 @@ export function useFriends() {
       supabase.removeChannel(channel)
     }
   }, [user, fetchFriends])
+
+  // Re-fetch when this user (or anyone) renames a guild — guild tags shown next to friend names go stale otherwise.
+  useEffect(() => {
+    const onGuildRenamed = () => { fetchFriends() }
+    window.addEventListener('grindly:guild-renamed', onGuildRenamed)
+    return () => { window.removeEventListener('grindly:guild-renamed', onGuildRenamed) }
+  }, [fetchFriends])
 
   // Refresh unread counts when messages change (new message or read)
   const friendIds = friends.map((f) => f.id)

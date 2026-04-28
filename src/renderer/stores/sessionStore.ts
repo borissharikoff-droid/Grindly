@@ -1015,6 +1015,7 @@ declare global {
           topApp: { app_name: string; seconds: number } | null
           topApps: { app_name: string; category: string | null; seconds: number }[]
         }>
+        wipeUserData: () => Promise<void>
       }
       ai: {
         analyzeSession: (sessionId: string) => Promise<string>

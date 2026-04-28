@@ -305,6 +305,44 @@ export async function setGuildTaxRate(guildId: string, rate: number): Promise<{ 
   return error ? { ok: false, error: error.message } : { ok: true }
 }
 
+export async function renameGuild(
+  guildId: string,
+  userId: string,
+  newName: string,
+  oldName: string,
+  newTag: string,
+  oldTag: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Supabase not configured' }
+  const trimmedName = newName.trim()
+  const trimmedTag = newTag.trim().toUpperCase()
+  if (trimmedName.length < 3 || trimmedName.length > 30) return { ok: false, error: 'Name must be 3–30 characters' }
+  if (trimmedTag.length < 2 || trimmedTag.length > 5) return { ok: false, error: 'Tag must be 2–5 characters' }
+
+  const nameChanged = trimmedName !== oldName
+  const tagChanged = trimmedTag !== oldTag
+  if (!nameChanged && !tagChanged) return { ok: true }
+
+  const patch: { name?: string; tag?: string } = {}
+  if (nameChanged) patch.name = trimmedName
+  if (tagChanged) patch.tag = trimmedTag
+
+  const { error } = await supabase.from('guilds').update(patch).eq('id', guildId)
+  if (error) {
+    if (error.code === '23505') return { ok: false, error: 'That name is already taken' }
+    return { ok: false, error: error.message }
+  }
+
+  await tryRun(() => supabase!.from('guild_activity_log').insert({
+    guild_id: guildId,
+    user_id: userId,
+    event_type: 'rename',
+    payload: { old_name: oldName, new_name: trimmedName, old_tag: oldTag, new_tag: trimmedTag },
+  }))
+
+  return { ok: true }
+}
+
 // ── Guild Invites ─────────────────────────────────────────────────────────────
 
 export interface GuildInvite {

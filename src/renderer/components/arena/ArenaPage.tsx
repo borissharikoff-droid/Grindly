@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } fro
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ZONES,
-  isZoneUnlocked, canAffordEntry, getDailyBossId, effectiveBossDps, type ZoneDef,
+  isZoneUnlocked, canAffordEntry, getDailyBossId, effectiveBossDps, type ZoneDef, type BattleStateWithFood,
 } from '../../lib/combat'
 
 const RaidsTab = lazy(() => import('./RaidsTab').then((m) => ({ default: m.RaidsTab })))
@@ -10,12 +10,14 @@ const HallOfRaidsTab = lazy(() => import('./HallOfRaidsTab').then((m) => ({ defa
 import { getHotZoneId, hotZoneResetsInDays } from '../../lib/hotZone'
 import { LOOT_ITEMS, type ChestType, type BonusMaterial } from '../../lib/loot'
 import { computePlayerStats, type FoodLoadout, type FoodLoadoutSlot } from '../../lib/combat'
+import { FOOD_ITEM_MAP } from '../../lib/cooking'
 import { FoodSelector } from '../shared/FoodSelector'
 import { useInventoryStore } from '../../stores/inventoryStore'
 import { ChestOpenModal } from '../animations/ChestOpenModal'
 import { AutoFarmLootModal } from '../animations/AutoFarmLootModal'
-import { useArenaStore, type AutoRunResult } from '../../stores/arenaStore'
+import { useArenaStore, FORFEIT_GOLD_PENALTY, type AutoRunResult } from '../../stores/arenaStore'
 import { useRaidStore } from '../../stores/raidStore'
+import { useDelveStore } from '../../stores/delveStore'
 import { setAutoAcc } from '../../hooks/useArenaBattleTick'
 import { useAdminConfigStore } from '../../stores/adminConfigStore'
 import { SKILLS, skillLevelFromXP } from '../../lib/skills'
@@ -64,10 +66,10 @@ function ZoneCard({
   isAutoMode,
   foodSlots,
   onFoodChange,
-  lastInsuranceUsed,
   isHotZone,
   playerAtk: _playerAtk,
   inActiveRaid,
+  inActiveDelve,
 }: {
   zone: ZoneDef
   skillLevels: Record<string, number>
@@ -88,10 +90,10 @@ function ZoneCard({
   isAutoMode?: boolean
   foodSlots?: (FoodLoadoutSlot | null)[]
   onFoodChange?: (slots: (FoodLoadoutSlot | null)[]) => void
-  lastInsuranceUsed?: boolean
   isHotZone?: boolean
   playerAtk?: number
   inActiveRaid?: boolean
+  inActiveDelve?: boolean
 }) {
   const unlocked = isZoneUnlocked(zone, skillLevels, clearedZones, ownedItems)
   const cleared = clearedZones.includes(zone.id)
@@ -341,6 +343,10 @@ function ZoneCard({
                 <div className="w-full py-2.5 rounded text-micro font-mono text-center text-amber-500/70 border border-amber-500/20 bg-amber-500/05">
                   🔒 Raid in progress — dungeons locked
                 </div>
+              ) : inActiveDelve ? (
+                <div className="w-full py-2.5 rounded text-micro font-mono text-center text-delve border border-delve/25 bg-delve/[0.06]">
+                  🔒 Delve in progress — dungeons locked
+                </div>
               ) : activeBattle || activeDungeon ? (
                 <div className="w-full py-2.5 rounded text-micro font-mono text-center text-gray-500 border border-white/[0.06]">
                   In battle...
@@ -410,26 +416,7 @@ function ZoneCard({
             className="overflow-hidden rounded-b border border-t-0"
             style={{ borderColor: `${tc}55`, background: `linear-gradient(180deg, ${tc}12 0%, rgba(12,12,20,0.95) 100%)` }}
           >
-            {battleComplete ? (
-              /* ── Battle resolved — auto-resolves via useEffect ── */
-              <div className="w-full px-4 py-5 flex flex-col items-center justify-center gap-1">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-2xl">{battleState?.victory ? (isBossFight ? '🏆' : (currentEnemy?.icon ?? '⚔️')) : '💀'}</span>
-                  <div className="text-left">
-                    <p className={`text-sm font-bold leading-tight ${battleState?.victory ? 'text-white' : 'text-red-400'}`}>
-                      {battleState?.victory
-                        ? (isBossFight ? 'Boss defeated!' : `${currentEnemy?.name ?? 'Mob'} slain!`)
-                        : 'You were defeated'}
-                    </p>
-                  </div>
-                </div>
-                {!battleState?.victory && lastInsuranceUsed && (
-                  <p className="text-micro font-mono text-emerald-400 mt-0.5">
-                    Death Insurance consumed — no items lost!
-                  </p>
-                )}
-              </div>
-            ) : battleState && currentEnemy ? (
+            {!battleComplete && battleState && currentEnemy ? (
               /* ── Active battle ── */
               <div className="flex">
 
@@ -600,6 +587,40 @@ function ZoneCard({
                   </div>
                 </div>
 
+                {/* Active food buffs row */}
+                {activeBattle.foodLoadout?.some(Boolean) && (() => {
+                  const foodState = battleState as BattleStateWithFood | null
+                  const ab = foodState?.activeBuffs
+                  const foodSlots = activeBattle.foodLoadout!.filter(Boolean) as import('../../lib/combat').FoodLoadoutSlot[]
+                  const buffColor = { HP: '#4ade80', ATK: '#f87171', DEF: '#818cf8', REG: '#22d3ee' }
+                  const fmtBuff = (val: number | undefined, key: keyof typeof buffColor) =>
+                    val ? <span key={key} style={{ color: buffColor[key] }}>+{val}{key}</span> : null
+                  return (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {foodSlots.map((s) => {
+                        const parts = [
+                          fmtBuff(s.effect.heal, 'HP'),
+                          fmtBuff(s.effect.buffAtk, 'ATK'),
+                          fmtBuff(s.effect.buffDef, 'DEF'),
+                          fmtBuff(s.effect.buffRegen, 'REG'),
+                        ].filter(Boolean)
+                        return (
+                          <span key={s.foodId} className="text-micro font-mono px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: 'rgba(251,146,60,0.10)', border: '1px solid rgba(251,146,60,0.20)' }}>
+                            {parts.map((p, i) => <>{p}{i < parts.length - 1 && <span style={{ color: 'rgba(255,255,255,0.2)' }}> · </span>}</>)}
+                          </span>
+                        )
+                      })}
+                      {ab && (ab.atk > 0 || ab.def > 0 || ab.regen > 0) && (
+                        <span className="text-micro font-mono flex items-center gap-1 opacity-80">
+                          {ab.atk > 0 && <span style={{ color: buffColor.ATK }}>+{ab.atk}ATK</span>}
+                          {ab.def > 0 && <span style={{ color: buffColor.DEF }}>+{ab.def}DEF</span>}
+                          {ab.regen > 0 && <span style={{ color: buffColor.REG }}>+{ab.regen}REG</span>}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })()}
+
                 {/* Combat stats + footer row */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-micro font-mono flex-wrap">
@@ -612,9 +633,6 @@ function ZoneCard({
                       <span style={{ color: '#818cf8bb' }}>🛡 {activeBattle.playerSnapshot.def}</span>
                     )}
                     <span style={{ color: '#fbbf24aa' }}>= −{effectiveBossDps(activeBattle.bossSnapshot.atk, activeBattle.playerSnapshot.hpRegen, activeBattle.playerSnapshot.def).toFixed(1)}/s</span>
-                    {activeBattle.foodLoadout?.some(Boolean) && (
-                      <span style={{ color: '#fb923cbb' }}>🍳 Food</span>
-                    )}
                   </div>
 
                   {/* Forfeit */}
@@ -622,9 +640,20 @@ function ZoneCard({
                     <div className="flex flex-col gap-1 items-end">
                       {activeDungeon && activeDungeon.goldEarned > 0 && (
                         <p className="text-micro font-mono text-red-400/80">
-                          lose 🪙{fmt(activeDungeon.goldEarned)} accumulated
+                          🪙 −{fmt(activeDungeon.goldEarned)} gold accumulated
                         </p>
                       )}
+                      {activeBattle.foodLoadout?.filter(Boolean).map((s) => s && (
+                        <p key={s.foodId} className="text-micro font-mono text-orange-400/80">
+                          {FOOD_ITEM_MAP[s.foodId]?.icon ?? '🍳'} {FOOD_ITEM_MAP[s.foodId]?.name ?? s.foodId} wasted
+                        </p>
+                      ))}
+                      <p className="text-micro font-mono text-red-400/80">
+                        🪙 −{Math.round(FORFEIT_GOLD_PENALTY * 100)}% wallet gold
+                      </p>
+                      <p className="text-micro font-mono text-gray-500">
+                        dungeon pass lost · no item risk
+                      </p>
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
@@ -675,8 +704,10 @@ export function ArenaPage() {
 
   const activeBattle = useArenaStore((s) => s.activeBattle)
   const activeDungeon = useArenaStore((s) => s.activeDungeon)
+  const setAmbientResult = useArenaStore((s) => s.setAmbientResult)
   const clearedZones = useArenaStore((s) => s.clearedZones)
   const inActiveRaid = useRaidStore((s) => s.activeRaid?.status === 'active')
+  const inActiveDelve = useDelveStore((s) => s.activeRun !== null)
   const getBattleState = useArenaStore((s) => s.getBattleState)
   const endBattle = useArenaStore((s) => s.endBattle)
   const startDungeon = useArenaStore((s) => s.startDungeon)
@@ -709,11 +740,15 @@ export function ArenaPage() {
   const setIsAutoMode = useCallback((v: boolean) => { _setIsAutoMode(v); setAutoRunning(v) }, [setAutoRunning])
   const [playerFlash, setPlayerFlash] = useState(false)
   const [bossFlash, setBossFlash] = useState(false)
-  const [lastInsuranceUsed, setLastInsuranceUsed] = useState(false)
   const prevPlayerHpRef = useRef<number | null>(null)
   const prevBossHpRef = useRef<number | null>(null)
   const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
   const resolveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Clear any ambient home-bar result once the user actually lands on Arena.
+  useEffect(() => {
+    setAmbientResult(null)
+  }, [setAmbientResult])
 
   const dailyBossId = getDailyBossId()
   const hotZoneId = useMemo(() => getHotZoneId(), [])
@@ -894,7 +929,7 @@ export function ArenaPage() {
     return () => { flashTimersRef.current.forEach(clearTimeout) }
   }, [])
 
-  useEffect(() => { setConfirmForfeit(false); if (activeBattle) setLastInsuranceUsed(false) }, [activeBattle])
+  useEffect(() => { setConfirmForfeit(false) }, [activeBattle])
 
   // Safety net: if auto mode is on but nothing is running, show accumulated loot
   useEffect(() => {
@@ -929,7 +964,7 @@ export function ArenaPage() {
   const advanceDungeon = useArenaStore((s) => s.advanceDungeon)
   useEffect(() => {
     if (activeDungeon && !activeBattle) {
-      const t = setTimeout(() => advanceDungeon(), 400)
+      const t = setTimeout(() => advanceDungeon(), 100)
       return () => clearTimeout(t)
     }
   }, [activeDungeon, activeBattle, advanceDungeon])
@@ -981,17 +1016,17 @@ export function ArenaPage() {
       const auto = autoAccRef.current
 
       if (isMob) {
-        const { goldLost, lostItem, materialDrop, warriorXP: mobXP, insuranceUsed } = endBattle()
-        if (insuranceUsed) setLastInsuranceUsed(true)
+        const { goldLost, lostItem, materialDrop, bonusMaterialDrop, warriorXP: mobXP, insuranceUsed } = endBattle()
         if (victory) {
           // Track mob drops in auto accumulator
           if (auto) {
             auto.totalWarriorXP += mobXP
-            if (materialDrop) {
-              if (auto.materials[materialDrop.id]) {
-                auto.materials[materialDrop.id].qty += materialDrop.qty
+            for (const drop of [materialDrop, bonusMaterialDrop]) {
+              if (!drop) continue
+              if (auto.materials[drop.id]) {
+                auto.materials[drop.id].qty += drop.qty
               } else {
-                auto.materials[materialDrop.id] = { name: materialDrop.name, icon: materialDrop.icon, qty: materialDrop.qty }
+                auto.materials[drop.id] = { name: drop.name, icon: drop.icon, qty: drop.qty }
               }
             }
           }
@@ -1028,19 +1063,19 @@ export function ArenaPage() {
         }
       } else {
         // Boss battle
-        const { goldLost, chest, lostItem, materialDrop, dungeonGold, warriorXP, insuranceUsed: bossInsurance } = endBattle()
-        if (bossInsurance) setLastInsuranceUsed(true)
+        const { goldLost, chest, lostItem, materialDrop, bonusMaterialDrop, dungeonGold, warriorXP, insuranceUsed: bossInsurance } = endBattle()
 
         if (auto) {
           if (victory) {
             auto.runsCompleted++
             auto.totalGold += dungeonGold
             auto.totalWarriorXP += warriorXP
-            if (materialDrop) {
-              if (auto.materials[materialDrop.id]) {
-                auto.materials[materialDrop.id].qty += materialDrop.qty
+            for (const drop of [materialDrop, bonusMaterialDrop]) {
+              if (!drop) continue
+              if (auto.materials[drop.id]) {
+                auto.materials[drop.id].qty += drop.qty
               } else {
-                auto.materials[materialDrop.id] = { name: materialDrop.name, icon: materialDrop.icon, qty: materialDrop.qty }
+                auto.materials[drop.id] = { name: drop.name, icon: drop.icon, qty: drop.qty }
               }
             }
             // Open chest silently (grant item but no animation — shown after summary)
@@ -1117,7 +1152,9 @@ export function ArenaPage() {
         } else {
           // Normal mode (no auto)
           if (victory) {
-            const matBonuses: BonusMaterial[] = materialDrop ? [{ itemId: materialDrop.id, qty: materialDrop.qty }] : []
+            const matBonuses: BonusMaterial[] = []
+            if (materialDrop) matBonuses.push({ itemId: materialDrop.id, qty: materialDrop.qty })
+            if (bonusMaterialDrop) matBonuses.push({ itemId: bonusMaterialDrop.id, qty: bonusMaterialDrop.qty })
             // Log boss kill for friend activity feed
             const uid = useAuthStore.getState().user?.id
             if (uid) {
@@ -1180,7 +1217,7 @@ export function ArenaPage() {
           }
         }
       }
-    }, isMob ? 600 : 1200)
+    }, isMob ? 50 : 1200)
   }, [battleState, activeBattle, endBattle, startDungeon, isAutoMode])
 
   // Clear resolve timer on forfeit / unmount
@@ -1256,19 +1293,19 @@ export function ArenaPage() {
       {/* ── Tab switcher ── */}
       <div className="flex gap-1 p-1 rounded bg-white/[0.04] border border-white/[0.07]">
         {([
-          { id: 'dungeons', label: '🗺 Dungeons', color: '#f87171' },
-          { id: 'raids',    label: '⚔ Raids',    color: '#f59e0b' },
-          { id: 'hall',     label: '🏛 Hall',     color: '#a78bfa' },
+          { id: 'dungeons', label: '🗺 Dungeons' },
+          { id: 'raids',    label: '⚔ Raids'    },
+          { id: 'hall',     label: '🏛 Hall'     },
         ] as const).map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => { playClickSound(); setArenaTab(tab.id) }}
-            className="flex-1 py-1.5 rounded text-caption font-semibold transition-colors"
-            style={arenaTab === tab.id
-              ? { background: `${tab.color}20`, color: tab.color, border: `1px solid ${tab.color}55` }
-              : { color: '#6b7280' }
-            }
+            className={`flex-1 py-1.5 rounded text-caption font-semibold transition-colors ${
+              arenaTab === tab.id
+                ? 'bg-accent/15 text-accent ring-1 ring-inset ring-accent/25'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
           >
             {tab.label}
           </button>
@@ -1341,7 +1378,7 @@ export function ArenaPage() {
             passCount={passCount}
             isAutoMode={isAutoMode}
             inActiveRaid={inActiveRaid}
-            lastInsuranceUsed={lastInsuranceUsed}
+            inActiveDelve={inActiveDelve}
             isHotZone={zone.id === hotZoneId}
             playerAtk={playerAtk}
           />

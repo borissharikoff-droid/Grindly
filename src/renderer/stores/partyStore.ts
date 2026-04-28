@@ -13,7 +13,6 @@ import {
   transferPartyLeadership,
   type Party, type PartyMember, type PartyInvite, type PartyRole,
 } from '../services/partyService'
-import { updateRaidParticipantRole } from '../services/raidService'
 import { useAuthStore } from './authStore'
 import { useRaidStore } from './raidStore'
 import { supabase } from '../lib/supabase'
@@ -69,7 +68,7 @@ interface PartyState {
   leaveParty: () => Promise<void>
   sendInvite: (toUserId: string) => Promise<{ ok: boolean; error?: string }>
   fetchInvites: () => Promise<void>
-  acceptInvite: (inviteId: string, partyId: string) => Promise<{ ok: boolean }>
+  acceptInvite: (inviteId: string, partyId: string) => Promise<{ ok: boolean; error?: string }>
   declineInvite: (inviteId: string) => Promise<void>
   setMyRole: (role: PartyRole) => Promise<void>
   kickMember: (userId: string) => Promise<{ ok: boolean; error?: string }>
@@ -158,7 +157,7 @@ export const usePartyStore = create<PartyState>()((set, get) => ({
       set((s) => ({ pendingInvites: s.pendingInvites.filter((i) => i.id !== inviteId) }))
       await get().fetchParty()
     }
-    return { ok: result.ok }
+    return result
   },
 
   async declineInvite(inviteId) {
@@ -170,16 +169,12 @@ export const usePartyStore = create<PartyState>()((set, get) => ({
     const user = useAuthStore.getState().user
     const { party } = get()
     if (!user || !party) return
+    // Role changes during an active raid are blocked to keep raid state consistent
     if (useRaidStore.getState().activeRaid?.status === 'active') return
     await updateMemberRole(party.id, user.id, role)
     set((s) => ({
       members: s.members.map((m) => m.user_id === user.id ? { ...m, role } : m),
     }))
-    // Keep raid_participants.role in sync if user is in an active raid
-    const activeRaid = useRaidStore.getState().activeRaid
-    if (activeRaid?.status === 'active') {
-      await updateRaidParticipantRole(activeRaid.id, user.id, role)
-    }
   },
 
   async kickMember(userId) {

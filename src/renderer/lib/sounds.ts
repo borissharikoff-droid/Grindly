@@ -591,6 +591,83 @@ export function playCookBurnSound() {
   }, 60)
 }
 
+// ── Delve combat sounds ──────────────────────────────────────────────────────
+
+/** Short percussive thud when player hits a mob. */
+export function playDelveHitSound() {
+  loadSettings()
+  if (cachedMuted) return
+  const ctx = getAudioCtx()
+  const osc = ctx.createOscillator()
+  const gain = ctx.createGain()
+  osc.type = 'sawtooth'
+  osc.frequency.setValueAtTime(220, ctx.currentTime)
+  osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.06)
+  gain.gain.setValueAtTime(cachedVolume * 0.10, ctx.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08)
+  osc.connect(gain); gain.connect(ctx.destination)
+  osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.09)
+}
+
+/** Brief impact + white-noise descending whoosh for mob death. */
+export function playDelveMobDeathSound() {
+  loadSettings()
+  if (cachedMuted) return
+  const ctx = getAudioCtx()
+  // Impact thud
+  const osc = ctx.createOscillator()
+  const g1 = ctx.createGain()
+  osc.type = 'triangle'
+  osc.frequency.setValueAtTime(440, ctx.currentTime)
+  osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.18)
+  g1.gain.setValueAtTime(cachedVolume * 0.18, ctx.currentTime)
+  g1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.20)
+  osc.connect(g1); g1.connect(ctx.destination)
+  osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.22)
+  // Whoosh tail
+  const noise = ctx.createBufferSource()
+  const buf = ctx.createBuffer(1, ctx.sampleRate * 0.18, ctx.sampleRate)
+  const data = buf.getChannelData(0)
+  for (let i = 0; i < data.length; i++) {
+    const t = i / data.length
+    data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 4) * 0.4
+  }
+  noise.buffer = buf
+  const bp = ctx.createBiquadFilter()
+  bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 1.2
+  const g2 = ctx.createGain()
+  g2.gain.setValueAtTime(cachedVolume * 0.10, ctx.currentTime)
+  g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18)
+  noise.connect(bp); bp.connect(g2); g2.connect(ctx.destination)
+  noise.start(ctx.currentTime); noise.stop(ctx.currentTime + 0.19)
+}
+
+/** Player taking heavy damage — short low sting. */
+export function playDelvePlayerHitSound() {
+  loadSettings()
+  if (cachedMuted) return
+  const ctx = getAudioCtx()
+  const osc = ctx.createOscillator()
+  const gain = ctx.createGain()
+  osc.type = 'sawtooth'
+  osc.frequency.setValueAtTime(140, ctx.currentTime)
+  osc.frequency.exponentialRampToValueAtTime(70, ctx.currentTime + 0.12)
+  gain.gain.setValueAtTime(cachedVolume * 0.18, ctx.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.14)
+  osc.connect(gain); gain.connect(ctx.destination)
+  osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.16)
+}
+
+/** Boss kill — slow rising triumphant chord. */
+export function playDelveBossDownSound() {
+  loadSettings()
+  if (cachedMuted) return
+  const notes = [196, 262, 392, 523, 784]
+  notes.forEach((freq, i) => {
+    setTimeout(() => playTone(freq, 0.32, 'triangle', cachedVolume * 0.24), i * 80)
+  })
+}
+
 export function setSoundVolume(volume: number) {
   cachedVolume = Math.max(0, Math.min(1, volume))
   localStorage.setItem('grindly_sound_volume', String(cachedVolume))

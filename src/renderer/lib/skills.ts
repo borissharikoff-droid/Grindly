@@ -7,6 +7,30 @@
  */
 import { SKILL_COLORS } from './skillColors'
 
+/**
+ * Safe read of the `grindly_skill_xp` localStorage blob.
+ * Returns empty map if localStorage is missing, null, or has malformed JSON.
+ */
+export function getStoredSkillXP(): Record<string, number> {
+  if (typeof localStorage === 'undefined') return {}
+  try {
+    const raw = localStorage.getItem('grindly_skill_xp')
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as unknown
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      // Coerce values to finite non-negative integers
+      const out: Record<string, number> = {}
+      for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+        if (typeof v === 'number' && Number.isFinite(v)) out[k] = Math.max(0, Math.floor(v))
+      }
+      return out
+    }
+    return {}
+  } catch {
+    return {}
+  }
+}
+
 const MAX_LEVEL = 99
 const MAX_XP = 3_600_000 // 1000 hours in seconds
 const CURVE_EXPONENT = 2.2

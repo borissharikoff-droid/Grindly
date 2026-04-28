@@ -24,6 +24,24 @@ export const CHANGE_TYPE_META: Record<ChangeType, { label: string; color: string
 
 export const CHANGELOG: PatchNote[] = [
   {
+    version: '4.16.0',
+    date: '2026-04-25',
+    title: 'Abyss Descent — Endless Delve Mode',
+    items: [
+      { type: 'new', text: 'Delve mode — a new endless combat mode. Descend floor after floor, fighting multiple mobs at once. Every 10th floor is a boss; every 9th is a rest floor.' },
+      { type: 'new', text: 'Hardcore vs Casual — casual returns your loadout safely; hardcore stakes your gear + items. Die in hardcore and it all burns.' },
+      { type: 'new', text: 'Stake modal — pick equipped gear + up to 8 inventory slots + 4 food slots before each run. Vault holds everything else.' },
+      { type: 'new', text: 'Multi-mob real-time combat — 2 to 5 enemies on screen at once with independent HP. ATK splits across targets (CLEAVE) by default.' },
+      { type: 'new', text: 'Weekly Hardcore leaderboard — top 10 deepest descents each week, your rank pinned if you are below top 10.' },
+      { type: 'new', text: '8 Abyss cosmetic skins unlocked at floor milestones (10/25/50/75/100/150/250/500 HC) — void-black prestige visible to friends.' },
+      { type: 'new', text: 'Warrior XP boosted in Delve — finally a viable path to level 99.' },
+      { type: 'new', text: 'Floor mutators from floor 15+ — modifiers like Glass Cannons, Swarm, Fortified mix up each run.' },
+      { type: 'balance', text: 'Arena tab locks automatically while a Hardcore Delve run is active — prevents accidental run loss.' },
+      { type: 'ui', text: 'Hardcore mode uses the Warrior skill ambient — whole app tints warrior-red while delving hardcore.' },
+      { type: 'ui', text: 'Refactored arena stat composition into a single composePlayerSnapshot helper — identical behavior, cleaner code for future combat features.' },
+    ],
+  },
+  {
     version: '4.10.0',
     date: '2026-04-23',
     title: 'Arena Ambient, Pet Skill Choices & Nav Polish',

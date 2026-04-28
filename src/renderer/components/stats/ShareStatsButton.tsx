@@ -89,7 +89,7 @@ export function ShareStatsButton({ sinceMs, periodLabel, heroCaption }: Props) {
         type="button"
         onClick={handleOpen}
         disabled={loading}
-        className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-semibold text-accent hover:text-white bg-accent/15 hover:bg-accent/30 border border-accent/40 hover:border-accent/70 disabled:opacity-50 disabled:cursor-not-allowed transition-colors px-2.5 py-1.5 rounded-md"
+        className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-semibold text-accent hover:text-white bg-accent/15 hover:bg-accent/30 border border-accent/40 hover:border-accent/70 disabled:opacity-50 disabled:cursor-not-allowed transition-colors px-2.5 py-1.5 rounded"
         title={`Share ${periodLabel.toLowerCase()} summary`}
       >
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

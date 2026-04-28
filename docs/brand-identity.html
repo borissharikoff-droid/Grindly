@@ -1,0 +1,2012 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Grindly — Brand Identity</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Rajdhani:wght@500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Surfaces (Discord-inspired) */
+    --s0: #111214;
+    --s1: #1e2024;
+    --s2: #2b2d31;
+    --s3: #36393f;
+
+    /* Accent */
+    --accent: #5865F2;
+    --accent-hover: #4752c4;
+    --accent-muted: rgba(88,101,242,0.15);
+
+    /* Special */
+    --cyber: #00ff88;
+    --delve: #a78bfa;
+
+    /* Skills */
+    --sk-developer:    #00ff88;
+    --sk-designer:     #ff6b9d;
+    --sk-gamer:        #5865F2;
+    --sk-communicator: #57F287;
+    --sk-researcher:   #faa61a;
+    --sk-creator:      #eb459e;
+    --sk-learner:      #00d4ff;
+    --sk-listener:     #1db954;
+    --sk-farmer:       #84cc16;
+    --sk-warrior:      #EF4444;
+    --sk-crafter:      #f97316;
+    --sk-chef:         #fb923c;
+    --sk-ai:           #818cf8;
+    --sk-grindly:      #c084fc;
+
+    /* Rarity */
+    --r-common:    #9CA3AF;
+    --r-rare:      #38BDF8;
+    --r-epic:      #C084FC;
+    --r-legendary: #FACC15;
+    --r-mythical:  #EF4444;
+
+    /* Type */
+    --f-sans: 'Inter', system-ui, sans-serif;
+    --f-display: 'Rajdhani', system-ui, sans-serif;
+    --f-mono: 'JetBrains Mono', monospace;
+    --f-pixel: 'Press Start 2P', monospace;
+
+    /* Text */
+    --t-hi: rgba(255,255,255,0.96);
+    --t-mid: rgba(255,255,255,0.72);
+    --t-lo: rgba(255,255,255,0.48);
+    --t-faint: rgba(255,255,255,0.28);
+
+    --line: rgba(255,255,255,0.06);
+    --line-strong: rgba(255,255,255,0.12);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--s0);
+    color: var(--t-hi);
+    font-family: var(--f-sans);
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Layout ─────────────────────────────────────────────────── */
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 64px 48px; }
+  section { margin: 88px 0; }
+  section + section { border-top: 1px solid var(--line); padding-top: 88px; }
+
+  .eyebrow {
+    font-family: var(--f-pixel);
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+  h1, h2, h3, h4 { font-family: var(--f-display); font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+  h1 { font-size: 96px; line-height: 0.95; letter-spacing: -0.02em; }
+  h2 { font-size: 44px; line-height: 1.05; margin-bottom: 12px; }
+  h3 { font-size: 22px; margin-bottom: 8px; color: var(--t-hi); }
+  h4 { font-size: 14px; font-family: var(--f-sans); font-weight: 600; color: var(--t-hi); margin-bottom: 6px; letter-spacing: 0; }
+  p { color: var(--t-mid); margin: 0 0 12px; max-width: 70ch; }
+  small, .micro { font-family: var(--f-mono); font-size: 11px; color: var(--t-lo); }
+  code { font-family: var(--f-mono); font-size: 11px; color: var(--cyber); background: rgba(0,255,136,0.06); padding: 2px 6px; border-radius: 3px; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 32px 0; }
+
+  /* ── Cover ──────────────────────────────────────────────────── */
+  .cover {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 48px;
+    align-items: center;
+    padding: 64px 48px;
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 20% 80%, rgba(192,132,252,0.22) 0%, transparent 55%),
+      radial-gradient(circle at 80% 20%, rgba(88,101,242,0.22) 0%, transparent 55%),
+      var(--s0);
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url('../public/arena/zone8.png');
+    background-size: cover;
+    background-position: center;
+    opacity: 0.18;
+    filter: blur(2px) saturate(1.2);
+    pointer-events: none;
+  }
+  .cover::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at center, transparent 30%, rgba(17,18,20,0.85) 100%),
+      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.012) 2px, rgba(255,255,255,0.012) 3px);
+    pointer-events: none;
+  }
+  .cover > * { position: relative; z-index: 1; }
+  .cover h1 {
+    background: linear-gradient(135deg, #ffffff 0%, #c084fc 60%, #5865F2 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 80px rgba(192,132,252,0.3);
+  }
+  .stat-strip {
+    display: flex;
+    gap: 0;
+    margin-top: 40px;
+    border-top: 1px solid var(--line-strong);
+    border-bottom: 1px solid var(--line-strong);
+  }
+  .stat-strip .stat {
+    flex: 1;
+    padding: 16px 20px;
+    border-right: 1px solid var(--line);
+  }
+  .stat-strip .stat:last-child { border-right: 0; }
+  .stat-strip .stat .num {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 32px;
+    color: var(--t-hi);
+    line-height: 1;
+  }
+  .stat-strip .stat .lbl {
+    font-family: var(--f-mono);
+    font-size: 10px;
+    color: var(--t-lo);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 6px;
+  }
+  .cover .mascot {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .cover .mascot img {
+    width: 380px;
+    height: 380px;
+    image-rendering: pixelated;
+    filter: drop-shadow(0 0 60px rgba(192,132,252,0.45));
+  }
+  .cover .mascot::before {
+    content: '';
+    position: absolute;
+    inset: 30%;
+    background: radial-gradient(circle, rgba(192,132,252,0.6) 0%, transparent 70%);
+    filter: blur(60px);
+    z-index: -1;
+  }
+  .cover .meta {
+    display: flex;
+    gap: 16px;
+    margin-top: 32px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    padding: 6px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    color: var(--t-mid);
+    background: var(--s1);
+  }
+  .chip.accent { border-color: var(--accent); color: var(--accent); background: var(--accent-muted); }
+  .tagline { font-family: var(--f-display); font-size: 28px; font-weight: 500; color: var(--t-mid); margin-top: 16px; line-height: 1.2; max-width: 16ch; }
+  .lede { font-size: 15px; color: var(--t-mid); max-width: 56ch; margin-top: 24px; line-height: 1.6; }
+
+  /* ── Toc ────────────────────────────────────────────────────── */
+  .toc {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin-top: 48px;
+  }
+  .toc a {
+    background: var(--s1);
+    padding: 18px 20px;
+    text-decoration: none;
+    color: var(--t-mid);
+    font-family: var(--f-mono);
+    font-size: 11px;
+    transition: background 0.15s, color 0.15s;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .toc a:hover { background: var(--s2); color: var(--t-hi); }
+  .toc a span:first-child { color: var(--accent); }
+  .toc a span:last-child { font-family: var(--f-sans); color: var(--t-hi); font-weight: 500; font-size: 13px; }
+
+  /* ── Logo ───────────────────────────────────────────────────── */
+  .logo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; margin-top: 32px; }
+  .logo-card {
+    background: var(--s1);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    min-height: 280px;
+  }
+  .logo-card.dark { background: var(--s0); }
+  .logo-card.light { background: #f6f6f8; }
+  .logo-card.brand { background: linear-gradient(135deg, #5865F2 0%, #c084fc 100%); }
+  .logo-card img { width: 128px; height: 128px; image-rendering: pixelated; }
+  .logo-card .label { font-family: var(--f-mono); font-size: 10px; color: var(--t-lo); margin-top: 8px; }
+  .logo-card.light .label { color: rgba(0,0,0,0.5); }
+  .logo-card.brand .label { color: rgba(255,255,255,0.85); }
+
+  .lockup {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 32px;
+    background: var(--s1);
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    margin-top: 24px;
+  }
+  .lockup img { width: 80px; height: 80px; image-rendering: pixelated; }
+  .lockup .word {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 56px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    background: linear-gradient(135deg, #c084fc 0%, #5865F2 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ── Color swatches ─────────────────────────────────────────── */
+  .swatch-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }
+  .swatch {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+  .swatch .chip-area { height: 96px; display: flex; align-items: flex-end; padding: 12px; }
+  .swatch .meta { padding: 12px 14px; background: var(--s1); }
+  .swatch .name { font-weight: 600; font-size: 13px; color: var(--t-hi); }
+  .swatch .hex { font-family: var(--f-mono); font-size: 11px; color: var(--t-lo); margin-top: 2px; }
+  .swatch .role { font-family: var(--f-mono); font-size: 10px; color: var(--accent); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .skill-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-top: 16px; }
+  .skill-tile {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border: 1px solid rgba(255,255,255,0.05);
+    position: relative;
+    overflow: hidden;
+  }
+  .skill-tile .glow {
+    position: absolute;
+    inset: -50%;
+    background: radial-gradient(circle, var(--c) 0%, transparent 60%);
+    opacity: 0.25;
+    pointer-events: none;
+  }
+  .skill-tile .icon { font-size: 24px; position: relative; }
+  .skill-tile .name { font-weight: 600; font-size: 11px; color: var(--t-hi); position: relative; }
+  .skill-tile .hex { font-family: var(--f-mono); font-size: 9px; color: var(--t-lo); position: relative; }
+
+  .rarity-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 16px; }
+  .rarity-card {
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid var(--c);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--c) 18%, transparent) 0%, var(--s1) 70%);
+    text-align: center;
+  }
+  .rarity-card .label { font-family: var(--f-display); font-weight: 700; font-size: 18px; color: var(--c); text-transform: uppercase; letter-spacing: 0.04em; }
+  .rarity-card .hex { font-family: var(--f-mono); font-size: 11px; color: var(--t-lo); margin-top: 6px; }
+  .rarity-card .desc { font-size: 11px; color: var(--t-mid); margin-top: 10px; }
+
+  /* ── Typography ─────────────────────────────────────────────── */
+  .type-spec {
+    background: var(--s1);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 32px;
+    margin-bottom: 16px;
+  }
+  .type-spec .role-tag {
+    font-family: var(--f-mono);
+    font-size: 10px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+  .type-spec .sample { font-size: 56px; line-height: 1; margin-bottom: 16px; color: var(--t-hi); }
+  .type-spec .sample.medium { font-size: 32px; line-height: 1.2; }
+  .type-spec .sample.small { font-size: 16px; line-height: 1.4; }
+  .type-spec .glyphs {
+    font-size: 18px;
+    color: var(--t-mid);
+    word-spacing: 6px;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+    margin-top: 14px;
+  }
+  .type-spec .footer-meta {
+    display: flex;
+    gap: 24px;
+    margin-top: 16px;
+    font-family: var(--f-mono);
+    font-size: 11px;
+    color: var(--t-lo);
+  }
+
+  .scale-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+    font-family: var(--f-mono);
+    font-size: 12px;
+  }
+  .scale-table th, .scale-table td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .scale-table th { color: var(--t-lo); font-weight: 500; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .scale-table .preview { font-family: var(--f-sans); color: var(--t-hi); }
+  .scale-table tr:hover { background: var(--s1); }
+
+  /* ── Tokens (spacing/radius/shadow) ─────────────────────────── */
+  .token-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 16px; }
+  .token-card {
+    background: var(--s1);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+  }
+  .token-card .demo { display: flex; align-items: center; justify-content: center; height: 80px; margin-bottom: 12px; }
+  .token-card .name { font-weight: 600; color: var(--t-hi); }
+  .token-card .value { font-family: var(--f-mono); font-size: 11px; color: var(--t-lo); margin-top: 4px; }
+
+  .spacing-bar { background: var(--accent); height: 24px; border-radius: 2px; }
+  .radius-block { width: 64px; height: 64px; background: var(--accent); }
+
+  /* ── Components ─────────────────────────────────────────────── */
+  .component-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 16px; }
+  .component-card {
+    background: var(--s1);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 28px;
+  }
+  .component-card .stage {
+    background: var(--s0);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 24px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    min-height: 96px;
+  }
+
+  /* Buttons */
+  .btn {
+    font-family: var(--f-sans);
+    font-weight: 500;
+    font-size: 13px;
+    padding: 8px 16px;
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn.primary { background: var(--accent); color: white; }
+  .btn.primary:hover { background: var(--accent-hover); box-shadow: 0 0 16px rgba(88,101,242,0.25); }
+  .btn.secondary { background: var(--s2); color: var(--t-hi); border: 1px solid var(--line-strong); }
+  .btn.secondary:hover { background: var(--s3); }
+  .btn.ghost { background: transparent; color: var(--t-mid); }
+  .btn.ghost:hover { color: var(--t-hi); background: var(--s2); }
+  .btn.danger { background: var(--r-mythical); color: white; }
+  .btn.cyber { background: transparent; color: var(--cyber); border: 1px solid var(--cyber); box-shadow: 0 0 8px rgba(0,255,136,0.2); }
+
+  /* Badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-family: var(--f-mono);
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .badge.lvl { background: var(--accent-muted); color: var(--accent); }
+  .badge.streak { background: rgba(250,166,26,0.15); color: var(--sk-researcher); }
+  .badge.online { background: rgba(87,242,135,0.15); color: var(--sk-communicator); }
+  .badge.online::before { content: ''; width: 6px; height: 6px; background: var(--sk-communicator); border-radius: 50%; box-shadow: 0 0 6px var(--sk-communicator); }
+  .badge.prestige { background: linear-gradient(135deg, #ffd700, #ff8800); color: #111; }
+
+  /* XP Bar */
+  .xp-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--s2);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  .xp-bar > .fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent) 0%, #c084fc 100%);
+    border-radius: 4px;
+  }
+
+  /* Skill row */
+  .skill-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--s2);
+    border-radius: 4px;
+    border-left: 3px solid var(--c);
+  }
+  .skill-row .icon { font-size: 22px; }
+  .skill-row .info { flex: 1; }
+  .skill-row .name { font-weight: 600; color: var(--t-hi); font-size: 13px; }
+  .skill-row .meta { font-family: var(--f-mono); font-size: 10px; color: var(--t-lo); margin-top: 2px; }
+  .skill-row .level {
+    font-family: var(--f-display);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--c);
+    min-width: 40px;
+    text-align: right;
+  }
+
+  /* Loot tile */
+  .loot-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .loot-tile {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    background: var(--s0);
+    border: 1px solid var(--c);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--c) 25%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .loot-tile img { width: 80%; height: 80%; object-fit: contain; image-rendering: auto; }
+  .loot-tile::after {
+    content: attr(data-rarity);
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    font-family: var(--f-mono);
+    font-size: 8px;
+    color: var(--c);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Voice block */
+  .voice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
+  .voice-card {
+    padding: 24px 28px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+  }
+  .voice-card.do { background: rgba(0,255,136,0.04); border-color: rgba(0,255,136,0.3); }
+  .voice-card.dont { background: rgba(239,68,68,0.04); border-color: rgba(239,68,68,0.3); }
+  .voice-card .head {
+    font-family: var(--f-pixel);
+    font-size: 11px;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+  }
+  .voice-card.do .head { color: var(--cyber); }
+  .voice-card.dont .head { color: var(--r-mythical); }
+  .voice-card ul { padding-left: 20px; margin: 0; color: var(--t-mid); }
+  .voice-card li { margin: 8px 0; }
+  .voice-card li code { font-size: 11px; }
+
+  /* Pillars */
+  .pillar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+  .pillar {
+    background: var(--s1);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 28px;
+    border-top: 3px solid var(--accent);
+  }
+  .pillar:nth-child(2) { border-top-color: var(--cyber); }
+  .pillar:nth-child(3) { border-top-color: var(--delve); }
+  .pillar h3 { margin-bottom: 12px; }
+  .pillar p { margin: 0; color: var(--t-mid); font-size: 13px; }
+  .pillar .num {
+    font-family: var(--f-pixel);
+    font-size: 12px;
+    color: var(--t-faint);
+    margin-bottom: 10px;
+  }
+
+  /* Screens */
+  .screens-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 16px; }
+  .screen {
+    background: var(--s1);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .screen img { width: 100%; height: auto; display: block; }
+  .screen .caption {
+    padding: 14px 18px;
+    font-family: var(--f-mono);
+    font-size: 11px;
+    color: var(--t-mid);
+    border-top: 1px solid var(--line);
+    background: var(--s0);
+  }
+  .screen .caption strong { color: var(--accent); }
+
+  /* ── Brand Poster ────────────────────────────────────────────── */
+  .poster {
+    position: relative;
+    background:
+      linear-gradient(180deg, rgba(17,18,20,0.55) 0%, rgba(17,18,20,0.95) 100%),
+      url('../public/arena/zone7.png') center/cover no-repeat;
+    padding: 120px 64px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .poster::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 70% 50%, rgba(192,132,252,0.18) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .poster .inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+  }
+  .poster .headline {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 88px;
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    color: var(--t-hi);
+  }
+  .poster .headline em {
+    font-style: normal;
+    background: linear-gradient(135deg, #c084fc 0%, #5865F2 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .poster .deck {
+    margin-top: 24px;
+    font-size: 16px;
+    color: var(--t-mid);
+    line-height: 1.6;
+    max-width: 50ch;
+  }
+  .poster .badge-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 28px;
+    flex-wrap: wrap;
+  }
+  .poster .pgrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .poster .pgrid .ptile {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--line-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .poster .pgrid .ptile img {
+    width: 70%;
+    height: 70%;
+    object-fit: contain;
+  }
+
+  /* ── Color in context ──────────────────────────────────────── */
+  .ctx-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .ctx-card {
+    padding: 24px;
+    border-radius: 8px;
+    background: var(--s1);
+    border: 1px solid var(--line);
+  }
+  .ctx-card .role {
+    font-family: var(--f-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--t-lo);
+    margin-bottom: 16px;
+  }
+
+  /* ── Skill spectrum ────────────────────────────────────────── */
+  .spectrum {
+    height: 56px;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 16px;
+    display: flex;
+    border: 1px solid var(--line);
+  }
+  .spectrum > div {
+    flex: 1;
+    position: relative;
+    transition: flex 0.2s;
+  }
+  .spectrum > div:hover { flex: 2; }
+  .spectrum > div span {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    font-family: var(--f-mono);
+    font-size: 9px;
+    color: rgba(0,0,0,0.7);
+    font-weight: 600;
+  }
+
+  /* ── Bottom Nav ────────────────────────────────────────────── */
+  .botnav {
+    background: var(--s1);
+    border-top: 1px solid var(--line-strong);
+    box-shadow: 0 -1px 0 rgba(255,255,255,0.06);
+    padding: 8px 12px;
+    display: flex;
+    gap: 4px;
+    border-radius: 6px;
+  }
+  .botnav .tab {
+    flex: 1;
+    padding: 10px 8px;
+    text-align: center;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-family: var(--f-sans);
+    font-size: 10px;
+    color: var(--t-lo);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .botnav .tab:hover { background: var(--s2); color: var(--t-mid); }
+  .botnav .tab.active { color: var(--accent); background: var(--accent-muted); }
+  .botnav .tab .ic { font-size: 18px; line-height: 1; }
+
+  /* ── Modal ─────────────────────────────────────────────────── */
+  .modal-stage {
+    background: rgba(0,0,0,0.5);
+    padding: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 280px;
+  }
+  .modal {
+    background: var(--s2);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    max-width: 360px;
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--line-strong);
+  }
+  .modal .mhead { padding: 16px 20px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+  .modal .mhead h5 { margin: 0; font-family: var(--f-display); font-size: 18px; color: var(--t-hi); }
+  .modal .mhead button { background: transparent; border: 0; color: var(--t-lo); font-size: 18px; cursor: pointer; }
+  .modal .mbody { padding: 20px; color: var(--t-mid); font-size: 13px; line-height: 1.5; }
+  .modal .mfoot { padding: 12px 20px; display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid var(--line); background: var(--s1); }
+
+  /* ── Toast ─────────────────────────────────────────────────── */
+  .toast {
+    background: var(--s2);
+    border-radius: 4px;
+    padding: 12px 16px;
+    border-left: 3px solid var(--cyber);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    min-width: 280px;
+  }
+  .toast.warning { border-left-color: var(--sk-researcher); }
+  .toast.danger { border-left-color: var(--r-mythical); }
+  .toast .ic { font-size: 20px; }
+  .toast .txt { font-size: 13px; }
+  .toast .txt strong { color: var(--t-hi); display: block; margin-bottom: 2px; font-family: var(--f-display); font-size: 14px; }
+  .toast .txt .sub { color: var(--t-mid); font-family: var(--f-mono); font-size: 11px; }
+
+  /* ── Tooltip ───────────────────────────────────────────────── */
+  .ttip {
+    background: #000;
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--t-hi);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    position: relative;
+    display: inline-block;
+  }
+  .ttip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 20px;
+    border: 6px solid transparent;
+    border-top-color: var(--line-strong);
+  }
+  .ttip kbd {
+    font-family: var(--f-mono);
+    font-size: 10px;
+    background: var(--s2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid var(--line-strong);
+    color: var(--t-mid);
+    margin-left: 6px;
+  }
+
+  /* ── Bestiary ──────────────────────────────────────────────── */
+  .bestiary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+  .mob-card {
+    background: var(--s1);
+    border: 1px solid var(--c, var(--line));
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    position: relative;
+    overflow: hidden;
+  }
+  .mob-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 0% 100%, color-mix(in srgb, var(--c, transparent) 22%, transparent), transparent 70%);
+    pointer-events: none;
+  }
+  .mob-card .portrait {
+    width: 72px;
+    height: 72px;
+    flex-shrink: 0;
+    background: var(--s0);
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+  }
+  .mob-card .portrait img { max-width: 90%; max-height: 90%; }
+  .mob-card .info { flex: 1; position: relative; z-index: 1; }
+  .mob-card .nm { font-weight: 600; color: var(--t-hi); font-size: 14px; }
+  .mob-card .role { font-family: var(--f-mono); font-size: 9px; color: var(--c, var(--t-lo)); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+  .mob-card .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-top: 10px; font-family: var(--f-mono); font-size: 11px; }
+  .mob-card .stats span { color: var(--t-mid); }
+  .mob-card .stats span b { color: var(--t-hi); font-weight: 600; }
+
+  /* ── Item Inspect Card ─────────────────────────────────────── */
+  .inspect-card {
+    width: 280px;
+    border-radius: 8px;
+    border: 1px solid var(--c);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--c) 14%, transparent) 0%, var(--s2) 60%);
+    box-shadow: 0 0 32px color-mix(in srgb, var(--c) 30%, transparent);
+    overflow: hidden;
+  }
+  .inspect-card .iart {
+    aspect-ratio: 1;
+    background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--c) 22%, transparent) 0%, var(--s0) 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid var(--line);
+  }
+  .inspect-card .iart img { width: 70%; height: 70%; object-fit: contain; }
+  .inspect-card .ihead { padding: 14px 16px 8px; }
+  .inspect-card .iname { font-family: var(--f-display); font-weight: 700; font-size: 20px; color: var(--c); line-height: 1.1; }
+  .inspect-card .imeta { font-family: var(--f-mono); font-size: 10px; color: var(--t-lo); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; }
+  .inspect-card .istats { padding: 0 16px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+  .inspect-card .istats div { font-family: var(--f-mono); font-size: 11px; color: var(--t-mid); display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .inspect-card .istats div b { color: var(--t-hi); font-weight: 600; }
+  .inspect-card .perks { padding: 10px 16px 16px; border-top: 1px solid var(--line); }
+  .inspect-card .perks .plabel { font-family: var(--f-mono); font-size: 10px; color: var(--t-lo); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .inspect-card .perks ul { margin: 0; padding-left: 16px; font-size: 11px; color: var(--t-mid); }
+  .inspect-card .perks li { margin: 4px 0; }
+  .inspect-card .perks li b { color: var(--cyber); font-family: var(--f-mono); }
+
+  /* ── Motion ────────────────────────────────────────────────── */
+  .motion-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+  .motion-card {
+    background: var(--s1);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 24px;
+  }
+  .motion-card h4 { margin-bottom: 4px; }
+  .motion-card .timing {
+    font-family: var(--f-mono);
+    font-size: 10px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 12px;
+  }
+  .motion-card p { font-size: 12px; margin: 0; }
+  .motion-curve {
+    height: 60px;
+    background: var(--s0);
+    border-radius: 4px;
+    margin-top: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .motion-curve svg { width: 100%; height: 100%; }
+  .motion-curve path { fill: none; stroke: var(--accent); stroke-width: 2; }
+
+  /* ── Closing ───────────────────────────────────────────────── */
+  .closing {
+    margin-top: 96px;
+    padding: 120px 64px;
+    text-align: center;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(192,132,252,0.18) 0%, transparent 60%),
+      var(--s0);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .closing img {
+    width: 160px;
+    image-rendering: pixelated;
+    filter: drop-shadow(0 0 60px rgba(192,132,252,0.5));
+    margin-bottom: 32px;
+  }
+  .closing h2 {
+    font-size: 80px;
+    line-height: 0.95;
+    margin: 0;
+    background: linear-gradient(135deg, #ffffff 0%, #c084fc 60%, #5865F2 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .closing .signoff {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    color: var(--t-lo);
+    margin-top: 32px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 30px rgba(0,255,136,0.3); }
+    50% { box-shadow: 0 0 50px rgba(0,255,136,0.6); }
+  }
+
+  /* Footer */
+  footer {
+    margin-top: 96px;
+    padding: 32px 48px 64px;
+    border-top: 1px solid var(--line);
+    color: var(--t-lo);
+    font-family: var(--f-mono);
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═════════════════════════════════════════════════════════════
+     COVER
+══════════════════════════════════════════════════════════════ -->
+<section class="cover">
+  <div>
+    <div class="eyebrow">Brand Identity Guide · v4.16</div>
+    <h1>GRINDLY</h1>
+    <div class="tagline">Turn focus into XP.<br>Productivity, gamified.</div>
+    <p class="lede">
+      Grindly is a Windows desktop tracker that watches what you actually do — coding, designing,
+      reading, listening — and turns it into 99-level skill progression with loot, arena combat,
+      farming, crafting, and a guild of friends. Built with Electron, React, TypeScript, and
+      Supabase. Not a habit tracker. A character sheet for your real life.
+    </p>
+    <div class="meta">
+      <span class="chip accent">v4.16.0</span>
+      <span class="chip">Windows · macOS</span>
+      <span class="chip">Electron + React</span>
+      <span class="chip">Discord-themed dark</span>
+      <span class="chip">14 skills · 99 levels</span>
+    </div>
+
+    <div class="stat-strip">
+      <div class="stat"><div class="num">14</div><div class="lbl">Skills</div></div>
+      <div class="stat"><div class="num">99</div><div class="lbl">Max Level</div></div>
+      <div class="stat"><div class="num">5</div><div class="lbl">Rarities</div></div>
+      <div class="stat"><div class="num">1k</div><div class="lbl">Hours / cap</div></div>
+    </div>
+  </div>
+  <div class="mascot">
+    <img src="../assets/icon.png" alt="Grindly mascot">
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     BRAND POSTER
+══════════════════════════════════════════════════════════════ -->
+<section class="poster">
+  <div class="inner">
+    <div>
+      <div class="eyebrow" style="color:#c084fc;">The Manifesto</div>
+      <div class="headline">Your time<br>already counts.<br><em>We just made it visible.</em></div>
+      <p class="deck">
+        Every second you spend coding, designing, reading, listening — Grindly tracks it at the
+        OS level and turns it into XP. No timers to start. No streaks to maintain. No journal to
+        fill out. Just open your IDE, your browser, your DAW. The character sheet writes itself.
+      </p>
+      <div class="badge-row">
+        <span class="chip">Real activity</span>
+        <span class="chip">Not self-reported</span>
+        <span class="chip">Always passive</span>
+        <span class="chip accent">Proven on you</span>
+      </div>
+    </div>
+    <div class="pgrid">
+      <div class="ptile" style="border-color:#38BDF8;box-shadow:0 0 24px rgba(56,189,248,0.25);"><img src="../public/loot/item_craft_lich_sword.png" alt=""></div>
+      <div class="ptile" style="border-color:#FACC15;box-shadow:0 0 24px rgba(250,204,21,0.25);"><img src="../public/loot/item_craft_titan_sword.png" alt=""></div>
+      <div class="ptile" style="border-color:#EF4444;box-shadow:0 0 24px rgba(239,68,68,0.3);"><img src="../public/loot/item_raid_void_blade.png" alt=""></div>
+      <div class="ptile" style="border-color:#FACC15;box-shadow:0 0 24px rgba(250,204,21,0.25);"><img src="../public/loot/item_raid_eternal_crown.png" alt=""></div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+
+<nav class="toc">
+  <a href="#mission"><span>01</span><span>Mission &amp; Pillars</span></a>
+  <a href="#logo"><span>02</span><span>Logo &amp; Mascot</span></a>
+  <a href="#color"><span>03</span><span>Color System</span></a>
+  <a href="#type"><span>04</span><span>Typography</span></a>
+  <a href="#tokens"><span>05</span><span>Tokens</span></a>
+  <a href="#components"><span>06</span><span>Components</span></a>
+  <a href="#loot"><span>07</span><span>Loot &amp; Iconography</span></a>
+  <a href="#voice"><span>08</span><span>Voice &amp; Tone</span></a>
+  <a href="#motion"><span>09</span><span>Motion</span></a>
+  <a href="#screens"><span>10</span><span>In Product</span></a>
+  <a href="#donts"><span>11</span><span>Anti-patterns</span></a>
+</nav>
+
+<!-- ═════════════════════════════════════════════════════════════
+     01 — MISSION
+══════════════════════════════════════════════════════════════ -->
+<section id="mission">
+  <div class="eyebrow">01 · Mission &amp; Pillars</div>
+  <h2>What Grindly is, and isn't.</h2>
+  <p>
+    The product turns invisible time into visible progress. Most productivity tools shame the user
+    for falling off; Grindly rewards them for showing up. Every tracked second of real activity
+    is XP toward one of 14 skills, mapped from window titles via a PowerShell tracker. Friends
+    see your guild, drops, kills. Bosses gate progression. Loot has stats. Crafting is real.
+  </p>
+
+  <div class="pillar-grid">
+    <div class="pillar">
+      <div class="num">01</div>
+      <h3>RPG, not productivity-porn</h3>
+      <p>Compact MMO/RPG aesthetic. Stats over decoration. Dense, readable, intentional. Inventory grids, level numbers, XP bars — the things that mattered in RuneScape, ported to the desktop.</p>
+    </div>
+    <div class="pillar">
+      <div class="num">02</div>
+      <h3>Earned, not gamed</h3>
+      <p>XP comes from real activity tracked at the OS level — not self-reported clicks. The first 8 skills are passive (your coding gives Developer XP). The rest (Warrior, Crafter, Farmer, Chef) require in-game effort.</p>
+    </div>
+    <div class="pillar">
+      <div class="num">03</div>
+      <h3>Social by default</h3>
+      <p>Friends, guilds, group chats, marketplace, leaderboard. Powered by Supabase. Status lines tell your guildmates what you're doing live: <code>Coding in VS Code</code>, <code>Fighting in Arena</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     02 — LOGO & MASCOT
+══════════════════════════════════════════════════════════════ -->
+<section id="logo">
+  <div class="eyebrow">02 · Logo &amp; Mascot</div>
+  <h2>The Purple Block.</h2>
+  <p>
+    The mascot is a square pixel-art character in <strong style="color:#c084fc">#c084fc</strong> — the
+    same purple that powers the <code>grindly</code> skill, the prestige Void tier, and the epic loot
+    rarity. It's deliberately low-poly and slightly dumb. Friendly, not corporate. Always centered,
+    always looking forward, never animated more than a slight bob.
+  </p>
+
+  <div class="logo-grid">
+    <div class="logo-card dark">
+      <img src="../assets/icon.png" alt="Mascot on dark">
+      <div class="label">on surface-0 · #111214</div>
+    </div>
+    <div class="logo-card">
+      <img src="../assets/icon.png" alt="Mascot on s1">
+      <div class="label">on surface-1 · #1e2024</div>
+    </div>
+    <div class="logo-card brand">
+      <img src="../assets/icon.png" alt="Mascot on brand">
+      <div class="label">on brand gradient</div>
+    </div>
+  </div>
+
+  <div class="lockup">
+    <img src="../assets/icon.png" alt="">
+    <div class="word">Grindly</div>
+  </div>
+
+  <div class="voice-grid" style="margin-top:32px;">
+    <div class="voice-card do">
+      <div class="head">DO</div>
+      <ul>
+        <li>Use the mascot at <code>image-rendering: pixelated</code> — it's pixel art, treat it as such</li>
+        <li>Keep clearspace ≥ the height of one mascot eye on every side</li>
+        <li>Drop-shadow with purple glow (<code>rgba(192,132,252,0.45)</code>) for hero placement</li>
+        <li>Pair with the wordmark in <code>Rajdhani 700</code>, gradient purple→accent</li>
+      </ul>
+    </div>
+    <div class="voice-card dont">
+      <div class="head">DON'T</div>
+      <ul>
+        <li>Don't smooth the pixels. Don't redraw it in vector. It's a sprite.</li>
+        <li>Don't tint it. Purple is the brand color, full stop.</li>
+        <li>Don't put it on busy gradients except the official brand gradient</li>
+        <li>Don't add motion beyond a subtle bob — no spins, no bounces</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     03 — COLOR SYSTEM
+══════════════════════════════════════════════════════════════ -->
+<section id="color">
+  <div class="eyebrow">03 · Color System</div>
+  <h2>Discord violet, four surfaces, fourteen skills.</h2>
+  <p>
+    The chrome is Discord-inspired dark, with four explicit surface elevations. The accent is
+    Discord's <code>#5865F2</code>. Game effects (loot drops, bag opens, level-ups) get their
+    own neon — never used on UI chrome. Skill colors are the only place where the palette goes
+    wide; each skill owns one hue across the entire app.
+  </p>
+
+  <h3 style="margin-top:40px;">Surfaces</h3>
+  <div class="swatch-row">
+    <div class="swatch">
+      <div class="chip-area" style="background:#111214;"><span class="micro" style="color:rgba(255,255,255,0.55)">app root</span></div>
+      <div class="meta"><div class="name">surface-0</div><div class="hex">#111214</div><div class="role">deepest · app bg</div></div>
+    </div>
+    <div class="swatch">
+      <div class="chip-area" style="background:#1e2024;"><span class="micro" style="color:rgba(255,255,255,0.55)">page bg</span></div>
+      <div class="meta"><div class="name">surface-1</div><div class="hex">#1e2024</div><div class="role">page · navbar</div></div>
+    </div>
+    <div class="swatch">
+      <div class="chip-area" style="background:#2b2d31;"><span class="micro" style="color:rgba(255,255,255,0.55)">cards</span></div>
+      <div class="meta"><div class="name">surface-2</div><div class="hex">#2b2d31</div><div class="role">cards · panels · modals</div></div>
+    </div>
+    <div class="swatch">
+      <div class="chip-area" style="background:#36393f;"><span class="micro" style="color:rgba(255,255,255,0.55)">elevated</span></div>
+      <div class="meta"><div class="name">surface-3</div><div class="hex">#36393f</div><div class="role">hover · inputs</div></div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:40px;">Brand &amp; signal colors</h3>
+  <div class="swatch-row">
+    <div class="swatch">
+      <div class="chip-area" style="background:#5865F2;"><span class="micro" style="color:white">primary action</span></div>
+      <div class="meta"><div class="name">accent</div><div class="hex">#5865F2 · hover #4752c4</div><div class="role">primary CTA · links · brand</div></div>
+    </div>
+    <div class="swatch">
+      <div class="chip-area" style="background:#00ff88;box-shadow:inset 0 0 40px rgba(0,255,136,0.4);"><span class="micro" style="color:#0a3320">cyber neon</span></div>
+      <div class="meta"><div class="name">cyber.neon</div><div class="hex">#00ff88</div><div class="role">game effects only</div></div>
+    </div>
+    <div class="swatch">
+      <div class="chip-area" style="background:#a78bfa;"><span class="micro" style="color:#1a1129">delve</span></div>
+      <div class="meta"><div class="name">delve</div><div class="hex">#a78bfa</div><div class="role">fragments · cache · Rubicon</div></div>
+    </div>
+    <div class="swatch">
+      <div class="chip-area" style="background:linear-gradient(135deg,#5865F2 0%,#c084fc 100%);"><span class="micro" style="color:white">brand gradient</span></div>
+      <div class="meta"><div class="name">brand.gradient</div><div class="hex">accent → grindly</div><div class="role">hero · cover · prestige</div></div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:40px;">Skill palette · 14 hues</h3>
+  <p class="micro" style="margin-bottom:12px;">Each skill owns one color across the entire app — XP bars, badges, status lines, leaderboard rows.</p>
+  <div class="skill-grid">
+    <div class="skill-tile" style="--c:#00ff88;background:#00ff8814;"><div class="glow"></div><div class="icon">💻</div><div><div class="name">Developer</div><div class="hex">#00ff88</div></div></div>
+    <div class="skill-tile" style="--c:#ff6b9d;background:#ff6b9d14;"><div class="glow"></div><div class="icon">🎨</div><div><div class="name">Designer</div><div class="hex">#ff6b9d</div></div></div>
+    <div class="skill-tile" style="--c:#5865F2;background:#5865F214;"><div class="glow"></div><div class="icon">🎮</div><div><div class="name">Gamer</div><div class="hex">#5865F2</div></div></div>
+    <div class="skill-tile" style="--c:#57F287;background:#57F28714;"><div class="glow"></div><div class="icon">💬</div><div><div class="name">Communicator</div><div class="hex">#57F287</div></div></div>
+    <div class="skill-tile" style="--c:#faa61a;background:#faa61a14;"><div class="glow"></div><div class="icon">🔬</div><div><div class="name">Researcher</div><div class="hex">#faa61a</div></div></div>
+    <div class="skill-tile" style="--c:#eb459e;background:#eb459e14;"><div class="glow"></div><div class="icon">🎬</div><div><div class="name">Creator</div><div class="hex">#eb459e</div></div></div>
+    <div class="skill-tile" style="--c:#00d4ff;background:#00d4ff14;"><div class="glow"></div><div class="icon">📚</div><div><div class="name">Learner</div><div class="hex">#00d4ff</div></div></div>
+    <div class="skill-tile" style="--c:#1db954;background:#1db95414;"><div class="glow"></div><div class="icon">🎵</div><div><div class="name">Listener</div><div class="hex">#1db954</div></div></div>
+    <div class="skill-tile" style="--c:#84cc16;background:#84cc1614;"><div class="glow"></div><div class="icon">🌾</div><div><div class="name">Farmer</div><div class="hex">#84cc16</div></div></div>
+    <div class="skill-tile" style="--c:#EF4444;background:#EF444414;"><div class="glow"></div><div class="icon">⚔️</div><div><div class="name">Warrior</div><div class="hex">#EF4444</div></div></div>
+    <div class="skill-tile" style="--c:#f97316;background:#f9731614;"><div class="glow"></div><div class="icon">⚒️</div><div><div class="name">Crafter</div><div class="hex">#f97316</div></div></div>
+    <div class="skill-tile" style="--c:#fb923c;background:#fb923c14;"><div class="glow"></div><div class="icon">🍳</div><div><div class="name">Chef</div><div class="hex">#fb923c</div></div></div>
+    <div class="skill-tile" style="--c:#818cf8;background:#818cf814;"><div class="glow"></div><div class="icon">🤖</div><div><div class="name">AI</div><div class="hex">#818cf8</div></div></div>
+    <div class="skill-tile" style="--c:#c084fc;background:#c084fc14;"><div class="glow"></div><div class="icon">🏠</div><div><div class="name">Grindly</div><div class="hex">#c084fc</div></div></div>
+  </div>
+
+  <h3 style="margin-top:40px;">Rarity tiers · loot system</h3>
+  <p class="micro" style="margin-bottom:12px;">Five rarities, ascending. Color is the contract — never substitute, never invent a sixth.</p>
+  <div class="rarity-row">
+    <div class="rarity-card" style="--c:#9CA3AF;"><div class="label">Common</div><div class="hex">#9CA3AF</div><div class="desc">100 IP · brown/grey</div></div>
+    <div class="rarity-card" style="--c:#38BDF8;"><div class="label">Rare</div><div class="hex">#38BDF8</div><div class="desc">150 IP · blue metallic</div></div>
+    <div class="rarity-card" style="--c:#C084FC;"><div class="label">Epic</div><div class="hex">#C084FC</div><div class="desc">220 IP · dark purple</div></div>
+    <div class="rarity-card" style="--c:#FACC15;"><div class="label">Legendary</div><div class="hex">#FACC15</div><div class="desc">320 IP · gold</div></div>
+    <div class="rarity-card" style="--c:#EF4444;"><div class="label">Mythical</div><div class="hex">#EF4444</div><div class="desc">450 IP · void · neon</div></div>
+  </div>
+
+  <h3 style="margin-top:48px;">Skill spectrum · the rainbow</h3>
+  <p class="micro" style="margin-bottom:12px;">All 14 skill colors in canonical order. Hover a band to expand it.</p>
+  <div class="spectrum">
+    <div style="background:#00ff88;"><span>developer</span></div>
+    <div style="background:#ff6b9d;"><span>designer</span></div>
+    <div style="background:#5865F2;"><span style="color:rgba(255,255,255,0.85);">gamer</span></div>
+    <div style="background:#57F287;"><span>communicator</span></div>
+    <div style="background:#faa61a;"><span>researcher</span></div>
+    <div style="background:#eb459e;"><span style="color:rgba(255,255,255,0.85);">creator</span></div>
+    <div style="background:#00d4ff;"><span>learner</span></div>
+    <div style="background:#1db954;"><span style="color:rgba(255,255,255,0.85);">listener</span></div>
+    <div style="background:#84cc16;"><span>farmer</span></div>
+    <div style="background:#EF4444;"><span style="color:rgba(255,255,255,0.85);">warrior</span></div>
+    <div style="background:#f97316;"><span>crafter</span></div>
+    <div style="background:#fb923c;"><span>chef</span></div>
+    <div style="background:#818cf8;"><span style="color:rgba(255,255,255,0.85);">ai</span></div>
+    <div style="background:#c084fc;"><span style="color:rgba(255,255,255,0.85);">grindly</span></div>
+  </div>
+
+  <h3 style="margin-top:48px;">Color in context · how it lives</h3>
+  <p class="micro" style="margin-bottom:12px;">Color is rarely standalone — it's a XP bar, a status dot, a notification edge, a level number.</p>
+  <div class="ctx-grid">
+    <div class="ctx-card">
+      <div class="role">Accent · primary action</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn primary">Start Session</button>
+        <span class="badge lvl">Lv 47</span>
+      </div>
+      <div style="margin-top:14px;">
+        <div style="font-size:11px;color:var(--t-lo);font-family:var(--f-mono);margin-bottom:4px;">Developer · 1,247 / 4,800</div>
+        <div class="xp-bar"><div class="fill" style="width:26%;"></div></div>
+      </div>
+    </div>
+    <div class="ctx-card">
+      <div class="role">Cyber · game effect</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="toast" style="min-width:0;"><div class="ic">✨</div><div class="txt"><strong style="color:var(--cyber);">+ EPIC LOOT</strong><div class="sub">Wolf Pendant equipped</div></div></div>
+        <button class="btn cyber" style="align-self:flex-start;">Open bag</button>
+      </div>
+    </div>
+    <div class="ctx-card">
+      <div class="role">Skill color · status &amp; identity</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="skill-row" style="--c:#00ff88;"><div class="icon">💻</div><div class="info"><div class="name">borissharikoff</div><div class="meta">Coding in VS Code</div></div><div class="level">47</div></div>
+        <div class="skill-row" style="--c:#EF4444;"><div class="icon">⚔️</div><div class="info"><div class="name">guildmate.exe</div><div class="meta">Fighting Forest Wolf</div></div><div class="level">15</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     04 — TYPOGRAPHY
+══════════════════════════════════════════════════════════════ -->
+<section id="type">
+  <div class="eyebrow">04 · Typography</div>
+  <h2>Four typefaces. Each with one job.</h2>
+  <p>
+    Inter does the talking. Rajdhani does the shouting. JetBrains Mono shows the numbers. Press
+    Start 2P shows up only for retro game moments — version stickers, achievement unlocks, loot
+    drops. Never combine more than two on a single surface.
+  </p>
+
+  <div class="type-spec">
+    <div class="role-tag">Display · Rajdhani · UI headers · HUD · stat values · level numbers</div>
+    <div class="sample" style="font-family:var(--f-display);font-weight:700;">Level 99 reached.</div>
+    <div class="sample medium" style="font-family:var(--f-display);font-weight:600;">Stat boards. Section heads. The big number on a card.</div>
+    <div class="glyphs" style="font-family:var(--f-display);">A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9</div>
+    <div class="footer-meta">
+      <span>500 · 600 · 700</span>
+      <span>letter-spacing -0.01em</span>
+      <span>line-height 0.95–1.2</span>
+    </div>
+  </div>
+
+  <div class="type-spec">
+    <div class="role-tag">Sans · Inter · body · UI · forms · everything default</div>
+    <div class="sample" style="font-family:var(--f-sans);font-weight:600;">Productivity, gamified.</div>
+    <div class="sample small" style="font-family:var(--f-sans);">Used at 13px body / 14px title / 12px secondary / 11px caption / 10px micro. The workhorse of every interface surface, including modals, tooltips, settings, and chat.</div>
+    <div class="glyphs" style="font-family:var(--f-sans);">A a B b C c · 0 1 2 3 4 5 6 7 8 9 · — — •</div>
+    <div class="footer-meta">
+      <span>400 · 500 · 600 · 700</span>
+      <span>line-height 1.4 (body)</span>
+    </div>
+  </div>
+
+  <div class="type-spec">
+    <div class="role-tag">Mono · JetBrains Mono · code · stats · timestamps · hex codes · keys</div>
+    <div class="sample" style="font-family:var(--f-mono);font-weight:500;color:#00ff88;">+ 1,247 XP gained</div>
+    <div class="sample small" style="font-family:var(--f-mono);">3h 24m focused · streak 17 · gold 4,820 · IP 1,820 · 00ff88</div>
+    <div class="footer-meta">
+      <span>400 · 500 · 600</span>
+      <span>used in: HUD numbers · code · metadata · color hex</span>
+    </div>
+  </div>
+
+  <div class="type-spec">
+    <div class="role-tag">Pixel · Press Start 2P · achievement unlocks · loot drops · retro accents only</div>
+    <div class="sample medium" style="font-family:var(--f-pixel);color:#FACC15;">+ EPIC LOOT DROP</div>
+    <div class="sample small" style="font-family:var(--f-pixel);font-size:11px;">USE SPARINGLY · NEVER FOR BODY TEXT · CAPS-ONLY · GAME MOMENTS</div>
+    <div class="footer-meta">
+      <span>achievements · banners · version stickers</span>
+    </div>
+  </div>
+
+  <h3 style="margin-top:40px;">Semantic scale</h3>
+  <table class="scale-table">
+    <thead><tr><th>Token</th><th>Size</th><th>Line</th><th>Use</th><th>Preview</th></tr></thead>
+    <tbody>
+      <tr><td><code>text-2xs</code></td><td>9px</td><td>1.2</td><td>obscure metadata</td><td class="preview" style="font-size:9px;">Lvl 99 · 1247xp</td></tr>
+      <tr><td><code>text-micro</code></td><td>10px</td><td>1.3</td><td>badges · stat values · nav labels</td><td class="preview" style="font-size:10px;">+1,247 XP</td></tr>
+      <tr><td><code>text-caption</code></td><td>11px</td><td>1.35</td><td>timestamps · hints · meta</td><td class="preview" style="font-size:11px;">3 minutes ago</td></tr>
+      <tr><td><code>text-secondary</code></td><td>12px</td><td>1.4</td><td>secondary body text</td><td class="preview" style="font-size:12px;">Equipped item set</td></tr>
+      <tr><td><code>text-body</code></td><td>13px</td><td>1.4</td><td>default body</td><td class="preview" style="font-size:13px;">You earned 1,247 XP this hour.</td></tr>
+      <tr><td><code>text-title</code></td><td>14px</td><td>1.4</td><td>section titles · card heads</td><td class="preview" style="font-size:14px;font-weight:600;">Equipped Loot</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     05 — TOKENS
+══════════════════════════════════════════════════════════════ -->
+<section id="tokens">
+  <div class="eyebrow">05 · Tokens</div>
+  <h2>Spacing, radius, elevation.</h2>
+  <p>
+    Tight spacing scale. <code>4 / 8 / 12 / 16</code>. Matches the MMO/RPG density philosophy —
+    no luxurious whitespace. Radius is binary: 4px on everything, 8px on big surfaces. No
+    bubbly modern rounding.
+  </p>
+
+  <h3 style="margin-top:32px;">Spacing</h3>
+  <div class="token-grid">
+    <div class="token-card"><div class="demo"><div class="spacing-bar" style="width:4px;"></div></div><div class="name">ui-xs</div><div class="value">4px · 0.25rem</div></div>
+    <div class="token-card"><div class="demo"><div class="spacing-bar" style="width:8px;"></div></div><div class="name">ui-sm</div><div class="value">8px · 0.5rem</div></div>
+    <div class="token-card"><div class="demo"><div class="spacing-bar" style="width:12px;"></div></div><div class="name">ui-md</div><div class="value">12px · 0.75rem</div></div>
+    <div class="token-card"><div class="demo"><div class="spacing-bar" style="width:16px;"></div></div><div class="name">ui-lg</div><div class="value">16px · 1rem</div></div>
+  </div>
+
+  <h3 style="margin-top:32px;">Radius</h3>
+  <div class="token-grid">
+    <div class="token-card"><div class="demo"><div class="radius-block" style="border-radius:4px;"></div></div><div class="name">DEFAULT</div><div class="value">4px · all UI</div></div>
+    <div class="token-card"><div class="demo"><div class="radius-block" style="border-radius:6px;"></div></div><div class="name">md</div><div class="value">6px · menus · tooltips</div></div>
+    <div class="token-card"><div class="demo"><div class="radius-block" style="border-radius:8px;"></div></div><div class="name">card</div><div class="value">8px · modals · big surfaces</div></div>
+    <div class="token-card"><div class="demo"><div class="radius-block" style="border-radius:50%;"></div></div><div class="name">full</div><div class="value">circles · pills</div></div>
+  </div>
+
+  <h3 style="margin-top:32px;">Elevation</h3>
+  <div class="token-grid">
+    <div class="token-card" style="background:var(--s2);box-shadow:0 1px 3px rgba(0,0,0,0.4);"><div class="demo"></div><div class="name">card</div><div class="value">subtle lift</div></div>
+    <div class="token-card" style="background:var(--s2);box-shadow:0 4px 16px rgba(0,0,0,0.5);"><div class="demo"></div><div class="name">popup</div><div class="value">menus · dropdowns</div></div>
+    <div class="token-card" style="background:var(--s2);box-shadow:0 8px 32px rgba(0,0,0,0.6);"><div class="demo"></div><div class="name">modal</div><div class="value">dialogs · overlays</div></div>
+    <div class="token-card" style="background:var(--s2);box-shadow:0 0 16px rgba(88,101,242,0.25);"><div class="demo"></div><div class="name">accent-glow</div><div class="value">brand actions</div></div>
+  </div>
+
+  <h3 style="margin-top:32px;">Game-only glow (loot · bags · levelups)</h3>
+  <div class="token-grid">
+    <div class="token-card" style="background:var(--s2);box-shadow:0 0 6px rgba(0,255,136,0.3);"><div class="demo"></div><div class="name">game-glow-xs</div><div class="value">small drops</div></div>
+    <div class="token-card" style="background:var(--s2);box-shadow:0 0 20px rgba(0,255,136,0.3);"><div class="demo"></div><div class="name">game-glow</div><div class="value">standard loot</div></div>
+    <div class="token-card" style="background:var(--s2);box-shadow:0 0 30px rgba(0,255,136,0.5);"><div class="demo"></div><div class="name">game-glow-lg</div><div class="value">epic + drops</div></div>
+    <div class="token-card" style="background:var(--s2);box-shadow:0 0 40px rgba(0,255,136,0.3);animation:pulse 2s ease-in-out infinite;"><div class="demo"></div><div class="name">pulse-glow</div><div class="value">animated · 2s loop</div></div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     06 — COMPONENTS
+══════════════════════════════════════════════════════════════ -->
+<section id="components">
+  <div class="eyebrow">06 · Components</div>
+  <h2>The MMO component kit.</h2>
+
+  <div class="component-grid">
+    <div class="component-card">
+      <h4>Buttons</h4>
+      <div class="stage">
+        <button class="btn primary">Start Session</button>
+        <button class="btn secondary">Cancel</button>
+        <button class="btn ghost">Skip</button>
+      </div>
+      <div class="stage">
+        <button class="btn cyber">+ Claim Loot</button>
+        <button class="btn danger">Delete Run</button>
+      </div>
+      <small>4px radius · 8/16 padding · accent-glow on hover for primary</small>
+    </div>
+
+    <div class="component-card">
+      <h4>Badges &amp; status</h4>
+      <div class="stage">
+        <span class="badge lvl">Lv 47</span>
+        <span class="badge streak">🔥 17 day streak</span>
+        <span class="badge online">online</span>
+        <span class="badge prestige">★ Bronze Prestige</span>
+      </div>
+      <small>10px caps · monospace · color from skill or signal palette</small>
+    </div>
+
+    <div class="component-card">
+      <h4>XP bar</h4>
+      <div class="stage" style="display:block;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t-mid);font-family:var(--f-mono);margin-bottom:6px;">
+          <span>Developer · Lv 47</span><span>1,247 / 4,800</span>
+        </div>
+        <div class="xp-bar"><div class="fill" style="width:26%;"></div></div>
+      </div>
+      <small>8px height · brand gradient fill · monospace label above</small>
+    </div>
+
+    <div class="component-card">
+      <h4>Skill row</h4>
+      <div class="stage" style="display:block;gap:6px;flex-direction:column;">
+        <div class="skill-row" style="--c:#00ff88;width:100%;"><div class="icon">💻</div><div class="info"><div class="name">Developer</div><div class="meta">Coding in VS Code · 3h 24m today</div></div><div class="level">47</div></div>
+        <div class="skill-row" style="--c:#5865F2;width:100%;margin-top:8px;"><div class="icon">🎮</div><div class="info"><div class="name">Gamer</div><div class="meta">Playing Helldivers 2 · 1h 12m today</div></div><div class="level">23</div></div>
+        <div class="skill-row" style="--c:#EF4444;width:100%;margin-top:8px;"><div class="icon">⚔️</div><div class="info"><div class="name">Warrior</div><div class="meta">Forest Wolf killed · 12 mobs today</div></div><div class="level">15</div></div>
+      </div>
+      <small>3px left border in skill color · 4px radius · surface-2 fill</small>
+    </div>
+  </div>
+
+  <h3 style="margin-top:48px;">Bottom navigation · the actual app shell</h3>
+  <p class="micro" style="margin-bottom:12px;">14 destinations. Pinned tabs visible, rest behind <code>More</code>. Active tab uses accent-muted fill.</p>
+  <div class="botnav">
+    <div class="tab active"><div class="ic">🏠</div>Home</div>
+    <div class="tab"><div class="ic">⚡</div>Skills</div>
+    <div class="tab"><div class="ic">👥</div>Social</div>
+    <div class="tab"><div class="ic">📊</div>Stats</div>
+    <div class="tab"><div class="ic">📦</div>Inventory</div>
+    <div class="tab"><div class="ic">🛒</div>Market</div>
+    <div class="tab"><div class="ic">⚔</div>Arena</div>
+    <div class="tab"><div class="ic">📉</div>Delve</div>
+    <div class="tab"><div class="ic">🌱</div>Farm</div>
+    <div class="tab"><div class="ic">⚒</div>Craft</div>
+    <div class="tab"><div class="ic">🍳</div>Cook</div>
+    <div class="tab"><div class="ic">⋯</div>More</div>
+  </div>
+
+  <h3 style="margin-top:48px;">Overlay components</h3>
+  <div class="component-grid">
+    <div class="component-card">
+      <h4>Modal · prestige confirmation</h4>
+      <div class="modal-stage">
+        <div class="modal">
+          <div class="mhead"><h5>Prestige Developer?</h5><button>×</button></div>
+          <div class="mbody">
+            You'll reset Developer XP to <strong style="color:var(--t-hi);">0</strong>, gain a permanent
+            <strong style="color:#cd7f32;">Bronze Prestige</strong> badge, and get <strong style="color:var(--cyber);">+5% XP</strong>
+            on this skill forever.
+            <div style="margin-top:14px;font-family:var(--f-mono);font-size:11px;color:var(--t-lo);">This cannot be undone.</div>
+          </div>
+          <div class="mfoot">
+            <button class="btn ghost">Cancel</button>
+            <button class="btn primary">★ Prestige</button>
+          </div>
+        </div>
+      </div>
+      <small>8px radius · modal shadow · header / body / footer rhythm</small>
+    </div>
+
+    <div class="component-card">
+      <h4>Toasts · loot &amp; system feedback</h4>
+      <div class="stage" style="display:flex;flex-direction:column;gap:10px;align-items:flex-start;">
+        <div class="toast"><div class="ic">⚔️</div><div class="txt"><strong>Forest Wolf defeated</strong><div class="sub">+24 gold · Wolf Pendant (epic)</div></div></div>
+        <div class="toast warning"><div class="ic">🔥</div><div class="txt"><strong>Streak at 17 days</strong><div class="sub">Same time tomorrow keeps it alive</div></div></div>
+        <div class="toast danger"><div class="ic">✗</div><div class="txt"><strong>Sync failed</strong><div class="sub">Working offline · changes saved locally</div></div></div>
+      </div>
+      <small>3px left border = severity · routed via <code>routeNotification</code></small>
+    </div>
+
+    <div class="component-card">
+      <h4>Tooltip · hover hints</h4>
+      <div class="stage" style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;padding-top:48px;">
+        <div class="ttip">+1,247 XP gained <kbd>3m ago</kbd></div>
+        <div class="ttip" style="border-color:var(--accent);box-shadow:0 0 12px rgba(88,101,242,0.25);">Equip Void Blade <kbd>E</kbd></div>
+        <div class="ttip" style="border-color:var(--r-mythical);">Mythical · 450 IP</div>
+      </div>
+      <small>6px radius · 11px text · keyboard hint pill on right</small>
+    </div>
+
+    <div class="component-card">
+      <h4>Profile bar · the home strip</h4>
+      <div class="stage" style="display:block;">
+        <div style="display:flex;gap:14px;align-items:center;background:var(--s2);padding:12px 16px;border-radius:6px;">
+          <div style="width:48px;height:48px;background:linear-gradient(135deg,#5865F2,#c084fc);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;border:2px solid #c084fc;">🟪</div>
+          <div style="flex:1;">
+            <div style="display:flex;gap:8px;align-items:center;"><div style="font-weight:600;color:var(--t-hi);">borissharikoff</div><span class="badge prestige">★ Bronze</span></div>
+            <div style="font-family:var(--f-mono);font-size:11px;color:var(--t-lo);margin-top:2px;">Total Lv 247 / 1386 · 12,420 gold · 17 day streak</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-family:var(--f-display);font-size:24px;color:var(--cyber);font-weight:700;line-height:1;">+3,840</div>
+            <div style="font-family:var(--f-mono);font-size:9px;color:var(--t-lo);">XP TODAY</div>
+          </div>
+        </div>
+      </div>
+      <small>persistent header · brand gradient avatar · today's XP in cyber neon</small>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     07 — LOOT & RARITY
+══════════════════════════════════════════════════════════════ -->
+<section id="loot">
+  <div class="eyebrow">07 · Loot &amp; Iconography</div>
+  <h2>Low-poly 3D RPG loot. Always.</h2>
+  <p>
+    All gear icons are generated via Flux2Pro with three reference images for style consistency:
+    diagonal isometric angle, faceted geometry, neon glow contrast against dark surfaces,
+    transparent background with subtle drop shadow. Every item points upper-right. Every rarity
+    has its own glow color.
+  </p>
+
+  <h3 style="margin-top:32px;">Loot tile · all five rarities</h3>
+  <div class="loot-grid" style="margin-top:12px;">
+    <div class="loot-tile" style="--c:#9CA3AF;" data-rarity="common"><img src="../public/loot/item_craft_lich_helm.png" alt=""></div>
+    <div class="loot-tile" style="--c:#38BDF8;" data-rarity="rare"><img src="../public/loot/item_craft_lich_sword.png" alt=""></div>
+    <div class="loot-tile" style="--c:#C084FC;" data-rarity="epic"><img src="../public/loot/item_craft_titan_sword.png" alt=""></div>
+    <div class="loot-tile" style="--c:#FACC15;" data-rarity="legendary"><img src="../public/loot/item_raid_eternal_crown.png" alt=""></div>
+    <div class="loot-tile" style="--c:#EF4444;" data-rarity="mythical"><img src="../public/loot/item_raid_void_blade.png" alt=""></div>
+  </div>
+
+  <h3 style="margin-top:32px;">Skill icons · the painted set</h3>
+  <p class="micro">High-detail painted icons for skill panels and Stats page. 14 in the set.</p>
+  <div class="loot-grid" style="grid-template-columns:repeat(7,1fr);margin-top:12px;">
+    <div class="loot-tile" style="--c:#00ff88;background:var(--s1);" data-rarity=""><img src="../public/skill-icons/skill_developer.png" alt=""></div>
+    <div class="loot-tile" style="--c:#ff6b9d;background:var(--s1);" data-rarity=""><img src="../public/skill-icons/skill_designer.png" alt=""></div>
+    <div class="loot-tile" style="--c:#5865F2;background:var(--s1);" data-rarity=""><img src="../public/skill-icons/skill_gamer.png" alt=""></div>
+    <div class="loot-tile" style="--c:#57F287;background:var(--s1);" data-rarity=""><img src="../public/skill-icons/skill_communicator.png" alt=""></div>
+    <div class="loot-tile" style="--c:#faa61a;background:var(--s1);" data-rarity=""><img src="../public/skill-icons/skill_researcher.png" alt=""></div>
+    <div class="loot-tile" style="--c:#eb459e;background:var(--s1);" data-rarity=""><img src="../public/skill-icons/skill_creator.png" alt=""></div>
+    <div class="loot-tile" style="--c:#00d4ff;background:var(--s1);" data-rarity=""><img src="../public/skill-icons/skill_learner.png" alt=""></div>
+  </div>
+  <div class="loot-grid" style="grid-template-columns:repeat(7,1fr);margin-top:8px;">
+    <div class="loot-tile" style="--c:#1db954;background:var(--s1);" data-rarity=""><img src="../public/skill-icons/skill_listener.png" alt=""></div>
+    <div class="loot-tile" style="--c:#84cc16;background:var(--s1);" data-rarity=""><img src="../public/skill-icons/skill_farmer.png" alt=""></div>
+    <div class="loot-tile" style="--c:#EF4444;background:var(--s1);" data-rarity=""><img src="../public/skill-icons/skill_warrior.png" alt=""></div>
+    <div class="loot-tile" style="--c:#f97316;background:var(--s1);" data-rarity=""><img src="../public/skill-icons/skill_crafter.png" alt=""></div>
+    <div class="loot-tile" style="--c:#fb923c;background:var(--s1);" data-rarity=""><img src="../public/skill-icons/skill_chef.png" alt=""></div>
+    <div class="loot-tile" style="background:var(--s1);border-color:var(--line);"></div>
+    <div class="loot-tile" style="background:var(--s1);border-color:var(--line);"></div>
+  </div>
+
+  <h3 style="margin-top:48px;">Equipment sets · the canonical three</h3>
+  <p class="micro" style="margin-bottom:12px;">Three full crafted sets define the visual ladder: Lich (rare), Titan (legendary), Void (mythical). Each has 5 slots — helm, plate, sword, legs, ring.</p>
+
+  <h4 style="margin-top:20px;color:var(--r-rare);font-family:var(--f-display);font-size:16px;">Lich Set · rare · #38BDF8</h4>
+  <div class="loot-grid" style="margin-top:8px;">
+    <div class="loot-tile" style="--c:#38BDF8;" data-rarity="helm"><img src="../public/loot/item_craft_lich_helm.png" alt=""></div>
+    <div class="loot-tile" style="--c:#38BDF8;" data-rarity="plate"><img src="../public/loot/item_craft_lich_plate.png" alt=""></div>
+    <div class="loot-tile" style="--c:#38BDF8;" data-rarity="sword"><img src="../public/loot/item_craft_lich_sword.png" alt=""></div>
+    <div class="loot-tile" style="--c:#38BDF8;" data-rarity="legs"><img src="../public/loot/item_craft_lich_legs.png" alt=""></div>
+    <div class="loot-tile" style="--c:#38BDF8;" data-rarity="ring"><img src="../public/loot/item_craft_lich_ring.png" alt=""></div>
+  </div>
+
+  <h4 style="margin-top:20px;color:var(--r-legendary);font-family:var(--f-display);font-size:16px;">Titan Set · legendary · #FACC15</h4>
+  <div class="loot-grid" style="margin-top:8px;">
+    <div class="loot-tile" style="--c:#FACC15;" data-rarity="helm"><img src="../public/loot/item_craft_titan_helm.png" alt=""></div>
+    <div class="loot-tile" style="--c:#FACC15;" data-rarity="plate"><img src="../public/loot/item_craft_titan_plate.png" alt=""></div>
+    <div class="loot-tile" style="--c:#FACC15;" data-rarity="sword"><img src="../public/loot/item_craft_titan_sword.png" alt=""></div>
+    <div class="loot-tile" style="--c:#FACC15;" data-rarity="legs"><img src="../public/loot/item_craft_titan_legs.png" alt=""></div>
+    <div class="loot-tile" style="--c:#FACC15;" data-rarity="ring"><img src="../public/loot/item_craft_titan_ring.png" alt=""></div>
+  </div>
+
+  <h4 style="margin-top:20px;color:var(--r-mythical);font-family:var(--f-display);font-size:16px;">Void Set · mythical · #EF4444</h4>
+  <div style="background:var(--s1);border:1px dashed rgba(239,68,68,0.3);border-radius:8px;padding:24px;margin-top:8px;color:var(--t-mid);font-size:12px;">
+    <div style="font-family:var(--f-pixel);font-size:10px;color:var(--r-mythical);letter-spacing:0.08em;margin-bottom:10px;">⚠ ASSETS UNDER REGENERATION</div>
+    The Void set inventory icons (<code>item_void_helm/plate/sword/legs/ring.png</code>) currently ship with a baked-in transparency-checker pattern instead of true alpha. They've been pulled from this brand book until they're regenerated via QC MCP <code>flux2pro</code> with proper <code>MAKE_TRANSPARENT: rembg</code> on the way out. Mythical rarity is still represented above by <strong style="color:#fff;">Void Blade</strong> in the Raid drops section and the rarity tier card.
+  </div>
+
+  <h3 style="margin-top:48px;">Raid drops &amp; standalone gear</h3>
+  <div class="loot-grid" style="grid-template-columns:repeat(5,1fr);margin-top:12px;">
+    <div class="loot-tile" style="--c:#FACC15;" data-rarity="raid"><img src="../public/loot/item_raid_eternal_crown.png" alt=""></div>
+    <div class="loot-tile" style="--c:#EF4444;" data-rarity="raid"><img src="../public/loot/item_raid_void_blade.png" alt=""></div>
+    <div class="loot-tile" style="--c:#FACC15;" data-rarity="raid"><img src="../public/loot/item_raid_ancient_ring.png" alt=""></div>
+    <div class="loot-tile" style="--c:#C084FC;" data-rarity="craft"><img src="../public/loot/item_craft_warlord_gauntlets.png" alt=""></div>
+    <div class="loot-tile" style="--c:#C084FC;" data-rarity="craft"><img src="../public/loot/item_craft_wolf_pendant.png" alt=""></div>
+  </div>
+
+  <h3 style="margin-top:48px;">Item Inspect Card · the loot detail view</h3>
+  <p class="micro" style="margin-bottom:12px;">Click any item in inventory and this is what you see. Rarity drives border, glow, and name color. Stats and perks below the art.</p>
+  <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:flex-start;margin-top:12px;">
+    <div class="inspect-card" style="--c:#38BDF8;">
+      <div class="iart"><img src="../public/loot/item_craft_lich_sword.png" alt=""></div>
+      <div class="ihead">
+        <div class="iname">Lich Sword</div>
+        <div class="imeta">Rare · Weapon · 150 IP</div>
+      </div>
+      <div class="istats">
+        <div><span>ATK</span><b>+12</b></div>
+        <div><span>HP</span><b>+8</b></div>
+        <div><span>Regen</span><b>+1</b></div>
+        <div><span>DEF</span><b>+0</b></div>
+      </div>
+      <div class="perks">
+        <div class="plabel">Perks</div>
+        <ul>
+          <li><b>+8%</b> ATK vs slimes</li>
+          <li><b>+1</b> material drop chance</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="inspect-card" style="--c:#FACC15;">
+      <div class="iart"><img src="../public/loot/item_raid_eternal_crown.png" alt=""></div>
+      <div class="ihead">
+        <div class="iname">Eternal Crown</div>
+        <div class="imeta">Legendary · Head · 320 IP</div>
+      </div>
+      <div class="istats">
+        <div><span>ATK</span><b>+18</b></div>
+        <div><span>HP</span><b>+45</b></div>
+        <div><span>Regen</span><b>+2</b></div>
+        <div><span>DEF</span><b>+5</b></div>
+      </div>
+      <div class="perks">
+        <div class="plabel">Perks</div>
+        <ul>
+          <li><b>+15%</b> gold from arena</li>
+          <li><b>+5%</b> XP all skills</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="inspect-card" style="--c:#EF4444;">
+      <div class="iart"><img src="../public/loot/item_raid_void_blade.png" alt=""></div>
+      <div class="ihead">
+        <div class="iname">Void Blade</div>
+        <div class="imeta">Mythical · Weapon · 450 IP</div>
+      </div>
+      <div class="istats">
+        <div><span>ATK</span><b>+28</b></div>
+        <div><span>HP</span><b>+15</b></div>
+        <div><span>Regen</span><b>+3</b></div>
+        <div><span>DEF</span><b>+2</b></div>
+      </div>
+      <div class="perks">
+        <div class="plabel">Perks</div>
+        <ul>
+          <li><b>+25%</b> ATK · edge extreme</li>
+          <li><b>+10%</b> lifesteal</li>
+          <li><b>+1</b> attack per turn (predator)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:48px;">Materials · crafting reagents</h3>
+  <p class="micro" style="margin-bottom:12px;">Materials drop from mobs and feed the crafting tree. Each material has a signature color tied to the boss it comes from.</p>
+  <div class="loot-grid" style="grid-template-columns:repeat(4,1fr);margin-top:8px;">
+    <div class="loot-tile" style="--c:#a78bfa;" data-rarity="lich"><img src="../public/loot/item_lich_crystal.png" alt=""></div>
+    <div class="loot-tile" style="--c:#9CA3AF;" data-rarity="shadow"><img src="../public/loot/item_shadow_dust.png" alt=""></div>
+    <div class="loot-tile" style="--c:#00d4ff;" data-rarity="storm"><img src="../public/loot/item_storm_shard.png" alt=""></div>
+    <div class="loot-tile" style="--c:#FACC15;" data-rarity="titan"><img src="../public/loot/item_titan_core.png" alt=""></div>
+  </div>
+
+  <h3 style="margin-top:48px;">Cooking gear · Chef skill</h3>
+  <p class="micro" style="margin-bottom:12px;">Tools for the Cooking skill. Knife, cauldron, hat, rolling pin — same low-poly style, warmer palette.</p>
+  <div class="loot-grid" style="grid-template-columns:repeat(4,1fr);margin-top:8px;">
+    <div class="loot-tile" style="--c:#fb923c;" data-rarity="chef"><img src="../public/loot/item_cook_knife.png" alt=""></div>
+    <div class="loot-tile" style="--c:#fb923c;" data-rarity="chef"><img src="../public/loot/item_cook_cauldron.png" alt=""></div>
+    <div class="loot-tile" style="--c:#fb923c;" data-rarity="chef"><img src="../public/loot/item_cook_hat.png" alt=""></div>
+    <div class="loot-tile" style="--c:#fb923c;" data-rarity="chef"><img src="../public/loot/item_cook_rollingpin.png" alt=""></div>
+  </div>
+
+  <h3 style="margin-top:48px;">Bestiary · arena enemies</h3>
+  <p class="micro" style="margin-bottom:12px;">Real stats from <code>combat.ts</code> — three zones, six pictured. Mobs feed Warrior XP, materials, and gold.</p>
+  <div class="bestiary">
+    <div class="mob-card" style="--c:#22d3ee;">
+      <div class="portrait"><img src="../public/mobs/mob_slime_scout.png" alt=""></div>
+      <div class="info">
+        <div class="nm">Slime Scout</div>
+        <div class="role">Slime Cavern · Z1 mob</div>
+        <div class="stats">
+          <span><b>80</b> HP</span><span><b>1.5</b> ATK</span>
+          <span>+<b>1</b> XP</span><span><b>10–22</b> g</span>
+        </div>
+        <div class="micro" style="margin-top:6px;">drops: slime gel · 30%</div>
+      </div>
+    </div>
+    <div class="mob-card" style="--c:#22d3ee;">
+      <div class="portrait"><img src="../public/mobs/mob_slime_king.png" alt=""></div>
+      <div class="info">
+        <div class="nm">Slime King</div>
+        <div class="role">Z1 boss · Common Bag</div>
+        <div class="stats">
+          <span><b>350</b> HP</span><span><b>3</b> ATK</span>
+          <span>—</span><span>—</span>
+        </div>
+        <div class="micro" style="margin-top:6px;">drops: slime gel ×3 · guaranteed</div>
+      </div>
+    </div>
+    <div class="mob-card" style="--c:#84cc16;">
+      <div class="portrait"><img src="../public/mobs/mob_goblin_scout.png" alt=""></div>
+      <div class="info">
+        <div class="nm">Goblin Scout</div>
+        <div class="role">Goblin Outpost · Z2 mob</div>
+        <div class="stats">
+          <span><b>220</b> HP</span><span><b>2.5</b> ATK</span>
+          <span>+<b>3</b> XP</span><span><b>10–20</b> g</span>
+        </div>
+        <div class="micro" style="margin-top:6px;">drops: goblin tooth 30% · iron 25%</div>
+      </div>
+    </div>
+    <div class="mob-card" style="--c:#EF4444;">
+      <div class="portrait"><img src="../public/mobs/mob_goblin_chief.png" alt=""></div>
+      <div class="info">
+        <div class="nm">Goblin Chief</div>
+        <div class="role">Z2 boss · Rare Bag</div>
+        <div class="stats">
+          <span><b>600</b> HP</span><span><b>4.5</b> ATK</span>
+          <span>10+ ATK req</span><span>—</span>
+        </div>
+        <div class="micro" style="margin-top:6px;">drops: goblin tooth ×3 · guaranteed</div>
+      </div>
+    </div>
+    <div class="mob-card" style="--c:#9CA3AF;">
+      <div class="portrait"><img src="../public/mobs/mob_wolf_young.png" alt=""></div>
+      <div class="info">
+        <div class="nm">Wolf Cub</div>
+        <div class="role">Wild Forest · Z3 mob</div>
+        <div class="stats">
+          <span><b>280</b> HP</span><span><b>3</b> ATK</span>
+          <span>+<b>5</b> XP</span><span><b>15–28</b> g</span>
+        </div>
+        <div class="micro" style="margin-top:6px;">drops: wolf fang · monster fang</div>
+      </div>
+    </div>
+    <div class="mob-card" style="--c:#9CA3AF;">
+      <div class="portrait"><img src="../public/mobs/mob_forest_wolf.png" alt=""></div>
+      <div class="info">
+        <div class="nm">Forest Wolf</div>
+        <div class="role">Z3 boss · Epic Bag</div>
+        <div class="stats">
+          <span><b>650</b> HP</span><span><b>5</b> ATK</span>
+          <span><b>2</b> DEF</span><span>12+ ATK req</span>
+        </div>
+        <div class="micro" style="margin-top:6px;">drops: wolf fang ×2 + magic essence</div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:48px;">Pets · cat &amp; dog evolution</h3>
+  <p class="micro" style="margin-bottom:12px;">Two pet families, each with 10 evolution stages. Selected milestones below: Lv1 → Lv5 → Lv10.</p>
+  <div class="loot-grid" style="grid-template-columns:repeat(6,1fr);margin-top:8px;">
+    <div class="loot-tile" style="--c:#ff6b9d;background:var(--s1);" data-rarity="cat lv1"><img src="../public/pets/cat_lv1.png" alt=""></div>
+    <div class="loot-tile" style="--c:#ff6b9d;background:var(--s1);" data-rarity="cat lv5"><img src="../public/pets/cat_lv5.png" alt=""></div>
+    <div class="loot-tile" style="--c:#ff6b9d;background:var(--s1);" data-rarity="cat lv10"><img src="../public/pets/cat_lv10.png" alt=""></div>
+    <div class="loot-tile" style="--c:#faa61a;background:var(--s1);" data-rarity="dog lv1"><img src="../public/pets/dog_lv1.png" alt=""></div>
+    <div class="loot-tile" style="--c:#faa61a;background:var(--s1);" data-rarity="dog lv5"><img src="../public/pets/dog_lv5.png" alt=""></div>
+    <div class="loot-tile" style="--c:#faa61a;background:var(--s1);" data-rarity="dog lv10"><img src="../public/pets/dog_lv10.png" alt=""></div>
+  </div>
+
+  <h3 style="margin-top:48px;">Perks · combat &amp; loot modifiers</h3>
+  <p class="micro" style="margin-bottom:12px;">Perks roll on equipped gear. Twelve canonical perk icons — three damage tiers (edge), defensive (hp/regen/def/lifesteal/survivor), economy (frag boost / gold boost), playstyle (predator/reckless).</p>
+  <div class="loot-grid" style="grid-template-columns:repeat(6,1fr);margin-top:8px;">
+    <div class="loot-tile" style="--c:#9CA3AF;background:var(--s1);" data-rarity="edge minor"><img src="../public/perks/edge_minor.png" alt=""></div>
+    <div class="loot-tile" style="--c:#C084FC;background:var(--s1);" data-rarity="edge major"><img src="../public/perks/edge_major.png" alt=""></div>
+    <div class="loot-tile" style="--c:#EF4444;background:var(--s1);" data-rarity="edge extreme"><img src="../public/perks/edge_extreme.png" alt=""></div>
+    <div class="loot-tile" style="--c:#57F287;background:var(--s1);" data-rarity="hp"><img src="../public/perks/hp_minor.png" alt=""></div>
+    <div class="loot-tile" style="--c:#1db954;background:var(--s1);" data-rarity="regen"><img src="../public/perks/regen_minor.png" alt=""></div>
+    <div class="loot-tile" style="--c:#38BDF8;background:var(--s1);" data-rarity="def"><img src="../public/perks/def_minor.png" alt=""></div>
+  </div>
+  <div class="loot-grid" style="grid-template-columns:repeat(6,1fr);margin-top:8px;">
+    <div class="loot-tile" style="--c:#EF4444;background:var(--s1);" data-rarity="lifesteal"><img src="../public/perks/lifesteal.png" alt=""></div>
+    <div class="loot-tile" style="--c:#a78bfa;background:var(--s1);" data-rarity="frag"><img src="../public/perks/frag_boost.png" alt=""></div>
+    <div class="loot-tile" style="--c:#FACC15;background:var(--s1);" data-rarity="gold"><img src="../public/perks/gold_boost.png" alt=""></div>
+    <div class="loot-tile" style="--c:#EF4444;background:var(--s1);" data-rarity="predator"><img src="../public/perks/predator.png" alt=""></div>
+    <div class="loot-tile" style="--c:#84cc16;background:var(--s1);" data-rarity="survivor"><img src="../public/perks/survivor.png" alt=""></div>
+    <div class="loot-tile" style="--c:#f97316;background:var(--s1);" data-rarity="reckless"><img src="../public/perks/reckless.png" alt=""></div>
+  </div>
+
+  <h3 style="margin-top:48px;">Mascot · void overlay system</h3>
+  <p class="micro" style="margin-bottom:12px;">The mascot wears equipped Void gear as overlays. Each piece (helm, plate, weapon, legs, ring) is a transparent PNG layered on top of <code>mascot_base.png</code>.</p>
+  <div class="loot-grid" style="grid-template-columns:repeat(6,1fr);margin-top:8px;">
+    <div class="loot-tile" style="--c:#c084fc;background:var(--s1);" data-rarity="base"><img src="../public/mascot/mascot_base.png" alt=""></div>
+    <div class="loot-tile" style="--c:#EF4444;background:var(--s1);" data-rarity="helm"><img src="../public/mascot/overlay_void_helm.png" alt=""></div>
+    <div class="loot-tile" style="--c:#EF4444;background:var(--s1);" data-rarity="plate"><img src="../public/mascot/overlay_void_plate.png" alt=""></div>
+    <div class="loot-tile" style="--c:#EF4444;background:var(--s1);" data-rarity="weapon"><img src="../public/mascot/overlay_void_weapon.png" alt=""></div>
+    <div class="loot-tile" style="--c:#EF4444;background:var(--s1);" data-rarity="legs"><img src="../public/mascot/overlay_void_legs.png" alt=""></div>
+    <div class="loot-tile" style="--c:#EF4444;background:var(--s1);" data-rarity="ring"><img src="../public/mascot/overlay_void_ring.png" alt=""></div>
+  </div>
+  <p class="micro" style="margin-top:12px;color:var(--t-faint);">The full kitted Void mascot composite (<code>void_set_character.png</code>) is also pending regeneration — same baked-checker issue. Skipped here for the same reason as the inventory tiles.</p>
+
+  <h3 style="margin-top:48px;">Arena zones · combat backdrops</h3>
+  <p class="micro" style="margin-bottom:12px;">Wide painted environments. Used as zone selection thumbnails and combat backdrops in the Arena page.</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div style="background:var(--s1);border:1px solid var(--line);border-radius:8px;overflow:hidden;"><img src="../public/arena/zone7.png" alt="" style="width:100%;display:block;"><div style="padding:10px 14px;font-family:var(--f-mono);font-size:11px;color:var(--t-mid);">Zone 7</div></div>
+    <div style="background:var(--s1);border:1px solid var(--line);border-radius:8px;overflow:hidden;"><img src="../public/arena/zone8.png" alt="" style="width:100%;display:block;"><div style="padding:10px 14px;font-family:var(--f-mono);font-size:11px;color:var(--t-mid);">Zone 8</div></div>
+  </div>
+
+  <div class="voice-grid" style="margin-top:48px;">
+    <div class="voice-card do">
+      <div class="head">DO</div>
+      <ul>
+        <li>Generate via QC MCP <code>flux2pro</code> with 3 style references</li>
+        <li>Diagonal isometric, item points upper-right, transparent background</li>
+        <li>Faceted geometry · neon glow on edges · subtle drop shadow</li>
+        <li>Always render through <code>LootVisual</code> component</li>
+      </ul>
+    </div>
+    <div class="voice-card dont">
+      <div class="head">DON'T</div>
+      <ul>
+        <li>No raw emoji spans for items — always use <code>LootVisual</code></li>
+        <li>No gpt-image-1 or draw_html_text for new skins</li>
+        <li>No flat or 2D illustrations · no logos or text on items</li>
+        <li>No off-axis renders · always upper-right diagonal</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     08 — VOICE
+══════════════════════════════════════════════════════════════ -->
+<section id="voice">
+  <div class="eyebrow">08 · Voice &amp; Tone</div>
+  <h2>Friendly nerd. RPG-literate. Never corporate.</h2>
+  <p>
+    Grindly speaks like a guildmate, not a productivity coach. It celebrates real progress with
+    real numbers. It uses RPG vocabulary — XP, level, drop, prestige, mob, raid — with zero
+    ironic distance. It never lectures. It never shames a missed streak.
+  </p>
+
+  <div class="voice-grid">
+    <div class="voice-card do">
+      <div class="head">YES — say it like</div>
+      <ul>
+        <li>"+1,247 XP · Developer hit Lv 47"</li>
+        <li>"Forest Wolf down. 24 gold + Wolf Pendant (epic)."</li>
+        <li>"Streak 17. Same time tomorrow?"</li>
+        <li>"Crafter Lv 30 unlocked: -5% craft time"</li>
+        <li>"Friend started a guild raid. Join?"</li>
+      </ul>
+    </div>
+    <div class="voice-card dont">
+      <div class="head">NO — never write like</div>
+      <ul>
+        <li>"You earned a productivity score!" (no scores)</li>
+        <li>"Don't break your streak!" (no shaming)</li>
+        <li>"Maximize your output potential" (no SaaS speak)</li>
+        <li>"Unleash your inner productivity warrior" (no cosplay copy)</li>
+        <li>"You haven't been active in 3 days 😢" (no guilt-tripping)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="margin-top:40px;">Word list</h3>
+  <table class="scale-table">
+    <thead><tr><th>Use</th><th>Don't use</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><code>XP</code></td><td>points · score</td><td>RPG-native term</td></tr>
+      <tr><td><code>Lv 47</code></td><td>Tier 4 · Pro user</td><td>numeric is honest</td></tr>
+      <tr><td><code>session</code></td><td>focus block · pomodoro</td><td>game-side language</td></tr>
+      <tr><td><code>drop</code></td><td>reward · gift</td><td>loot is earned, not given</td></tr>
+      <tr><td><code>guild</code></td><td>team · group</td><td>matches social model</td></tr>
+      <tr><td><code>arena</code></td><td>boss page · combat tab</td><td>destination, not feature</td></tr>
+      <tr><td><code>prestige</code></td><td>reset · graduate</td><td>positive renewal</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     08.5 — MOTION
+══════════════════════════════════════════════════════════════ -->
+<section id="motion">
+  <div class="eyebrow">08.5 · Motion principles</div>
+  <h2>Motion has a job. Or it doesn't ship.</h2>
+  <p>
+    Animation in Grindly is purposeful: it earns XP a little dopamine, signals a level-up, or
+    softens a state change. Never decorative. All durations under 400ms. All easing from a
+    short, opinionated palette. Powered by Framer Motion via <code>src/renderer/lib/motion.ts</code>.
+  </p>
+
+  <div class="motion-grid">
+    <div class="motion-card">
+      <div class="timing">120ms · ease-out</div>
+      <h4>Reactive</h4>
+      <p>Hover, focus, click. The interaction confirms itself. Buttons glow. Tabs swap. Tooltips fade in.</p>
+      <div class="motion-curve"><svg viewBox="0 0 100 60"><path d="M 0 60 Q 30 0 100 0" /></svg></div>
+    </div>
+    <div class="motion-card">
+      <div class="timing">240ms · ease-in-out</div>
+      <h4>State change</h4>
+      <p>Modals open, panels expand, page transitions. Long enough to read, short enough not to feel sluggish.</p>
+      <div class="motion-curve"><svg viewBox="0 0 100 60"><path d="M 0 60 C 25 60 25 0 50 0 C 75 0 75 0 100 0" /></svg></div>
+    </div>
+    <div class="motion-card">
+      <div class="timing">2000ms · pulse loop</div>
+      <h4>Ambient game-glow</h4>
+      <p>Mythical drops pulse forever. Active session ring. Boss low-HP warning. The game is alive even when you aren't moving.</p>
+      <div class="motion-curve"><svg viewBox="0 0 100 60"><path d="M 0 30 Q 25 0 50 30 T 100 30" stroke="#00ff88" /></svg></div>
+    </div>
+    <div class="motion-card">
+      <div class="timing">spring · stiffness 400</div>
+      <h4>Pop-in (loot drop)</h4>
+      <p>Items fall into the inventory with a snappy spring. Slight overshoot. The bag is heavier than they expect.</p>
+      <div class="motion-curve"><svg viewBox="0 0 100 60"><path d="M 0 60 C 20 60 25 -10 35 5 C 45 20 55 -5 65 8 C 75 18 85 12 100 14" stroke="#c084fc" /></svg></div>
+    </div>
+    <div class="motion-card">
+      <div class="timing">~200ms · linear</div>
+      <h4>Counter tick</h4>
+      <p>XP numbers count up, gold counts up, level numbers flip. Always linear so they feel mechanical, not theatrical.</p>
+      <div class="motion-curve"><svg viewBox="0 0 100 60"><path d="M 0 60 L 100 0" stroke="#FACC15" /></svg></div>
+    </div>
+    <div class="motion-card">
+      <div class="timing">~3000ms · ease-out</div>
+      <h4>Level-up burst</h4>
+      <p>The only big moment. Particles, glow, sound, big number. Earned, not deployed for shipping a feature.</p>
+      <div class="motion-curve"><svg viewBox="0 0 100 60"><path d="M 0 60 Q 10 -10 100 0" stroke="#5865F2" /></svg></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     09 — IN PRODUCT
+══════════════════════════════════════════════════════════════ -->
+<section id="screens">
+  <div class="eyebrow">09 · In product</div>
+  <h2>How it lives.</h2>
+  <p>The system in the wild — actual product screens, captured at v4.16.</p>
+
+  <div class="screens-grid">
+    <div class="screen">
+      <img src="screen-home.png" alt="Home">
+      <div class="caption"><strong>Home</strong> · session timer, focus mode dock, today's XP, profile bar</div>
+    </div>
+    <div class="screen">
+      <img src="screen-skills.png" alt="Skills">
+      <div class="caption"><strong>Skills</strong> · 14 skill cards, level numbers in skill color, XP bars</div>
+    </div>
+    <div class="screen">
+      <img src="screen-inventory.png" alt="Inventory">
+      <div class="caption"><strong>Inventory</strong> · loot grid, slot filters, rarity glow, equipped set</div>
+    </div>
+    <div class="screen">
+      <img src="screen-arena.png" alt="Arena">
+      <div class="caption"><strong>Arena</strong> · turn-based boss combat, derived stats, ambient bar</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════
+     10 — DON'TS
+══════════════════════════════════════════════════════════════ -->
+<section id="donts">
+  <div class="eyebrow">10 · Anti-patterns</div>
+  <h2>The 10 ways to break Grindly.</h2>
+  <p>Pattern violations that drift the brand. Every one of these has been caught, fixed, or banned in CLAUDE.md.</p>
+
+  <div class="voice-grid" style="grid-template-columns:1fr;">
+    <div class="voice-card dont">
+      <div class="head">Don't ship any of these</div>
+      <ul>
+        <li><strong>Generic SaaS card grid</strong> — purple gradient hero + 3 feature cards. That's every AI-generated landing page. We're not them.</li>
+        <li><strong>Centered everything.</strong> Hero copy centered, sections centered, every card centered. Asymmetry is intentional in this product.</li>
+        <li><strong>Bubbly large border-radius.</strong> Default is <code>4px</code>, max is <code>8px</code>. <code>12px+</code> belongs in a different app.</li>
+        <li><strong>Decorative blobs / floating circles / wavy SVG.</strong> If a section feels empty, fix the content, don't add decoration.</li>
+        <li><strong>Emoji as design elements.</strong> Emoji are skill icons and reactions. They are not bullet points or section dividers.</li>
+        <li><strong>Inline icons in colored circles.</strong> The "icon-in-pill + 2-line description" repeated 3x. Forbidden.</li>
+        <li><strong>Body text below 13px.</strong> Density is fine. Unreadable is not. <code>text-body</code> is the floor.</li>
+        <li><strong>Raw emoji for loot items.</strong> Always use <code>LootVisual</code>. Items have art, treat them as art.</li>
+        <li><strong>New rarity colors.</strong> Five tiers, locked. Don't invent "ultra-rare" or "transcendent". Prestige handles the post-99 ceiling.</li>
+        <li><strong>Light theme.</strong> Grindly is dark-only. The whole identity assumes <code>#111214</code> at the bottom of the stack.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</div><!-- /.wrap -->
+
+<!-- ═════════════════════════════════════════════════════════════
+     CLOSING HERO
+══════════════════════════════════════════════════════════════ -->
+<section class="closing">
+  <img src="../assets/icon.png" alt="" style="width:140px;">
+  <div class="eyebrow" style="color:var(--delve);">There is no level 100.</div>
+  <h2>Always more<br>to grind.</h2>
+  <p style="margin: 32px auto 0; max-width: 56ch; color: var(--t-mid);">
+    99 levels, 14 skills, 5 prestige tiers, infinite arena rotations. The game ends when you do.
+    Until then — see you in the guild.
+  </p>
+  <div class="signoff">Made in 2026 · Grindly v4.16 · For the people who actually do the work</div>
+</section>
+
+<footer>
+  <div>
+    <div style="color:var(--t-hi);font-family:var(--f-display);font-weight:700;font-size:18px;letter-spacing:0;">GRINDLY</div>
+    <div>Brand identity guide · v4.16.0 · last updated 2026-04-27</div>
+  </div>
+  <div style="text-align:right;">
+    <div>Source of truth: <code>tailwind.config.js</code> · <code>skillColors.json</code> · <code>LootUI.tsx</code></div>
+    <div>Mascot: <code>assets/icon.png</code> · 512×512 · pixel art · do not vectorize</div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -2,17 +2,17 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import {
   BOSSES, ZONES, BOSS_WARRIOR_XP,
-  computeBattleStateAtTime, computeBattleOutcome, computePlayerStats, computeWarriorBonuses,
+  computeBattleStateAtTime, computeBattleOutcome,
   computeBattleStateAtTimeWithFood, simulateBattleWithFood,
   getDailyBossId, canAffordEntry,
   type BossDef, type MobDef, type FoodLoadout,
 } from '../lib/combat'
+import { composePlayerSnapshot } from '../lib/playerStats'
 import type { CombatStats } from '../lib/loot'
 import { CHEST_DEFS, LOOT_ITEMS, rollBossChestTier, type BonusMaterial, type ChestType, type LootSlot } from '../lib/loot'
 import { PLANT_COMBAT_BUFFS, grantWarriorXP } from '../lib/farming'
 import { getHotZoneId, HOT_CHEST_TIER_UP } from '../lib/hotZone'
 import { FOOD_ITEM_MAP } from '../lib/cooking'
-import { skillLevelFromXP, getGrindlyLevel, computeGrindlyBonuses } from '../lib/skills'
 import { useAuthStore } from './authStore'
 import { useGoldStore } from './goldStore'
 import { useInventoryStore } from './inventoryStore'
@@ -52,6 +52,15 @@ export interface ArenaChestDrop {
   type: ChestType; name: string; icon: string; image?: string
 }
 
+/** Transient post-battle banner shown in HomePage ambient bar while off the Arena tab.
+ *  Not persisted — cleared when user opens Arena or dismisses. */
+export interface ArenaAmbientResult {
+  type: 'victory' | 'death' | 'passes_done'
+  bossName?: string
+  dungeonsCompleted?: number
+  createdAt: number
+}
+
 interface ArenaState {
   activeBattle: ActiveBattle | null
   activeDungeon: ActiveDungeon | null
@@ -63,13 +72,15 @@ interface ArenaState {
   setAutoRunning: (v: boolean) => void
   resultModal: { chestType: ChestType | null; itemId: string | null; goldDropped: number; bonusMaterials: BonusMaterial[]; warriorXP: number; pendingGold: number } | null
   setResultModal: (v: { chestType: ChestType | null; itemId: string | null; goldDropped: number; bonusMaterials: BonusMaterial[]; warriorXP: number; pendingGold: number } | null) => void
+  ambientResult: ArenaAmbientResult | null
+  setAmbientResult: (v: ArenaAmbientResult | null) => void
   recordKill: (id: string) => void
   startBattle: (bossId: string, foodLoadout?: FoodLoadout) => boolean
   startDungeon: (zoneId: string, consumablePlantId?: string | null, foodLoadout?: FoodLoadout) => boolean
   advanceDungeon: (startTimeOverride?: number) => void
   forfeitDungeon: () => void
-  /** Resolves the battle (grants victory gold, applies death penalty). Returns goldLost, optional chest drop, material drop, and optional lost item. */
-  endBattle: () => { goldLost: number; chest: ArenaChestDrop | null; lostItem: { name: string; icon: string; insuranceUsed?: boolean } | null; materialDrop: { id: string; name: string; icon: string; qty: number } | null; dungeonGold: number; warriorXP: number; insuranceUsed: boolean }
+  /** Resolves the battle (grants victory gold, applies death penalty). Returns goldLost, optional chest drop, material drop(s), and optional lost item. bonusMaterialDrop is set for bosses that define a secondary material drop. */
+  endBattle: () => { goldLost: number; chest: ArenaChestDrop | null; lostItem: { name: string; icon: string; insuranceUsed?: boolean } | null; materialDrop: { id: string; name: string; icon: string; qty: number } | null; bonusMaterialDrop: { id: string; name: string; icon: string; qty: number } | null; dungeonGold: number; warriorXP: number; insuranceUsed: boolean }
   /** Same as endBattle but victory gold is claimed later via notification. Returns goldLost, optional chest drop, and optional lost item. */
   endBattleWithoutGold: () => { goldLost: number; chest: ArenaChestDrop | null; lostItem: { name: string; icon: string } | null }
   getBattleState: () => ReturnType<typeof computeBattleStateAtTime> | null
@@ -77,23 +88,16 @@ interface ArenaState {
   autoRunDungeon: (zoneId: string, passCount: number, foodLoadout?: FoodLoadout) => AutoRunResult
 }
 
-/** Fraction of current gold lost on death */
+/** Fraction of current gold lost on death (standalone boss only) */
 const DEATH_GOLD_PENALTY = 0.08
+
+/** Fraction of current gold lost on forfeit */
+export const FORFEIT_GOLD_PENALTY = 0.04
 
 /** Chance to lose an equipped item on death (12%) */
 export const ITEM_LOSS_CHANCE = 0.12
 
 const STORAGE_KEY = 'grindly_arena_state'
-
-/** Read warrior level from localStorage */
-function getWarriorLevel(): number {
-  try {
-    const stored = JSON.parse(localStorage.getItem('grindly_skill_xp') || '{}') as Record<string, number>
-    return skillLevelFromXP(stored['warrior'] ?? 0)
-  } catch {
-    return 0
-  }
-}
 
 /** On startup, clear any truly invalid battles left in persisted state. */
 function clearStaleActiveBattle() {
@@ -126,7 +130,8 @@ function rollMaterial(mob: MobDef, dropMultiplier = 1): { id: string; qty: numbe
     const chance = Math.min(1, mob.materialDropChance * dropMultiplier)
     if (Math.random() < chance) {
       const qty = mob.materialDropQty ?? 1
-      drops.push({ id: mob.materialDropId, qty: dropMultiplier > 1 ? qty * 2 : qty })
+      // Scale qty smoothly by multiplier: food buff 1.1× → 1.1× qty, hot zone 2× → 2× qty
+      drops.push({ id: mob.materialDropId, qty: Math.max(1, Math.round(qty * dropMultiplier)) })
     }
   }
   if (mob.bonusMaterialDropId && mob.bonusMaterialDropChance) {
@@ -226,9 +231,11 @@ export const useArenaStore = create<ArenaState>()(
       dailyBossClaimedDate: null,
       isAutoRunning: false,
       resultModal: null,
+      ambientResult: null,
 
       setAutoRunning: (v) => set({ isAutoRunning: v }),
       setResultModal: (v) => set({ resultModal: v }),
+      setAmbientResult: (v) => set({ ambientResult: v }),
 
       recordKill(id: string) {
         set((s) => ({
@@ -240,17 +247,17 @@ export const useArenaStore = create<ArenaState>()(
         const boss = BOSSES.find((b) => b.id === bossId)
         if (!boss) return false
 
-        const { equippedBySlot, permanentStats } = useInventoryStore.getState()
-        const warriorLevel = getWarriorLevel()
-        const warriorBonuses = computeWarriorBonuses(warriorLevel)
-        const grindlyBonuses = computeGrindlyBonuses(getGrindlyLevel())
-        const petBuffs = getPetGlobalBuffs(usePetStore.getState().activePet)
-        const playerSnapshot = computePlayerStats(equippedBySlot, permanentStats, {
-          atk: warriorBonuses.atk + grindlyBonuses.atk + petBuffs.atk,
-          hp: warriorBonuses.hp + grindlyBonuses.hp,
-          hpRegen: warriorBonuses.hpRegen + grindlyBonuses.hpRegen + petBuffs.hpRegen,
-          def: warriorBonuses.def + grindlyBonuses.def,
-        })
+        // Mutex: arena is locked while ANY Delve run is active (HC or Casual).
+        // Lazy-import delveStore to avoid circular dep.
+        try {
+          /* eslint-disable @typescript-eslint/no-require-imports */
+          const ds = require('./delveStore') as typeof import('./delveStore')
+          /* eslint-enable @typescript-eslint/no-require-imports */
+          const delveRun = ds.useDelveStore.getState().activeRun
+          if (delveRun) return false
+        } catch { /* delveStore not loaded yet */ }
+
+        const playerSnapshot = composePlayerSnapshot()
 
         const { dailyBossClaimedDate } = get()
         const today = new Date().toLocaleDateString('sv-SE')
@@ -289,6 +296,15 @@ export const useArenaStore = create<ArenaState>()(
         const zone = ZONES.find((z) => z.id === zoneId)
         if (!zone) return false
 
+        // Mutex: dungeons locked while ANY Delve run is active (HC or Casual).
+        try {
+          /* eslint-disable @typescript-eslint/no-require-imports */
+          const ds = require('./delveStore') as typeof import('./delveStore')
+          /* eslint-enable @typescript-eslint/no-require-imports */
+          const delveRun = ds.useDelveStore.getState().activeRun
+          if (delveRun) return false
+        } catch { /* delveStore not loaded yet */ }
+
         const inv = useInventoryStore.getState()
 
         // Check & consume entry cost
@@ -299,30 +315,22 @@ export const useArenaStore = create<ArenaState>()(
           }
         }
 
-        const { equippedBySlot, permanentStats } = inv
-        const warriorLevel = getWarriorLevel()
-        const warriorBonuses = computeWarriorBonuses(warriorLevel)
-        const grindlyBonuses = computeGrindlyBonuses(getGrindlyLevel())
-
-        // Apply plant buff if provided
+        // Apply plant buff if provided (consume plant, pass buff via opts)
         let consumableBuff = { atk: 0, hp: 0, hpRegen: 0, def: 0 }
         if (consumablePlantId) {
           const buff = PLANT_COMBAT_BUFFS[consumablePlantId]
           if (buff) {
             consumableBuff = { atk: buff.atk, hp: buff.hp, hpRegen: buff.hpRegen, def: buff.def ?? 0 }
-            // Consume the plant
             inv.deleteItem(consumablePlantId, 1)
           }
         }
 
-        const petBuffs2 = getPetGlobalBuffs(usePetStore.getState().activePet)
-        const additionalBonuses = {
-          atk: warriorBonuses.atk + grindlyBonuses.atk + consumableBuff.atk + petBuffs2.atk,
-          hp: warriorBonuses.hp + grindlyBonuses.hp + consumableBuff.hp,
-          hpRegen: warriorBonuses.hpRegen + grindlyBonuses.hpRegen + consumableBuff.hpRegen + petBuffs2.hpRegen,
-          def: warriorBonuses.def + grindlyBonuses.def + consumableBuff.def,
-        }
-        const playerSnapshot = computePlayerStats(equippedBySlot, permanentStats, additionalBonuses)
+        const playerSnapshot = composePlayerSnapshot({
+          additionalAtk: consumableBuff.atk,
+          additionalHp: consumableBuff.hp,
+          additionalHpRegen: consumableBuff.hpRegen,
+          additionalDef: consumableBuff.def,
+        })
 
         // Snapshot food loadout (consume from inventory at battle resolution, not at start)
         const snapshotFood = foodLoadout?.filter(Boolean).length ? foodLoadout : undefined
@@ -360,17 +368,7 @@ export const useArenaStore = create<ArenaState>()(
         if (!zone) return
 
         const nextIndex = activeDungeon.mobIndex + 1
-        const { equippedBySlot, permanentStats } = useInventoryStore.getState()
-        const warriorLevel = getWarriorLevel()
-        const warriorBonuses = computeWarriorBonuses(warriorLevel)
-        const grindlyBonuses = computeGrindlyBonuses(getGrindlyLevel())
-        const petBuffs3 = getPetGlobalBuffs(usePetStore.getState().activePet)
-        const playerSnapshot = computePlayerStats(equippedBySlot, permanentStats, {
-          atk: warriorBonuses.atk + grindlyBonuses.atk + petBuffs3.atk,
-          hp: warriorBonuses.hp + grindlyBonuses.hp,
-          hpRegen: warriorBonuses.hpRegen + grindlyBonuses.hpRegen + petBuffs3.hpRegen,
-          def: warriorBonuses.def + grindlyBonuses.def,
-        })
+        const playerSnapshot = composePlayerSnapshot()
 
         // Preserve food loadout from dungeon (persists across mob→mob→boss)
         const carryFood = activeDungeon.foodLoadout
@@ -414,12 +412,18 @@ export const useArenaStore = create<ArenaState>()(
       },
 
       forfeitDungeon() {
+        const goldLost = Math.floor(useGoldStore.getState().gold * FORFEIT_GOLD_PENALTY)
+        if (goldLost > 0) {
+          useGoldStore.getState().addGold(-goldLost)
+          const user = useAuthStore.getState().user
+          if (user) useGoldStore.getState().syncToSupabase(user.id)
+        }
         set({ activeBattle: null, activeDungeon: null })
       },
 
       endBattle() {
         const { activeBattle, activeDungeon } = get()
-        if (!activeBattle) return { goldLost: 0, chest: null, lostItem: null, materialDrop: null, dungeonGold: 0, warriorXP: 0, insuranceUsed: false }
+        if (!activeBattle) return { goldLost: 0, chest: null, lostItem: null, materialDrop: null, bonusMaterialDrop: null, dungeonGold: 0, warriorXP: 0, insuranceUsed: false }
         // Immediately clear activeBattle to make this call idempotent —
         // prevents ArenaPage and useArenaBattleTick from both resolving the same battle.
         set({ activeBattle: null })
@@ -462,6 +466,7 @@ export const useArenaStore = create<ArenaState>()(
         let droppedChest: ArenaChestDrop | null = null
         let lostItem: { name: string; icon: string; insuranceUsed?: boolean } | null = null
         let matDrop: { id: string; name: string; icon: string; qty: number } | null = null
+        let bonusMatDrop: { id: string; name: string; icon: string; qty: number } | null = null
         let dungeonGold = 0
         let warriorXP = 0
         let insuranceUsed = false
@@ -500,10 +505,10 @@ export const useArenaStore = create<ArenaState>()(
             const materialDrops = rollMaterial(mob, dropMult)
             for (const materialDrop of materialDrops) {
               useInventoryStore.getState().addItem(materialDrop.id, materialDrop.qty)
-              if (!matDrop) {
-                const matItem = LOOT_ITEMS.find((x) => x.id === materialDrop.id)
-                matDrop = { id: materialDrop.id, name: matItem?.name ?? materialDrop.id, icon: matItem?.icon ?? '📦', qty: materialDrop.qty }
-              }
+              const matItem = LOOT_ITEMS.find((x) => x.id === materialDrop.id)
+              const capturedDrop = { id: materialDrop.id, name: matItem?.name ?? materialDrop.id, icon: matItem?.icon ?? '📦', qty: materialDrop.qty }
+              if (!matDrop) matDrop = capturedDrop
+              else if (!bonusMatDrop) bonusMatDrop = capturedDrop
             }
 
             if (activeDungeon) {
@@ -574,6 +579,8 @@ export const useArenaStore = create<ArenaState>()(
             if (bossForChest.bonusMaterialDropId) {
               const qty = bossForChest.bonusMaterialDropQty ?? 1
               useInventoryStore.getState().addItem(bossForChest.bonusMaterialDropId, qty)
+              const bonusItem = LOOT_ITEMS.find((i) => i.id === bossForChest.bonusMaterialDropId)
+              bonusMatDrop = { id: bossForChest.bonusMaterialDropId, name: bonusItem?.name ?? bossForChest.bonusMaterialDropId, icon: bonusItem?.icon ?? '📦', qty }
             }
             void bossDropMult // used above for chest tier
 
@@ -611,28 +618,30 @@ export const useArenaStore = create<ArenaState>()(
               track('boss_kill', { zone_id: null, boss_id: activeBattle.bossSnapshot.id, gold_earned: 0 })
             }
           } else {
-            // Death penalty + item loss on dungeon death
-            const currentGold = useGoldStore.getState().gold
-            goldLost = Math.floor(currentGold * DEATH_GOLD_PENALTY)
-            if (goldLost > 0) {
-              useGoldStore.getState().addGold(-goldLost)
-              const user = useAuthStore.getState().user
-              if (user) useGoldStore.getState().syncToSupabase(user.id)
-            }
             if (activeBattle.dungeonZoneId) {
+              // Dungeon death: item loss only (no gold penalty — forfeit is the safe exit)
               lostItem = loseRandomEquippedItem()
               if (lostItem?.insuranceUsed) { insuranceUsed = true; lostItem = null }
-              track('dungeon_death', { zone_id: activeBattle.dungeonZoneId, gold_lost: goldLost })
+              track('dungeon_death', { zone_id: activeBattle.dungeonZoneId, gold_lost: 0 })
+            } else {
+              // Standalone boss death: gold penalty
+              const currentGold = useGoldStore.getState().gold
+              goldLost = Math.floor(currentGold * DEATH_GOLD_PENALTY)
+              if (goldLost > 0) {
+                useGoldStore.getState().addGold(-goldLost)
+                const user = useAuthStore.getState().user
+                if (user) useGoldStore.getState().syncToSupabase(user.id)
+              }
             }
             set({ activeBattle: null, activeDungeon: null })
           }
         }
 
-        return { goldLost, chest: droppedChest, lostItem, materialDrop: matDrop, dungeonGold, warriorXP, insuranceUsed }
+        return { goldLost, chest: droppedChest, lostItem, materialDrop: matDrop, bonusMaterialDrop: bonusMatDrop, dungeonGold, warriorXP, insuranceUsed }
         } catch (err) {
           console.error('[arenaStore] endBattle compute failed:', err)
           set({ activeDungeon: null })
-          return { goldLost: 0, chest: null, lostItem: null, materialDrop: null, dungeonGold: 0, warriorXP: 0, insuranceUsed: false }
+          return { goldLost: 0, chest: null, lostItem: null, materialDrop: null, bonusMaterialDrop: null, dungeonGold: 0, warriorXP: 0, insuranceUsed: false }
         }
       },
 
@@ -732,6 +741,12 @@ export const useArenaStore = create<ArenaState>()(
       },
 
       forfeitBattle() {
+        const goldLost = Math.floor(useGoldStore.getState().gold * FORFEIT_GOLD_PENALTY)
+        if (goldLost > 0) {
+          useGoldStore.getState().addGold(-goldLost)
+          const user = useAuthStore.getState().user
+          if (user) useGoldStore.getState().syncToSupabase(user.id)
+        }
         set({ activeBattle: null, activeDungeon: null })
       },
 
@@ -769,18 +784,8 @@ export const useArenaStore = create<ArenaState>()(
           useInventoryStore.getState().deleteItem('dungeon_pass', 1)
           passesUsed++
 
-          // Compute player stats
-          const { equippedBySlot, permanentStats } = useInventoryStore.getState()
-          const warriorLevel = getWarriorLevel()
-          const warriorBonuses = computeWarriorBonuses(warriorLevel)
-          const grindlyBonuses = computeGrindlyBonuses(getGrindlyLevel())
-          const petBuffs4 = getPetGlobalBuffs(usePetStore.getState().activePet)
-          const playerSnapshot = computePlayerStats(equippedBySlot, permanentStats, {
-            atk: warriorBonuses.atk + grindlyBonuses.atk + petBuffs4.atk,
-            hp: warriorBonuses.hp + grindlyBonuses.hp,
-            hpRegen: warriorBonuses.hpRegen + grindlyBonuses.hpRegen + petBuffs4.hpRegen,
-            def: warriorBonuses.def + grindlyBonuses.def,
-          })
+          // Compute player stats (fresh each iteration — stats may change mid auto-run)
+          const playerSnapshot = composePlayerSnapshot()
 
           // Clone food loadout for this run (quantities deplete per run)
           const runFood = foodLoadout?.map(s => s ? { ...s } : null)

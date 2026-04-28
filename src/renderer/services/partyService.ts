@@ -66,11 +66,15 @@ export async function createParty(
 
   const party = data as Party
   // Add leader as member with DPS role by default
-  await supabase.from('party_members').insert({
+  const { error: memberErr } = await supabase.from('party_members').insert({
     party_id: party.id,
     user_id: leaderId,
     role: 'dps',
   })
+  if (memberErr) {
+    await supabase.from('parties').update({ status: 'disbanded' }).eq('id', party.id)
+    return { ok: false, error: memberErr.message }
+  }
 
   return { ok: true, party }
 }
@@ -175,13 +179,19 @@ export async function acceptPartyInvite(
   partyId: string,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!supabase) return { ok: false, error: 'Supabase not configured' }
-  await supabase.from('party_invites').update({ status: 'accepted' }).eq('id', inviteId)
   const { error } = await supabase.from('party_members').insert({
     party_id: partyId,
     user_id: userId,
     role: 'dps',
   })
-  return error ? { ok: false, error: error.message } : { ok: true }
+  if (error) return { ok: false, error: error.message }
+  // Only mark the invite accepted after the member join actually succeeded.
+  const { error: inviteErr } = await supabase
+    .from('party_invites')
+    .update({ status: 'accepted' })
+    .eq('id', inviteId)
+  if (inviteErr) return { ok: false, error: inviteErr.message }
+  return { ok: true }
 }
 
 export async function declinePartyInvite(inviteId: string): Promise<void> {

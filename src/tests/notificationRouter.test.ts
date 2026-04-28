@@ -38,4 +38,29 @@ describe('notificationRouter', () => {
     expect(second).toBe(false)
     expect(useNotificationStore.getState().items.length).toBe(1)
   })
+
+  it('does NOT cross-block events of different types sharing a dedupe key', async () => {
+    // Regression: dedup key used to be shared across types, so a progression_info
+    // inside its cooldown would also block an unrelated friend_levelup that
+    // happened to supply the same raw dedupeKey. After fix 8, keys are
+    // namespaced by event.type.
+    const first = await routeNotification({
+      type: 'progression_info',
+      icon: '🔔',
+      title: 'Info',
+      body: 'Body',
+      dedupeKey: 'shared-key',
+    }, null)
+    expect(first).toBe(true)
+
+    const friendSame = await routeNotification({
+      type: 'friend_levelup',
+      icon: '⭐',
+      title: 'Friend level up',
+      body: 'Alice hit 10',
+      dedupeKey: 'shared-key',
+    }, null)
+    expect(friendSame).toBe(true)
+    expect(useNotificationStore.getState().items.length).toBe(2)
+  })
 })

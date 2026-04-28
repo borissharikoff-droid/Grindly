@@ -54,7 +54,7 @@ assets/video/
 assets/reddit/
 
 # Meta section working files (asset generation tooling)
-meta/
+# meta/
 
 # Pet asset generation working directory (source frames — root only)
 /pets/

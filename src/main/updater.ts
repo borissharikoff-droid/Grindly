@@ -25,7 +25,9 @@ export function initAutoUpdater(win: BrowserWindow): void {
     error: (m: unknown) => (is404(m) ? log.warn('[updater] No release (404). Check publish.repo in electron-builder config.') : log.error(msgStr(m))),
   }
 
-  // Don't auto-download — let us control the flow
+  // Auto-download new releases; renderer is notified via IPC at each stage
+  // ('downloading' → 'downloaded' → 'ready'). Install is deferred to app quit
+  // or explicit user action.
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
 

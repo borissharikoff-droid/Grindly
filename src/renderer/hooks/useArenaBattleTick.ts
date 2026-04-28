@@ -75,7 +75,7 @@ export function useArenaBattleTick(activeTab: TabId) {
         completedRef.current = true
         const victory = state.victory ?? false
         timeoutRef.current = setTimeout(() => {
-          const { goldLost, lostItem, materialDrop: matDrop, warriorXP } = useArenaStore.getState().endBattle()
+          const { goldLost, lostItem, materialDrop: matDrop, bonusMaterialDrop: bonusMatDrop, warriorXP } = useArenaStore.getState().endBattle()
           if (!victory) {
             if (isAuto && autoAcc) {
               autoAcc.failed = true
@@ -98,14 +98,16 @@ export function useArenaBattleTick(activeTab: TabId) {
             if (notifId) {
               pushToast({ kind: 'arena_boss', victory: false, bossName, gold: 0, notificationId: notifId })
             }
+            useArenaStore.getState().setAmbientResult({ type: 'death', bossName, createdAt: Date.now() })
           } else {
             if (isAuto && autoAcc) {
               autoAcc.totalWarriorXP += warriorXP
-              if (matDrop) {
-                if (autoAcc.materials[matDrop.id]) {
-                  autoAcc.materials[matDrop.id].qty += matDrop.qty
+              for (const drop of [matDrop, bonusMatDrop]) {
+                if (!drop) continue
+                if (autoAcc.materials[drop.id]) {
+                  autoAcc.materials[drop.id].qty += drop.qty
                 } else {
-                  autoAcc.materials[matDrop.id] = { name: matDrop.name, icon: matDrop.icon, qty: matDrop.qty }
+                  autoAcc.materials[drop.id] = { name: drop.name, icon: drop.icon, qty: drop.qty }
                 }
               }
             }
@@ -124,16 +126,17 @@ export function useArenaBattleTick(activeTab: TabId) {
       timeoutRef.current = setTimeout(() => {
         if (isAuto && autoAcc) {
           // Auto-farm boss resolution
-          const { chest, lostItem, materialDrop, dungeonGold, warriorXP } = useArenaStore.getState().endBattle()
+          const { chest, lostItem, materialDrop, bonusMaterialDrop, dungeonGold, warriorXP } = useArenaStore.getState().endBattle()
           if (victory) {
             autoAcc.runsCompleted++
             autoAcc.totalGold += dungeonGold
             autoAcc.totalWarriorXP += warriorXP
-            if (materialDrop) {
-              if (autoAcc.materials[materialDrop.id]) {
-                autoAcc.materials[materialDrop.id].qty += materialDrop.qty
+            for (const drop of [materialDrop, bonusMaterialDrop]) {
+              if (!drop) continue
+              if (autoAcc.materials[drop.id]) {
+                autoAcc.materials[drop.id].qty += drop.qty
               } else {
-                autoAcc.materials[materialDrop.id] = { name: materialDrop.name, icon: materialDrop.icon, qty: materialDrop.qty }
+                autoAcc.materials[drop.id] = { name: drop.name, icon: drop.icon, qty: drop.qty }
               }
             }
             if (chest) {
@@ -172,7 +175,7 @@ export function useArenaBattleTick(activeTab: TabId) {
           }
         } else if (isOffTabDungeon) {
           // Off-tab dungeon (non-auto): resolve with full gold, chain passes
-          const { goldLost, chest, lostItem: bossLostItem, materialDrop, dungeonGold, warriorXP } = useArenaStore.getState().endBattle()
+          const { goldLost, chest, lostItem: bossLostItem, materialDrop, bonusMaterialDrop, dungeonGold, warriorXP } = useArenaStore.getState().endBattle()
           const lossChancePct = Math.round(ITEM_LOSS_CHANCE * 100)
           if (victory) {
             // Chain another run if passes are available
@@ -190,17 +193,19 @@ export function useArenaBattleTick(activeTab: TabId) {
             if (dungeonGold > 0) parts.push(`+${formatShort(dungeonGold)} 🪙`)
             if (chest) parts.push(`${chest.icon} ${chest.name}`)
             if (materialDrop) parts.push(`${materialDrop.icon} ×${materialDrop.qty}`)
+            if (bonusMaterialDrop) parts.push(`${bonusMaterialDrop.icon} ×${bonusMaterialDrop.qty}`)
             if (warriorXP > 0) parts.push(`+${warriorXP} Warrior XP`)
             const notifId = pushNotification({
               type: 'arena_result',
               icon: '🏆',
               title: `Dungeon complete — ${bossName} slain!`,
               body: parts.join(' · ') || 'Victory!',
-              arenaResult: { victory: true, gold: dungeonGold, bossName, chest, materialDrop, warriorXP },
+              arenaResult: { victory: true, gold: dungeonGold, bossName, chest, materialDrop, bonusMaterialDrop, warriorXP },
             })
             if (notifId) {
-              pushToast({ kind: 'arena_boss', victory: true, bossName, gold: dungeonGold, notificationId: notifId, chest, materialDrop, warriorXP })
+              pushToast({ kind: 'arena_boss', victory: true, bossName, gold: dungeonGold, notificationId: notifId, chest, materialDrop, bonusMaterialDrop, warriorXP })
             }
+            useArenaStore.getState().setAmbientResult({ type: 'victory', bossName, createdAt: Date.now() })
           } else {
             const parts: string[] = []
             if (goldLost > 0) parts.push(`-${formatShort(goldLost)} 🪙`)
@@ -216,6 +221,7 @@ export function useArenaBattleTick(activeTab: TabId) {
             if (notifId) {
               pushToast({ kind: 'arena_boss', victory: false, bossName, gold: 0, notificationId: notifId })
             }
+            useArenaStore.getState().setAmbientResult({ type: 'death', bossName, createdAt: Date.now() })
           }
         } else {
           // Non-auto boss resolution (off-tab, non-dungeon)
@@ -274,7 +280,16 @@ function finishAutoRun() {
     lostItem: autoAcc.lostItem,
     passesUsed: autoAcc.passesUsed,
   }))
+  const runsCompleted = autoAcc.runsCompleted
+  const failed = autoAcc.failed
+  const failedAt = autoAcc.failedAt
   autoAcc = null
   useArenaStore.getState().setAutoRunning(false)
   localStorage.removeItem('grindly_auto_acc')
+  // Surface completion in the Home ambient bar
+  if (failed) {
+    useArenaStore.getState().setAmbientResult({ type: 'death', bossName: failedAt, createdAt: Date.now() })
+  } else if (runsCompleted > 0) {
+    useArenaStore.getState().setAmbientResult({ type: 'passes_done', dungeonsCompleted: runsCompleted, createdAt: Date.now() })
+  }
 }

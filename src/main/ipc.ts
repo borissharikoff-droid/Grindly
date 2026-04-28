@@ -87,6 +87,7 @@ export function registerIpcHandlers() {
   })
   ipcMain.handle(IPC_CHANNELS.db.getStreak, () => db.getStreak())
   ipcMain.handle(IPC_CHANNELS.db.getUserStats, () => db.getUserStats())
+  ipcMain.handle(IPC_CHANNELS.db.wipeUserData, () => db.wipeUserData())
   ipcMain.handle(IPC_CHANNELS.db.getSessionAnalysis, (_, sessionId: unknown) => {
     return db.getSessionAnalysis(stringId.parse(sessionId))
   })
@@ -245,6 +246,7 @@ export function registerIpcHandlers() {
     const existing = db.getSessionAnalysis(id)
     if (existing) return existing
     const apiKey = getDeepSeekApiKey()
+    if (!apiKey) throw new Error('AI analysis unavailable — DeepSeek API key is not configured')
     const activities = db.getActivitiesBySessionId(id)
     // Count context switches for this session
     let contextSwitches = 0
@@ -267,6 +269,7 @@ export function registerIpcHandlers() {
     lastOverviewCallMs = now
 
     const apiKey = getDeepSeekApiKey()
+    if (!apiKey) throw new Error('AI analysis unavailable — DeepSeek API key is not configured')
     return analyzeOverview(overviewData, apiKey)
   })
 

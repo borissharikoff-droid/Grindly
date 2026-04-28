@@ -27,6 +27,7 @@ import { RAID_TIER_CONFIGS, getRaidPhase } from '../../services/raidService'
 import { usePetStore } from '../../stores/petStore'
 import { useArenaStore } from '../../stores/arenaStore'
 import { useInventoryStore } from '../../stores/inventoryStore'
+import { DelveAmbientBar } from '../delve/DelveAmbientBar'
 import { ADVENTURES, computeCurrentHunger, computePetMood, getPetDef, getPetLevelImage, getPetBuffDisplay, MOOD_EMOJI } from '../../lib/pets'
 
 interface HomePageProps {
@@ -111,6 +112,8 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
   const activeBattle = useArenaStore((s) => s.activeBattle)
   const activeDungeon = useArenaStore((s) => s.activeDungeon)
   const getBattleState = useArenaStore((s) => s.getBattleState)
+  const ambientResult = useArenaStore((s) => s.ambientResult)
+  const setAmbientResult = useArenaStore((s) => s.setAmbientResult)
   const setPendingArenaZoneId = useNavigationStore((s) => s.setPendingArenaZoneId)
   const dungeonPassCount = useInventoryStore((s) => s.items['dungeon_pass'] ?? 0)
   const [battleTick, setBattleTick] = useState(0)
@@ -270,6 +273,8 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
           </button>
         </div>
       )}
+
+      <DelveAmbientBar />
 
       {/* Center zone — Timer + Controls, bottom zone pinned to nav */}
       <div className="flex-1 flex flex-col px-4">
@@ -483,6 +488,55 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
                   )}
                 </button>
               )}
+              {!activeBattle && ambientResult && (() => {
+                const theme = ambientResult.type === 'victory'
+                  ? { border: 'border-lime-500/35', bg: 'bg-lime-500/[0.07]', hover: 'hover:bg-lime-500/12', text: 'text-lime-400', icon: '🏆', label: 'Claim reward' }
+                  : ambientResult.type === 'death'
+                    ? { border: 'border-red-500/35', bg: 'bg-red-500/[0.07]', hover: 'hover:bg-red-500/12', text: 'text-red-400', icon: '💀', label: 'Check death' }
+                    : { border: 'border-violet-500/35', bg: 'bg-violet-500/[0.07]', hover: 'hover:bg-violet-500/12', text: 'text-violet-300', icon: '✨', label: `${ambientResult.dungeonsCompleted ?? 0} dungeons passed` }
+                const suffix = ambientResult.type === 'passes_done' ? '' : ambientResult.bossName ? ` · ${ambientResult.bossName.split(' ')[0]}` : ''
+                const handleAmbientClick = () => {
+                  if (ambientResult.type === 'victory') {
+                    const inv = useInventoryStore.getState()
+                    // Find the most recent unclaimed chest from the off-tab dungeon kill
+                    const pending = [...inv.pendingRewards].reverse().find((r) => !r.claimed && r.source === 'session_complete')
+                    if (pending) {
+                      inv.claimPendingReward(pending.id)
+                      const opened = inv.openChestAndGrantItem(pending.chestType, { source: 'session_complete', focusCategory: null })
+                      useArenaStore.getState().setResultModal({
+                        chestType: opened ? pending.chestType : null,
+                        itemId: opened?.itemId ?? null,
+                        goldDropped: opened?.goldDropped ?? 0,
+                        bonusMaterials: opened?.bonusMaterials ?? [],
+                        warriorXP: 0,
+                        pendingGold: 0,
+                      })
+                      setAmbientResult(null)
+                      return
+                    }
+                  }
+                  setAmbientResult(null)
+                  navigateTo?.('arena')
+                }
+                return (
+                  <button
+                    type="button"
+                    onClick={handleAmbientClick}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-micro font-mono border ${theme.border} ${theme.bg} ${theme.hover} ${theme.text} transition-colors`}
+                  >
+                    <span>{theme.icon}</span>
+                    <span>{theme.label}{suffix}</span>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); setAmbientResult(null) }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setAmbientResult(null) } }}
+                      className="ml-1 text-gray-500 hover:text-gray-300 leading-none cursor-pointer"
+                      aria-label="Dismiss"
+                    >×</span>
+                  </button>
+                )
+              })()}
             </div>
           )}
 

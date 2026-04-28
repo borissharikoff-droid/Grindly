@@ -90,9 +90,13 @@ export async function grantRewardPayloads(
       if (api?.db?.addSkillXP) {
         await api.db.addSkillXP(payload.skillId, payload.amount)
       } else {
-        const stored = JSON.parse(localStorage.getItem('grindly_skill_xp') || '{}') as Record<string, number>
-        stored[payload.skillId] = (stored[payload.skillId] ?? 0) + payload.amount
-        localStorage.setItem('grindly_skill_xp', JSON.stringify(stored))
+        try {
+          const stored = JSON.parse(localStorage.getItem('grindly_skill_xp') || '{}') as Record<string, number>
+          stored[payload.skillId] = (stored[payload.skillId] ?? 0) + payload.amount
+          localStorage.setItem('grindly_skill_xp', JSON.stringify(stored))
+        } catch {
+          // ignore corrupted localStorage; reward is still captured in SQLite path above
+        }
       }
     }
 

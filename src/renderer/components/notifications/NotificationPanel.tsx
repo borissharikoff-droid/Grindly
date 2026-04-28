@@ -224,7 +224,9 @@ export function NotificationPanel({ open, onClose, bellRef }: NotificationPanelP
                               onClick={(e) => {
                                 e.stopPropagation()
                                 playClickSound()
-                                const matBonuses: BonusMaterial[] = ar.materialDrop ? [{ itemId: ar.materialDrop.id, qty: ar.materialDrop.qty }] : []
+                                const matBonuses: BonusMaterial[] = []
+                                if (ar.materialDrop) matBonuses.push({ itemId: ar.materialDrop.id, qty: ar.materialDrop.qty })
+                                if (ar.bonusMaterialDrop) matBonuses.push({ itemId: ar.bonusMaterialDrop.id, qty: ar.bonusMaterialDrop.qty })
                                 if (ar.chest) {
                                   const result = openChestAndGrantItem(ar.chest.type as ChestType, { source: 'session_complete', focusCategory: null })
                                   if (result) {

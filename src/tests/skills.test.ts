@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, beforeAll, describe, it, expect } from 'vitest'
 import {
   skillLevelFromXP,
   skillXPProgress,
@@ -6,8 +6,21 @@ import {
   computeSessionSkillXP,
   categoryToSkillId,
   getSkillById,
+  getStoredSkillXP,
   SKILLS,
 } from '../renderer/lib/skills'
+
+function createMemoryStorage(): Storage {
+  const store = new Map<string, string>()
+  return {
+    get length() { return store.size },
+    clear() { store.clear() },
+    getItem(key: string) { return store.has(key) ? store.get(key)! : null },
+    key(index: number) { return Array.from(store.keys())[index] ?? null },
+    removeItem(key: string) { store.delete(key) },
+    setItem(key: string, value: string) { store.set(key, String(value)) },
+  }
+}
 
 describe('skillLevelFromXP', () => {
   it('returns 0 for 0 XP (unleveled)', () => {
@@ -150,5 +163,57 @@ describe('computeSessionSkillXP', () => {
       { category: 'coding', startTime: now, endTime: now }, // 0 duration
     ])
     expect(result.developer ?? 0).toBe(0)
+  })
+})
+
+describe('getStoredSkillXP — safe localStorage reader', () => {
+  beforeAll(() => {
+    if (!('localStorage' in globalThis)) {
+      Object.defineProperty(globalThis, 'localStorage', {
+        value: createMemoryStorage(),
+        configurable: true,
+      })
+    }
+  })
+  afterEach(() => {
+    localStorage.removeItem('grindly_skill_xp')
+  })
+
+  it('returns empty map when key is missing', () => {
+    localStorage.removeItem('grindly_skill_xp')
+    expect(getStoredSkillXP()).toEqual({})
+  })
+
+  it('returns parsed map for valid JSON', () => {
+    localStorage.setItem('grindly_skill_xp', JSON.stringify({ developer: 500, gamer: 200 }))
+    expect(getStoredSkillXP()).toEqual({ developer: 500, gamer: 200 })
+  })
+
+  it('returns empty map when JSON is malformed (no throw)', () => {
+    localStorage.setItem('grindly_skill_xp', '{not json')
+    expect(getStoredSkillXP()).toEqual({})
+  })
+
+  it('strips non-numeric values and coerces floats to floor ints', () => {
+    localStorage.setItem('grindly_skill_xp', JSON.stringify({
+      developer: 500.7,
+      gamer: 'bad',
+      researcher: NaN,
+      creator: Infinity,
+      learner: -3,
+    }))
+    const result = getStoredSkillXP()
+    expect(result.developer).toBe(500) // floor
+    expect(result.learner).toBe(0)     // max(0, floor(-3))
+    expect('gamer' in result).toBe(false)
+    expect('researcher' in result).toBe(false)
+    expect('creator' in result).toBe(false)
+  })
+
+  it('returns empty when value is an array or non-object', () => {
+    localStorage.setItem('grindly_skill_xp', JSON.stringify([1, 2, 3]))
+    expect(getStoredSkillXP()).toEqual({})
+    localStorage.setItem('grindly_skill_xp', JSON.stringify('not-an-object'))
+    expect(getStoredSkillXP()).toEqual({})
   })
 })

@@ -26,6 +26,7 @@ import { useAnnouncements } from './hooks/useAnnouncements'
 import { usePolls } from './hooks/usePolls'
 import { useMarketplaceSaleNotifier } from './hooks/useMarketplaceSaleNotifier'
 import { useCraftTick } from './hooks/useCraftTick'
+import { useDelveBattleTick } from './hooks/useDelveBattleTick'
 import { useCookingTick } from './hooks/useCookingTick'
 import { usePetNotifications } from './hooks/usePetNotifications'
 import { UpdateBanner } from './components/UpdateBanner'
@@ -100,6 +101,7 @@ const SettingsPage = lazy(() => import('./components/settings/SettingsPage').the
 const FriendsPage = lazy(() => import('./components/friends/FriendsPage').then((m) => ({ default: m.FriendsPage })))
 const MarketplacePage = lazy(() => import('./components/marketplace/MarketplacePage').then((m) => ({ default: m.MarketplacePage })))
 const ArenaPage = lazy(() => import('./components/arena/ArenaPage').then((m) => ({ default: m.ArenaPage })))
+const DelvePage = lazy(() => import('./components/delve/DelvePage').then((m) => ({ default: m.DelvePage })))
 const FarmPage = lazy(() => import('./components/farm/FarmPage').then((m) => ({ default: m.FarmPage })))
 const CraftPage = lazy(() => import('./components/craft/CraftPage').then((m) => ({ default: m.CraftPage })))
 const CookingPage = lazy(() => import('./components/cooking/CookingPage').then((m) => ({ default: m.CookingPage })))
@@ -114,7 +116,7 @@ function PageFallback() {
 }
 
 
-export type TabId = 'home' | 'inventory' | 'skills' | 'stats' | 'profile' | 'friends' | 'marketplace' | 'arena' | 'farm' | 'craft' | 'cooking' | 'pet' | 'settings'
+export type TabId = 'home' | 'inventory' | 'skills' | 'stats' | 'profile' | 'friends' | 'marketplace' | 'arena' | 'delve' | 'farm' | 'craft' | 'cooking' | 'pet' | 'settings'
 
 const PAGE_SLIDE = {
   initial: { opacity: 0 },
@@ -222,6 +224,29 @@ export default function App() {
   const skillXPAtStart = useSessionStore((s) => s.skillXPAtStart)
   const sessionSkillXP = useSessionStore((s) => s.sessionSkillXP)
   const isAfkPaused = useSessionStore((s) => s.isAfkPaused)
+
+  // Compute level outside the effect so Discord RPC only fires when level
+  // (integer) changes, not on every XP tick (was spamming the API ~1×/sec).
+  let rpcSkillName: string | undefined
+  let rpcSkillIcon: string | undefined
+  let rpcSkillId: string | undefined
+  let rpcSkillLevel: number | undefined
+  if (currentActivity) {
+    const cats = (currentActivity.categories || [currentActivity.category])
+      .filter((c: string) => c !== 'idle' && c !== 'other')
+    if (cats.length > 0) {
+      const skill = getSkillById(categoryToSkillId(cats[0]))
+      if (skill) {
+        rpcSkillName = skill.name
+        rpcSkillIcon = skill.icon
+        rpcSkillId = skill.id
+        const base = skillXPAtStart[skill.id] ?? 0
+        const earned = sessionSkillXP[skill.id] ?? 0
+        rpcSkillLevel = skillLevelFromXP(base + earned)
+      }
+    }
+  }
+  const rpcAppName = currentActivity?.appName ?? undefined
   useEffect(() => {
     const api = window.electronAPI
     if (!api?.discord?.update) return
@@ -233,37 +258,17 @@ export default function App() {
       api.discord.update({ status: 'afk' })
       return
     }
-    // Derive current skill from the live activity (what user is doing RIGHT NOW)
-    let currentSkillName: string | undefined
-    let currentSkillIcon: string | undefined
-    let currentSkillId: string | undefined
-    let currentSkillLevel: number | undefined
-    if (currentActivity) {
-      const cats = (currentActivity.categories || [currentActivity.category])
-        .filter((c: string) => c !== 'idle' && c !== 'other')
-      if (cats.length > 0) {
-        const skill = getSkillById(categoryToSkillId(cats[0]))
-        if (skill) {
-          currentSkillName = skill.name
-          currentSkillIcon = skill.icon
-          currentSkillId = skill.id
-          const base = skillXPAtStart[skill.id] ?? 0
-          const earned = sessionSkillXP[skill.id] ?? 0
-          currentSkillLevel = skillLevelFromXP(base + earned)
-        }
-      }
-    }
     api.discord.update({
       status: 'running',
-      currentSkillName,
-      currentSkillIcon,
-      currentSkillId,
-      currentSkillLevel,
-      currentAppName: currentActivity?.appName ?? undefined,
+      currentSkillName: rpcSkillName,
+      currentSkillIcon: rpcSkillIcon,
+      currentSkillId: rpcSkillId,
+      currentSkillLevel: rpcSkillLevel,
+      currentAppName: rpcAppName,
       streak: streakCount,
       startTimestamp: sessionStartTime ?? undefined,
     })
-  }, [status, sessionStartTime, currentActivity, skillXPAtStart, sessionSkillXP, isAfkPaused, streakCount])
+  }, [status, sessionStartTime, isAfkPaused, streakCount, rpcSkillName, rpcSkillIcon, rpcSkillId, rpcSkillLevel, rpcAppName])
   // ─────────────────────────────────────────────────────────────────────────
 
   // ── Progressive tab disclosure: unlock advanced tabs after 3 sessions ─────
@@ -291,6 +296,7 @@ export default function App() {
   useArenaBattleTick(activeTab) // battle completion: toast+bell when off Arena, modal when on Arena
   useCraftTick()                // crafting job queue — runs on all tabs
   useCookingTick()              // cooking job queue — runs on all tabs
+  useDelveBattleTick(activeTab) // delve floor progression — runs on all tabs (auto-progress when off Delve)
   usePetNotifications()         // adventure complete + hunger warning notifications
   useTradeNotifier()            // global trade offer notifications (all tabs)
   const whatsNew = useWhatsNew()
@@ -625,6 +631,13 @@ export default function App() {
                 >
                   <Suspense fallback={<PageFallback />}>
                     <ArenaPage />
+                  </Suspense>
+                </motion.div>
+              )}
+              {activeTab === 'delve' && (
+                <motion.div key="delve" variants={PAGE_SLIDE} initial="initial" animate="animate">
+                  <Suspense fallback={<PageFallback />}>
+                    <DelvePage />
                   </Suspense>
                 </motion.div>
               )}

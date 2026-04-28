@@ -52,22 +52,39 @@ export function saveSessionBrowser(
   endTime: number,
   elapsedSeconds: number,
 ): void {
-  const existing = JSON.parse(localStorage.getItem('grindly_sessions') || '[]')
-  existing.unshift({
-    id: sessionId,
-    start_time: sessionStartTime,
-    end_time: endTime,
-    duration_seconds: elapsedSeconds,
-    summary: null,
-  })
-  localStorage.setItem('grindly_sessions', JSON.stringify(existing.slice(0, 100)))
-  const browserActivities = JSON.parse(localStorage.getItem('grindly_activities') || '{}')
-  browserActivities[sessionId] = [{
-    app_name: 'Browser Session',
-    window_title: 'Grindly Web Mode',
-    category: 'browsing',
-    start_time: sessionStartTime,
-    end_time: endTime,
-  }]
-  localStorage.setItem('grindly_activities', JSON.stringify(browserActivities))
+  try {
+    const raw = localStorage.getItem('grindly_sessions')
+    const existing = raw ? JSON.parse(raw) : []
+    const list = Array.isArray(existing) ? existing : []
+    list.unshift({
+      id: sessionId,
+      start_time: sessionStartTime,
+      end_time: endTime,
+      duration_seconds: elapsedSeconds,
+      summary: null,
+    })
+    localStorage.setItem('grindly_sessions', JSON.stringify(list.slice(0, 100)))
+  } catch {
+    // localStorage corrupted — reset to this session only rather than crashing
+    localStorage.setItem('grindly_sessions', JSON.stringify([{
+      id: sessionId, start_time: sessionStartTime, end_time: endTime, duration_seconds: elapsedSeconds, summary: null,
+    }]))
+  }
+  try {
+    const raw = localStorage.getItem('grindly_activities')
+    const browserActivities = raw ? JSON.parse(raw) : {}
+    const map = (browserActivities && typeof browserActivities === 'object' && !Array.isArray(browserActivities))
+      ? browserActivities as Record<string, unknown>
+      : {}
+    map[sessionId] = [{
+      app_name: 'Browser Session',
+      window_title: 'Grindly Web Mode',
+      category: 'browsing',
+      start_time: sessionStartTime,
+      end_time: endTime,
+    }]
+    localStorage.setItem('grindly_activities', JSON.stringify(map))
+  } catch {
+    // ignore — activity record is non-critical compared to the session itself
+  }
 }

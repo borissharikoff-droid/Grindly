@@ -72,6 +72,7 @@ const CH = {
     getTodayRecap: 'db:getTodayRecap',
     getPeriodRecap: 'db:getPeriodRecap',
     getTodaySkillXP: 'db:getTodaySkillXP',
+    wipeUserData: 'db:wipeUserData',
   },
   ai: {
     analyzeSession: 'ai:analyzeSession',
@@ -178,6 +179,7 @@ try {
       getTodayRecap: () => ipcRenderer.invoke(CH.db.getTodayRecap),
       getPeriodRecap: (sinceMs?: number) => ipcRenderer.invoke(CH.db.getPeriodRecap, sinceMs),
       getTodaySkillXP: () => ipcRenderer.invoke(CH.db.getTodaySkillXP),
+      wipeUserData: () => ipcRenderer.invoke(CH.db.wipeUserData),
     },
     ai: {
       analyzeSession: (sessionId: string) => ipcRenderer.invoke(CH.ai.analyzeSession, sessionId),

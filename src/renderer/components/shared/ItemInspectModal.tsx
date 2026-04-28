@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ITEM_POWER_BY_RARITY, POTION_IDS, POTION_MAX, estimateLootDropRate, getItemPower, getItemPerks, getItemPerkDescription, getSalvageOutput, LOOT_ITEMS, type LootItemDef } from '../../lib/loot'
 import { getFoodItemById } from '../../lib/cooking'
 import { SLOT_LABEL, LootVisual, RARITY_THEME, normalizeRarity } from '../loot/LootUI'
-import { playClickSound } from '../../lib/sounds'
+import { playClickSound, playPotionSound } from '../../lib/sounds'
 import { useInventoryStore } from '../../stores/inventoryStore'
 import { useArenaStore } from '../../stores/arenaStore'
 import { useRaidStore } from '../../stores/raidStore'
@@ -26,6 +26,7 @@ export function ItemInspectModal({ item, locked = false, viewOnly = false, onSel
   const equipItem = useInventoryStore((s) => s.equipItem)
   const deleteItem = useInventoryStore((s) => s.deleteItem)
   const salvageItem = useInventoryStore((s) => s.salvageItem)
+  const consumePotion = useInventoryStore((s) => s.consumePotion)
   const permanentStats = useInventoryStore((s) => s.permanentStats)
   const equippedBySlot = useInventoryStore((s) => s.equippedBySlot)
   const inBattle = Boolean(useArenaStore((s) => s.activeBattle || s.activeDungeon))
@@ -85,7 +86,7 @@ export function ItemInspectModal({ item, locked = false, viewOnly = false, onSel
     const getCombatFromItem = (def: LootItemDef) => {
       let atk = 0, hp = 0, hpRegen = 0, def_ = 0
       for (const p of getItemPerks(def)) {
-        const v = typeof p.perkValue === 'number' ? p.perkValue : 0
+        const v = typeof p.perkValue === 'number' ? p.perkValue : parseFloat(String(p.perkValue)) || 0
         if (p.perkType === 'atk_boost') atk += v
         if (p.perkType === 'hp_boost') hp += v
         if (p.perkType === 'hp_regen_boost') hpRegen += v
@@ -312,6 +313,29 @@ export function ItemInspectModal({ item, locked = false, viewOnly = false, onSel
               )}
 
               <div className="flex gap-1.5">
+                {isPotion && (() => {
+                  const maxed = consumed >= POTION_MAX
+                  const disabled = locked || qty <= 0
+                  return (
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => {
+                        if (disabled) return
+                        playPotionSound()
+                        const ok = consumePotion(item.id)
+                        if (ok && qty - 1 <= 0) onClose()
+                      }}
+                      className={`flex-1 text-micro py-1.5 rounded border font-semibold transition-all active:scale-[0.97] ${
+                        disabled ? 'border-white/[0.08] text-gray-600 cursor-not-allowed bg-transparent' : 'hover:brightness-110'
+                      }`}
+                      style={disabled ? undefined : { color: theme.color, borderColor: theme.border, backgroundColor: `${theme.color}1e` }}
+                      title={maxed ? 'Stat maxed — drinking converts to +100 gold' : undefined}
+                    >
+                      {maxed ? 'Drink (→ +100g)' : 'Drink'}
+                    </button>
+                  )
+                })()}
                 {isEquippableGear && (
                   <button
                     type="button"
