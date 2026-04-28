@@ -33,6 +33,7 @@ import { UpdateBanner } from './components/UpdateBanner'
 import { useSessionStore, setupAfkListener } from './stores/sessionStore'
 import { useChatTargetStore } from './stores/chatTargetStore'
 import { categoryToSkillId, getSkillById } from './lib/skills'
+import { isFlagEnabled } from './lib/featureFlags'
 import { skillLevelFromXP } from './lib/skills'
 import { warmUpAudio } from './lib/sounds'
 import { runSupabaseHealthCheck } from './services/supabaseHealth'
@@ -636,9 +637,19 @@ export default function App() {
               )}
               {activeTab === 'delve' && (
                 <motion.div key="delve" variants={PAGE_SLIDE} initial="initial" animate="animate">
-                  <Suspense fallback={<PageFallback />}>
-                    <DelvePage />
-                  </Suspense>
+                  {isFlagEnabled('delve_enabled') ? (
+                    <Suspense fallback={<PageFallback />}>
+                      <DelvePage />
+                    </Suspense>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+                      <div className="w-16 h-16 rounded-full bg-surface-2 ring-1 ring-white/10 flex items-center justify-center mb-4">
+                        <span className="text-3xl opacity-60">⏳</span>
+                      </div>
+                      <h2 className="text-xl font-bold text-white mb-2">Delve mode — coming soon</h2>
+                      <p className="text-sm text-gray-400 max-w-sm">Endless multi-mob descent with hardcore stakes. We're polishing balance and saving the launch for the next drop.</p>
+                    </div>
+                  )}
                 </motion.div>
               )}
               {activeTab === 'farm' && (

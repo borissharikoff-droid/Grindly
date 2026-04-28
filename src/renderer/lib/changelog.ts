@@ -24,6 +24,15 @@ export const CHANGE_TYPE_META: Record<ChangeType, { label: string; color: string
 
 export const CHANGELOG: PatchNote[] = [
   {
+    version: '4.16.1',
+    date: '2026-04-28',
+    title: 'Delve — Coming Soon Lock',
+    items: [
+      { type: 'fix', text: 'Delve mode temporarily locked while we polish balance — tab now shows a "coming soon" state and the page renders a placeholder.' },
+      { type: 'ui', text: 'Delve tab in the nav drawer shows a small lock badge; click surfaces a toast instead of opening the page.' },
+    ],
+  },
+  {
     version: '4.16.0',
     date: '2026-04-25',
     title: 'Abyss Descent — Endless Delve Mode',

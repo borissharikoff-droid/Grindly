@@ -12,11 +12,12 @@ import { useAdminConfigStore } from '../../stores/adminConfigStore'
 import { TAB_SHORTCUTS } from '../../hooks/useKeyboardShortcuts'
 import { isFlagEnabled } from '../../lib/featureFlags'
 import { useDelveStore, selectIsHCActive } from '../../stores/delveStore'
+import { useToastStore } from '../../stores/toastStore'
 import {
   Home, Zap, Users, BarChart3, MoreHorizontal,
   Package, ShoppingCart, Sword, Sprout, Hammer, UtensilsCrossed,
   User, Settings, PawPrint,
-  TrendingDown,
+  TrendingDown, Lock,
 } from '../../lib/icons'
 
 const ALL_TABS: { id: TabId; label: string }[] = [
@@ -117,10 +118,14 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
     (tabId === 'craft' && badges.isCraftingActive) ||
     (tabId === 'cooking' && badges.isCookingActive)
 
-  // Feature-gate: hide Delve tab unless flag is enabled.
+  // Delve is shipped but currently locked behind a "coming soon" gate.
+  // Devs can override via localStorage flag `grindly_flag_delve_enabled`.
   const delveEnabled = isFlagEnabled('delve_enabled')
-  const visibleTabs = ALL_TABS.filter((t) => t.id !== 'delve' || delveEnabled)
+  const isDelveLocked = (id: TabId) => id === 'delve' && !delveEnabled
+  const visibleTabs = ALL_TABS
   const moreTabs = visibleTabs.filter((t) => !pinnedTabs.includes(t.id) && !lockedTabs.includes(t.id))
+
+  const pushToast = useToastStore((s) => s.push)
 
   // Mutex: when a Hardcore Delve run is active, block entry to Arena tab.
   const isHCDelveActive = useDelveStore(selectIsHCActive)
@@ -138,6 +143,13 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
     }
     // Mutex guard — arena blocked during HC delve
     if (id === 'arena' && isHCDelveActive) {
+      return
+    }
+    // Coming-soon lock: surface a toast and stay on current tab
+    if (isDelveLocked(id)) {
+      pushToast({ kind: 'generic', message: '⏳ Delve mode — coming soon!', type: 'success' })
+      track('tab_click_locked', { tab: id })
+      setMoreOpen(false)
       return
     }
     playTabSound()
@@ -218,29 +230,38 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
                   const adminIcon = uiIcons.navSecondaryTabs?.[tab.id] || ''
                   const badge = getTabBadge(tab.id)
                   const pulse = getTabPulse(tab.id)
+                  const locked = isDelveLocked(tab.id)
                   return (
                     <div
                       key={tab.id}
-                      draggable
+                      draggable={!locked}
                       onDragStart={(e) => onDragStartMore(e, tab.id)}
                       onDragEnd={onDragEnd}
-                      className="cursor-grab active:cursor-grabbing"
+                      className={locked ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}
                     >
                     <motion.button
                       type="button"
                       whileTap={{ scale: 0.94 }}
                       onClick={() => navigate(tab.id)}
+                      title={locked ? 'Coming soon' : undefined}
                       className={`relative flex flex-col items-center gap-1 px-2 py-2.5 rounded transition-colors select-none w-full ${
-                        isActive
+                        locked
+                          ? 'text-gray-600 hover:text-gray-500 hover:bg-white/[0.04]'
+                          : isActive
                           ? 'bg-accent/15 text-accent ring-1 ring-inset ring-accent/20'
                           : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.06]'
                       }`}
                     >
-                      <span className="text-lg leading-none">
+                      <span className={`text-lg leading-none ${locked ? 'opacity-40' : ''}`}>
                         <NavIcon tabId={tab.id} adminIcon={adminIcon} />
                       </span>
-                      <span className="text-micro font-mono leading-none tracking-wide">{tab.label}</span>
-                      {badge && (
+                      <span className={`text-micro font-mono leading-none tracking-wide ${locked ? 'opacity-60' : ''}`}>{tab.label}</span>
+                      {locked && (
+                        <span className="absolute top-1 right-1.5 w-3.5 h-3.5 flex items-center justify-center rounded-full bg-surface-1 ring-1 ring-white/10">
+                          <Lock className="w-2 h-2 text-gray-500" />
+                        </span>
+                      )}
+                      {badge && !locked && (
                         <span className={`absolute top-1 right-1.5 min-w-[13px] h-[13px] px-0.5 flex items-center justify-center rounded-full text-micro font-bold text-white ${badge.color}`}>
                           {badge.count > 99 ? '99+' : badge.count}
                         </span>
@@ -302,23 +323,26 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
             const badge = getTabBadge(tabId)
             const pulse = getTabPulse(tabId)
             const isDropTarget = dropTarget === slotIndex
+            const locked = isDelveLocked(tabId)
             return (
               <div
                 key={tabId}
-                draggable
+                draggable={!locked}
                 onDragStart={(e) => onDragStartNav(e, tabId, slotIndex)}
                 onDragEnd={onDragEnd}
                 onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDropTarget(slotIndex) }}
                 onDragLeave={() => setDropTarget(null)}
                 onDrop={(e) => onDropNavSlot(e, slotIndex)}
-                className="flex-1 cursor-grab active:cursor-grabbing"
+                className={`flex-1 ${locked ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`}
               >
               <button
                 type="button"
                 onClick={() => navigate(tabId)}
-                title={TAB_SHORTCUTS[tabId] ? `${tab.label} [${TAB_SHORTCUTS[tabId]}]` : tab.label}
+                title={locked ? 'Coming soon' : TAB_SHORTCUTS[tabId] ? `${tab.label} [${TAB_SHORTCUTS[tabId]}]` : tab.label}
                 className={`relative w-full flex flex-col items-center justify-center gap-0.5 py-1.5 rounded transition-all duration-150 select-none ${
-                  tourHighlightTab === tabId
+                  locked
+                    ? 'text-gray-600 hover:text-gray-500 hover:bg-white/[0.04]'
+                    : tourHighlightTab === tabId
                     ? 'ring-2 ring-accent bg-accent/20 text-accent animate-pulse'
                     : isDropTarget
                     ? 'ring-1 ring-accent/60 bg-accent/15 text-accent'
@@ -327,11 +351,16 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
                     : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.06]'
                 }`}
               >
-                <span className="grindly-tab-icon leading-none" aria-hidden>
+                <span className={`grindly-tab-icon leading-none ${locked ? 'opacity-40' : ''}`} aria-hidden>
                   <NavIcon tabId={tabId} adminIcon={adminIcon} />
                 </span>
-                <span className="text-micro font-mono leading-none tracking-wide">{tab.label}</span>
-                {badge && (
+                <span className={`text-micro font-mono leading-none tracking-wide ${locked ? 'opacity-60' : ''}`}>{tab.label}</span>
+                {locked && (
+                  <span className="absolute -top-0.5 right-0.5 w-3.5 h-3.5 flex items-center justify-center rounded-full bg-surface-1 ring-1 ring-white/10">
+                    <Lock className="w-2 h-2 text-gray-500" />
+                  </span>
+                )}
+                {badge && !locked && (
                   <span
                     className={`absolute -top-0.5 right-1 min-w-[14px] h-[14px] px-1 flex items-center justify-center rounded-full text-micro font-bold text-white border-2 border-surface-1 ${badge.color}`}
                     aria-label={`${badge.count} new`}
@@ -339,10 +368,10 @@ export function BottomNav({ activeTab, onTabChange, tourHighlightTab }: BottomNa
                     {badge.count > 99 ? '99+' : badge.count}
                   </span>
                 )}
-                {pulse && !badge && (
+                {pulse && !badge && !locked && (
                   <span className="absolute top-1 right-1 w-2 h-2 rounded-full border border-surface-1 bg-accent animate-pulse" />
                 )}
-                {active && (
+                {active && !locked && (
                   <motion.span
                     layoutId="nav-active-line"
                     className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-accent"
