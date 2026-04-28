@@ -1,10 +1,9 @@
-## What's new in v4.16.1
+## What's new in v4.16.2
 
-**Delve — Coming Soon Lock**
+**Session Restored Banner**
 
-- Delve mode temporarily locked — tab now shows a "coming soon" state while we polish balance.
-- Delve tab in the nav drawer shows a small lock badge; clicking surfaces a toast instead of opening the page.
-- Devs can re-enable locally via `localStorage.setItem('grindly_flag_delve_enabled', '1')`.
+- Session-restored notification is now an unmissable banner on Home with a Claim XP button — previously it only lived inside the bell panel.
+- Removed a 5-second timing window where a fast force-close → reopen could miss the recovery prompt entirely.
 
 ---
 Released: 2026-04-28

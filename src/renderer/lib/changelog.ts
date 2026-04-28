@@ -24,6 +24,15 @@ export const CHANGE_TYPE_META: Record<ChangeType, { label: string; color: string
 
 export const CHANGELOG: PatchNote[] = [
   {
+    version: '4.16.2',
+    date: '2026-04-28',
+    title: 'Session Restored Banner',
+    items: [
+      { type: 'fix', text: 'Session-restored notification is now an unmissable banner on Home with a Claim XP button — previously it only lived inside the bell panel.' },
+      { type: 'fix', text: 'Removed a 5-second timing window where a fast force-close → reopen could miss the recovery prompt entirely.' },
+    ],
+  },
+  {
     version: '4.16.1',
     date: '2026-04-28',
     title: 'Delve — Coming Soon Lock',

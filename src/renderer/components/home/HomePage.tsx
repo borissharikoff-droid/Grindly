@@ -67,7 +67,10 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
   const showComplete = useSessionStore((s) => s.showComplete)
   const status = useSessionStore((s) => s.status)
   const sessionId = useSessionStore((s) => s.sessionId) // changes each new session
+  const presentRecoveryComplete = useSessionStore((s) => s.presentRecoveryComplete)
   const pushNotification = useNotificationStore((s) => s.push)
+  const dismissNotification = useNotificationStore((s) => s.dismiss)
+  const recoveryItem = useNotificationStore((s) => s.items.find((i) => !!i.recovery))
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('grindly_welcomed'))
   const prevStatusRef = useRef(status)
   const notifiedCheckpointUpdatedAtRef = useRef<number | null>(null)
@@ -168,7 +171,9 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
 
     const checkCheckpoint = () => {
       api.db.getCheckpoint().then((cp) => {
-        const belongsToPreviousRun = !!cp && cp.updated_at < (cutoffRef.current - 5000)
+        // Any checkpoint saved before the current launch/reopen counts as a previous run.
+        // (Earlier code used a 5s buffer — too tight for fast force-close-then-reopen.)
+        const belongsToPreviousRun = !!cp && cp.updated_at < cutoffRef.current
         if (cp && cp.elapsed_seconds >= 60 && belongsToPreviousRun) {
           if (notifiedCheckpointUpdatedAtRef.current === cp.updated_at) return
           notifiedCheckpointUpdatedAtRef.current = cp.updated_at
@@ -250,6 +255,51 @@ export function HomePage({ onNavigateProfile, onNavigateInventory, onNavigateFri
       <OrbBlast />
 
       <ProfileBar onNavigateProfile={onNavigateProfile} onNavigateInventory={onNavigateInventory} sessionId={sessionId ?? undefined} />
+
+      {/* Session restored banner — surfaces unclaimed crash recovery prominently above the fold */}
+      {recoveryItem?.recovery && (
+        <motion.div
+          key="session-restored-banner"
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: MOTION.duration.fast, ease: MOTION.easingSoft }}
+          className="mx-4 mt-2 mb-0 rounded border border-accent/35 bg-accent/[0.08] px-3 py-2 flex items-center gap-3"
+        >
+          <span className="text-xl shrink-0">🌱</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-white truncate">{recoveryItem.title}</p>
+            <p className="text-micro font-mono text-gray-400 mt-0.5 truncate">{recoveryItem.body}</p>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              const rec = recoveryItem.recovery
+              if (!rec) return
+              await presentRecoveryComplete({
+                sessionId: rec.sessionId,
+                startTime: rec.startTime,
+                elapsedSeconds: rec.elapsedSeconds,
+                sessionSkillXP: rec.sessionSkillXP || {},
+                sessionActivities: rec.sessionActivities,
+              })
+              window.electronAPI?.db?.clearCheckpoint?.().catch(() => {})
+              dismissNotification(recoveryItem.id)
+            }}
+            className="shrink-0 px-3 py-1.5 rounded bg-accent/20 border border-accent/45 text-accent text-caption font-semibold hover:bg-accent/30 transition-colors"
+          >
+            Claim XP
+          </button>
+          <button
+            type="button"
+            onClick={() => dismissNotification(recoveryItem.id)}
+            aria-label="Dismiss"
+            className="shrink-0 text-gray-500 hover:text-gray-300 leading-none px-1"
+          >
+            ×
+          </button>
+        </motion.div>
+      )}
 
       {/* Active raid ambient bar */}
       {activeRaid && raidCfg && activeRaid.status === 'active' && (
