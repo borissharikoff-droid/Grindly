@@ -11,17 +11,61 @@ extraResources:
     to: assets/icon.png
   - from: assets/icon.ico
     to: assets/icon.ico
+
+# ─────────────────────────────────────────────────────────────────────────
+# WINDOWS BUILD
+# ─────────────────────────────────────────────────────────────────────────
 win:
   icon: assets/icon.ico
   target:
     - target: nsis
       arch:
         - x64
+  # ── Code signing (currently DISABLED — installer is unsigned) ────────────
+  # When you buy a cert, pick ONE of the three options below and uncomment it.
+  #
+  # Option A — Standard cert in a .pfx file (DigiCert / Sectigo / SSL.com OV):
+  #   Builds reputation slowly. Red SmartScreen panel keeps showing until
+  #   ~10k+ clean installs. Use the env vars CSC_LINK + CSC_KEY_PASSWORD
+  #   so the cert never lands in git.
+  # certificateFile: ${env.CSC_LINK}
+  # certificatePassword: ${env.CSC_KEY_PASSWORD}
+  # signingHashAlgorithms:
+  #   - sha256
+  #
+  # Option B — EV cert on a USB hardware token (DigiCert EV / SSL.com EV):
+  #   Removes the SmartScreen warning instantly on first install.
+  #   The token is plugged into the build machine; signtool reads the cert
+  #   by subject name. CI build is harder — most teams sign on a dedicated
+  #   Windows box and copy the .exe back to GitHub Releases.
+  # certificateSubjectName: "Boris Sharikoff"   # exact CN from the cert
+  # signingHashAlgorithms:
+  #   - sha256
+  #
+  # Option C — Azure Trusted Signing ($10/mo, 2024+, recommended) ⭐
+  #   Microsoft's hosted signing service. No USB token, instant SmartScreen
+  #   trust, works on CI. Requires the trusted-signing-cli tool installed
+  #   on the build agent (or use the official GitHub Action).
+  #   1. npm i -D @electron/notarize  # for cross-OS support
+  #   2. Install Azure CLI + sign in: `az login`
+  #   3. Set env vars from your Trusted Signing account:
+  #        AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET
+  #        TRUSTED_SIGNING_ENDPOINT (e.g. https://eus.codesigning.azure.net)
+  #        TRUSTED_SIGNING_ACCOUNT_NAME
+  #        TRUSTED_SIGNING_CERT_PROFILE_NAME
+  # sign: ./scripts/sign-windows.js   # custom signer that calls trusted-signing-cli
+  # signingHashAlgorithms:
+  #   - sha256
+
 nsis:
   oneClick: true
   perMachine: false
   allowToChangeInstallationDirectory: false
   artifactName: "Grindly-Setup-${version}.exe"
+
+# ─────────────────────────────────────────────────────────────────────────
+# macOS BUILD
+# ─────────────────────────────────────────────────────────────────────────
 mac:
   icon: assets/icon.png
   target:
@@ -30,11 +74,29 @@ mac:
         - x64
         - arm64
   category: public.app-category.productivity
+  # ── Code signing & notarization (currently DISABLED) ─────────────────────
+  # When you join the Apple Developer Program ($99/year), uncomment the
+  # block below and provide the env vars listed.
+  #
+  # Required env vars (set in CI / .env.local, NEVER commit):
+  #   APPLE_ID                — your Apple Developer email
+  #   APPLE_APP_SPECIFIC_PASSWORD  — created at appleid.apple.com → App-Specific Passwords
+  #   APPLE_TEAM_ID           — 10-char team ID from developer.apple.com
+  #   CSC_LINK                — base64 of your Developer ID .p12, or path to file
+  #   CSC_KEY_PASSWORD        — .p12 export password
+  #
+  # hardenedRuntime: true
+  # gatekeeperAssess: false
+  # entitlements: build/entitlements.mac.plist
+  # entitlementsInherit: build/entitlements.mac.plist
+  # notarize:
+  #   teamId: ${env.APPLE_TEAM_ID}
   hardenedRuntime: false
   gatekeeperAssess: false
   extraResources:
     - from: dist/macos-tracker
       to: macos-tracker
+
 dmg:
   title: "Grindly ${version}"
   artifactName: "Grindly-${version}.dmg"
@@ -42,7 +104,12 @@ dmg:
   window:
     width: 540
     height: 380
+
+# Master switch — flip to true ONLY after the Win/Mac signing blocks above
+# are uncommented and the cert/credentials are wired up. Until then it stays
+# false so unsigned builds still produce an installer.
 forceCodeSigning: false
+
 publish:
   provider: github
   owner: borissharikoff-droid
